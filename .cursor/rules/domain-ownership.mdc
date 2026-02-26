@@ -1,0 +1,24 @@
+---
+description: Keep app.inthecircle.co only on inthecircle-web to prevent wrong app from loading
+alwaysApply: true
+---
+
+# Domain Ownership Rule
+
+**app.inthecircle.co must be attached only to the Vercel project inthecircle-web.** If another project (e.g. "inthecircle") has this domain, visitors see that project's app — different design, different site.
+
+## Do
+
+- Before adding or changing domains, run `npm run verify-domain` (requires VERCEL_TOKEN or `vercel login`).
+- **Production deploys** happen by pushing to **`main`** (Git-based). Do not run `vercel deploy --prod` for normal releases.
+- If adding a domain in Vercel, add it only to **inthecircle-web**; never add app.inthecircle.co to another project.
+
+## If domain is on the wrong project
+
+Run `./scripts/move-domain-to-inthecircle-web.sh` (requires VERCEL_TOKEN), or in Vercel Dashboard remove app.inthecircle.co from the other project and ensure it is on inthecircle-web.
+
+## See
+
+- `DEPLOYMENT.md` — "Rule: one domain, one project" and Git-based deployment.
+- `scripts/verify-domain-ownership.mjs` — verification script.
+- `docs/GIT_VERCEL_MIGRATION.md` — migration to Git-based production.

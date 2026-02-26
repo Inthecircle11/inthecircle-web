@@ -1,0 +1,20 @@
+import type { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/constants";
+
+/** Public pages we want indexed for app-related searches. */
+const publicPaths = [
+  "",
+  "/login",
+  "/signup",
+  "/forgot-password",
+];
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  const lastModified = new Date();
+  return publicPaths.map((path) => ({
+    url: `${SITE_URL}${path}`,
+    lastModified,
+    changeFrequency: path === "" ? "weekly" : "monthly" as const,
+    priority: path === "" ? 1 : 0.8,
+  }));
+}

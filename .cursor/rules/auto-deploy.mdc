@@ -1,0 +1,25 @@
+---
+description: Automatically deploy to Vercel after making changes
+alwaysApply: true
+---
+
+# Auto-Deploy Rule
+
+Production is deployed **via Git**: push (or merge) to **`main`** triggers a Vercel production deployment. Do **not** run `vercel deploy --prod` for normal releases.
+
+## When to “Deploy”
+
+After completing code changes that should go live:
+
+- **Normal flow:** Ensure changes are committed and pushed to **`main`** (or merged to `main`). Vercel will build and deploy automatically. No CLI deploy needed.
+- If the user explicitly says "don't deploy" or "no deployment", do not remind them to push.
+
+## When to Skip
+
+- If changes are only to documentation, comments, or non-functional files and the user hasn't requested deployment.
+- If the build fails (fix errors first, then push).
+
+## Preview / Emergency
+
+- **Preview deploy (no production):** `npm run preview` or `vercel` from project root.
+- **Emergency production from CLI:** Only if Git is unavailable. Run `vercel deploy --prod` from project root, or `npm run one-time-fix` (runs domain check then deploys).

@@ -1,0 +1,4 @@
+# Block admin paths from indexing (obscure path is not listed so it stays unguessable)
+User-agent: *
+Disallow: /admin
+Disallow: /admin/

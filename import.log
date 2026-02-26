@@ -1,0 +1,8 @@
+Reading CSV: /Users/ahmedkhalifa/Library/Mobile Documents/com~apple~CloudDocs/site_2148378363_contacts_d6f5dcff-eb05-4d61-aaf4-65226e9c4ab2_complete.csv
+Rows in CSV: 2853
+Unique emails to process: 2853
+Batch limit: 200 new users per run
+Loading existing profiles (email -> id)...
+Existing profiles: 78
+s (existing) ismailthedesigner@gmail.com  — 2852 left
+s (existing) saja.alhareedi@gmail.com  — 2851 left

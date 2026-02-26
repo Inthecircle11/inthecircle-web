@@ -1,0 +1,646 @@
+@import "tailwindcss";
+
+/* inthecircle design system - matches iOS AppTheme exactly */
+:root {
+  /* Surfaces - dark mode default (matching iOS dark mode) */
+  --bg: #000000;
+  --bg-elevated: #0a0a0a;
+  --surface: rgba(255,255,255,0.10);
+  --surface-hover: rgba(255,255,255,0.15);
+  --elevated-surface: rgba(255,255,255,0.15);
+  
+  /* Brand - monochrome in dark mode like iOS */
+  --accent: #ffffff;
+  --accent-alt: rgba(255,255,255,0.85);
+  --accent-purple: #6366F1;
+  --accent-purple-alt: #8B5CF6;
+  
+  /* Premium gold (for key actions like Connect) */
+  --premium-gold: #F59E0B;
+  --premium-gold-light: #FBBF24;
+  --premium-gold-bright: #FCD34D;
+  
+  /* Text - high contrast in dark mode */
+  --text: #ffffff;
+  --text-secondary: rgba(255,255,255,0.75);
+  --text-tertiary: rgba(255,255,255,0.72);
+  --text-muted: rgba(255,255,255,0.65);
+  
+  /* System */
+  --border: rgba(255,255,255,0.20);
+  --border-strong: rgba(255,255,255,0.25);
+  --separator: rgba(255,255,255,0.20);
+  --input-bg: rgba(255,255,255,0.12);
+  
+  /* Status colors */
+  --success: #4ADE80;
+  --error: #FF6B6B;
+  --warning: #FFB84D;
+  --destructive: #FF6B6B;
+  --verified: #3b82f6;
+  --online: #4ADE80;
+  
+  /* Gradients - matches iOS nicheMessageGradient default */
+  --gradient-start: #6366F1;
+  --gradient-end: #8B5CF6;
+  
+  /* Premium dark surfaces */
+  --premium-dark: #0A0A0C;
+  --premium-surface: #141418;
+  --premium-elevated: #1C1C22;
+  --premium-glass: rgba(255,255,255,0.06);
+  --premium-glass-border: rgba(255,255,255,0.12);
+  
+  /* Spacing - matches iOS AppTheme.Spacing */
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-xxl: 48px;
+  
+  /* Radii - matches iOS AppTheme.Radii */
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 26px;
+  
+  /* Button specific */
+  --button-text-on-accent: #000000;
+  
+  /* Shadows – layered for depth */
+  --shadow: 0 4px 6px -1px rgba(0,0,0,0.2), 0 10px 20px -4px rgba(0,0,0,0.35);
+  --shadow-soft: 0 2px 8px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.15);
+  --shadow-card: 0 4px 12px rgba(0,0,0,0.25), 0 12px 28px -8px rgba(0,0,0,0.4);
+  --shadow-card-hover: 0 8px 24px rgba(0,0,0,0.3), 0 16px 40px -12px rgba(0,0,0,0.45);
+  --shadow-button: 0 2px 6px rgba(0,0,0,0.25), 0 4px 12px rgba(99,102,241,0.2);
+  --shadow-glow-purple: 0 0 24px -4px rgba(99,102,241,0.35), 0 0 48px -8px rgba(139,92,246,0.2);
+  
+  /* Tab bar */
+  --tab-bar-height: 60px;
+  --tab-bar-total-height: 94px;
+
+  /* Motion – smooth, consistent UX */
+  --motion-duration-fast: 150ms;
+  --motion-duration-normal: 280ms;
+  --motion-duration-slow: 400ms;
+  --ease-smooth: cubic-bezier(0.33, 1, 0.68, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+}
+
+/* Light mode overrides (iOS adaptive colors) */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #ffffff;
+    --bg-elevated: #f5f5f5;
+    --surface: rgba(0,0,0,0.04);
+    --surface-hover: rgba(0,0,0,0.06);
+    --elevated-surface: rgba(0,0,0,0.06);
+    
+    --accent: #000000;
+    --accent-alt: rgba(0,0,0,0.80);
+    
+    --text: #000000;
+    --text-secondary: rgba(0,0,0,0.55);
+    --text-tertiary: rgba(0,0,0,0.40);
+    --text-muted: rgba(0,0,0,0.50);
+    
+    --border: rgba(0,0,0,0.12);
+    --border-strong: rgba(0,0,0,0.15);
+    --separator: rgba(0,0,0,0.12);
+    --input-bg: rgba(0,0,0,0.04);
+    
+    --button-text-on-accent: #ffffff;
+    
+    --shadow: 0 4px 6px -1px rgba(0,0,0,0.06), 0 10px 20px -4px rgba(0,0,0,0.08);
+    --shadow-soft: 0 2px 8px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04);
+    --shadow-card: 0 4px 12px rgba(0,0,0,0.06), 0 12px 28px -8px rgba(0,0,0,0.08);
+    --shadow-card-hover: 0 8px 24px rgba(0,0,0,0.08), 0 16px 40px -12px rgba(0,0,0,0.1);
+    --shadow-button: 0 2px 6px rgba(0,0,0,0.06), 0 4px 12px rgba(99,102,241,0.15);
+    --shadow-glow-purple: 0 0 24px -4px rgba(99,102,241,0.2), 0 0 48px -8px rgba(139,92,246,0.15);
+    
+    --premium-glass: rgba(0,0,0,0.04);
+    --premium-glass-border: rgba(0,0,0,0.08);
+  }
+}
+
+/* Respect reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-fast: 0.01ms;
+    --motion-duration-normal: 0.01ms;
+    --motion-duration-slow: 0.01ms;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'rlig' 1, 'calt' 1;
+  line-height: 1.5;
+}
+
+/* Safe area for notched devices */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Tap highlight removal + faster touch response (removes 300ms delay on mobile) */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+a,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+/* Focus styles - using accent purple for accessibility */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent-purple);
+  outline-offset: 2px;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+/* Hide scrollbar but keep scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Card style - matches iOS cardStyle() */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+}
+.card-interactive {
+  background: var(--surface);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  transition: box-shadow var(--motion-duration-normal) var(--ease-smooth), border-color var(--motion-duration-normal) var(--ease-smooth), transform var(--motion-duration-fast) var(--ease-smooth);
+}
+.card-interactive:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-card-hover);
+}
+.card-interactive:active {
+  transform: scale(0.995);
+}
+
+/* Premium card with glass effect */
+.card-premium {
+  background: var(--premium-glass);
+  border: 1px solid var(--premium-glass-border);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Gradient text - using purple accent with subtle glow */
+.gradient-text {
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-purple-alt));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
+}
+.gradient-text-hero {
+  background: linear-gradient(135deg, #818cf8 0%, var(--accent-purple) 40%, var(--accent-purple-alt) 70%, #c084fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+}
+
+/* Primary button - matches iOS OnboardingPrimaryButton */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 24px;
+  font-weight: 600;
+  font-size: 16px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--button-text-on-accent);
+  border: none;
+  transition: transform var(--motion-duration-fast) var(--ease-smooth), opacity var(--motion-duration-fast) var(--ease-smooth), box-shadow var(--motion-duration-fast) var(--ease-smooth);
+  box-shadow: var(--shadow-button);
+}
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.95;
+}
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Gradient button - purple accent gradient */
+.btn-gradient {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-purple-alt));
+  color: white;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  transition: transform var(--motion-duration-fast) var(--ease-smooth), opacity var(--motion-duration-fast) var(--ease-smooth), box-shadow var(--motion-duration-fast) var(--ease-smooth);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+.btn-gradient:hover {
+  opacity: 0.95;
+}
+.btn-gradient:active {
+  transform: scale(0.96);
+}
+
+/* Gold button - for premium actions like Connect */
+.btn-gold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--premium-gold), var(--premium-gold-light), var(--premium-gold-bright));
+  color: #000000;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  transition: transform var(--motion-duration-fast) var(--ease-smooth), opacity var(--motion-duration-fast) var(--ease-smooth), box-shadow var(--motion-duration-fast) var(--ease-smooth);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+.btn-gold:hover {
+  opacity: 0.95;
+}
+.btn-gold:active {
+  transform: scale(0.96);
+}
+
+/* Secondary button - matches iOS SecondaryButton */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 24px;
+  font-weight: 600;
+  font-size: 16px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--separator);
+  transition: transform var(--motion-duration-fast) var(--ease-smooth), background-color var(--motion-duration-fast) var(--ease-smooth), border-color var(--motion-duration-fast) var(--ease-smooth);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+.btn-secondary:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* Input field - matches iOS inputFieldStyle() */
+.input-field {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  background: var(--input-bg);
+  color: var(--text);
+  transition: border-color var(--motion-duration-normal) var(--ease-smooth), box-shadow var(--motion-duration-normal) var(--ease-smooth);
+}
+.input-field:focus {
+  outline: none;
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+.input-field::placeholder {
+  color: var(--text-muted);
+}
+
+/* Segmented control - matches iOS SegmentedControl */
+.segmented-control {
+  display: flex;
+  padding: 5px;
+  background: var(--surface);
+  border-radius: 14px;
+  gap: 4px;
+  border: 1px solid var(--separator);
+}
+.segmented-control button,
+.segmented-control a {
+  flex: 1;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  background: transparent;
+  transition: background-color var(--motion-duration-normal) var(--ease-smooth), color var(--motion-duration-normal) var(--ease-smooth), box-shadow var(--motion-duration-fast) var(--ease-smooth);
+  text-align: center;
+  text-decoration: none;
+}
+.segmented-control button.active,
+.segmented-control a.active {
+  background: var(--accent);
+  color: var(--button-text-on-accent);
+  font-weight: 600;
+  box-shadow: var(--shadow-soft);
+}
+.segmented-control button:not(.active):hover,
+.segmented-control a:not(.active):hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+/* Pill/Tag style - matches iOS Pill */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--separator);
+  border-radius: 9999px;
+}
+
+/* Niche badge with gradient background */
+.niche-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-purple-alt));
+  border-radius: 9999px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+/* Avatar with gradient ring - matches iOS ProfileAvatarView */
+.avatar-ring {
+  position: relative;
+  padding: 5px;
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-purple-alt));
+  border-radius: 9999px;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+}
+.avatar-ring img,
+.avatar-ring .avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  object-fit: cover;
+  background: var(--bg);
+}
+
+/* Shimmer loading effect - matches iOS ShimmerEffect */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+}
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+/* Page fade-in animation */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in var(--motion-duration-normal) var(--ease-smooth) both;
+}
+
+/* Page enter – soft fade + slide for route changes */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-page-enter {
+  animation: page-enter var(--motion-duration-normal) var(--ease-smooth) both;
+}
+
+/* Fade-in-up for list items – use with animation-delay for stagger */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fade-in-up var(--motion-duration-normal) var(--ease-smooth) both;
+}
+
+/* Sheet slide-up animation */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slide-up var(--motion-duration-normal) var(--ease-smooth) both;
+}
+
+/* Modal scale-in animation */
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-scale-in {
+  animation: scale-in var(--motion-duration-fast) var(--ease-spring) both;
+}
+
+/* Spring scale animation for buttons */
+@keyframes press {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.96); }
+}
+.animate-press {
+  animation: press var(--motion-duration-fast) var(--ease-smooth);
+}
+
+/* Interactive card/block – smooth hover/active */
+.transition-smooth {
+  transition: transform var(--motion-duration-fast) var(--ease-smooth), opacity var(--motion-duration-fast) var(--ease-smooth), background-color var(--motion-duration-fast) var(--ease-smooth), border-color var(--motion-duration-fast) var(--ease-smooth), box-shadow var(--motion-duration-fast) var(--ease-smooth);
+}
+
+/* Desktop app container */
+.container-app {
+  width: 100%;
+  max-width: 36rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--space-md);
+  padding-right: var(--space-md);
+}
+@media (min-width: 768px) {
+  .container-app {
+    max-width: 42rem;
+    padding-left: var(--space-lg);
+    padding-right: var(--space-lg);
+  }
+}
+@media (min-width: 1024px) {
+  .container-app {
+    max-width: 56rem;
+  }
+}
+
+/* Typography classes matching iOS AppTheme.Typography */
+.text-display { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+.text-title { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.text-headline { font-size: 17px; font-weight: 600; }
+.text-body { font-size: 15px; font-weight: 400; }
+.text-callout { font-size: 16px; font-weight: 500; }
+.text-subheadline { font-size: 16px; font-weight: 600; }
+.text-footnote { font-size: 13px; font-weight: 500; }
+.text-caption { font-size: 12px; font-weight: 500; }
+.text-small { font-size: 11px; font-weight: 500; }
+
+/* Premium typography */
+.text-premium-display { font-size: 36px; font-weight: 700; letter-spacing: -0.02em; }
+.text-premium-title { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; }
+.text-premium-subtitle { font-size: 18px; font-weight: 600; }
+
+/* Decorative glow effects - matches iOS AuthView */
+.glow-white {
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.glow-purple {
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* Glass background effect */
+.glass-bg {
+  background: var(--premium-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--premium-glass-border);
+}
+
+/* Toast notification */
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--separator);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+}
+
+/* Verified badge */
+.verified-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--verified);
+}
+
+/* Online indicator */
+.online-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--online);
+}
+
+/* Activity dot colors */
+.activity-dot-online { background: var(--online); }
+.activity-dot-today { background: #F59E0B; }
+.activity-dot-inactive { background: var(--text-tertiary); }
+
+/* Skip link - visually hidden until focused (accessibility) */
+.skip-link {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  z-index: 100;
+}
+.skip-link:focus {
+  position: absolute;
+  left: 1rem;
+  top: 1rem;
+  width: auto;
+  height: auto;
+  padding: 0.75rem 1rem;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  background: var(--accent-purple);
+  color: white;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  outline: 2px solid white;
+  outline-offset: 2px;
+  text-decoration: none;
+}/* Hide duplicate logo in page content */
+.app-content [data-app-logo],
+.app-content .gradient-text:first-of-type {
+  display: none !important;
+}
