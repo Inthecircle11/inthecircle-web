@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 // Fail production build on Vercel if ADMIN_BASE_PATH is not set (required for header rules and security).
 if (process.env.VERCEL === "1" && !process.env.ADMIN_BASE_PATH?.trim()) {
@@ -57,8 +58,16 @@ const nextConfig: NextConfig = {
   // Build fingerprint for admin observability (commit SHA or timestamp).
   env: {
     BUILD_TIMESTAMP: new Date().toISOString(),
+    // Expose DSN to client only at build time (SENTRY_DSN set in Vercel env; do not commit).
+    NEXT_PUBLIC_SENTRY_DSN: process.env.SENTRY_DSN ?? "",
   },
 };
 
-export default nextConfig;
+const sentryOptions = {
+  org: "inthecircle",
+  project: "inthecircle-web",
+  silent: !process.env.CI,
+};
+
+export default withSentryConfig(nextConfig, sentryOptions);
 

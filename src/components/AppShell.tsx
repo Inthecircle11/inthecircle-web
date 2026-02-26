@@ -103,7 +103,18 @@ export default function AppShell({
   async function checkAuth() {
     const supabase = createClient()
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session }, error } = await supabase.auth.getSession()
+
+      // Invalid or missing refresh token: clear session and treat as logged out
+      if (error && (error.message?.includes('Refresh Token') || error.message?.includes('refresh_token'))) {
+        await supabase.auth.signOut()
+        setUser(null)
+        setProfile(null)
+        if (!isPublicRoute && !isAdminRoute) {
+          router.push('/signup')
+        }
+        return
+      }
 
       if (!session?.user) {
         setUser(null)
@@ -138,6 +149,16 @@ export default function AppShell({
       loadUnreadCount(authUser.id)
     } catch (err) {
       console.error('[AppShell] checkAuth error:', err)
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('Refresh Token') || msg.includes('refresh_token')) {
+        const supabase = createClient()
+        await supabase.auth.signOut()
+        setUser(null)
+        setProfile(null)
+        if (!isPublicRoute && !isAdminRoute) {
+          router.push('/signup')
+        }
+      }
       // Don't leave user stuck on Loading; they can retry or sign out
     } finally {
       setLoading(false)

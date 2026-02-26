@@ -66,6 +66,37 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). Use `.env.local` for local env vars (see `.env.example`).
 
+## Required environment variables
+
+Set these in **Vercel** (Production / Preview) or in **`.env.local`** for local dev. Do **not** commit secrets.
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key |
+| `ADMIN_BASE_PATH` | Yes (production) | Obscure path for admin (e.g. a random string). Set in Vercel → Settings → Environment Variables. |
+| `SENTRY_DSN` | No (production monitoring) | Sentry DSN for error reporting. If set in production, unhandled errors are reported. Omit or leave empty to disable. |
+
+## Health check
+
+A health endpoint is available for load balancers and monitoring:
+
+- **URL:** `GET /api/health`
+- **Response:** `200` with JSON `{ "status": "ok", "version": "<VERCEL_GIT_COMMIT_SHA or unknown>" }`
+- **Auth:** None; safe to call from external checks.
+
+**Test locally:**
+```bash
+curl -s http://localhost:3000/api/health
+# Expect: {"status":"ok","version":"unknown"}
+```
+
+**Test in production:**
+```bash
+curl -s https://app.inthecircle.co/api/health
+# Expect: {"status":"ok","version":"<commit-sha>"}
+```
+
 ## Scripts
 
 | Command           | Description                                      |
