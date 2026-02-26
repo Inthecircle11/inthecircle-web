@@ -338,6 +338,7 @@ function useModalFocusTrap(dialogRef: React.RefObject<HTMLElement | null>, onClo
     }
     el.addEventListener('keydown', handleKey)
     return () => el.removeEventListener('keydown', handleKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose])
   return useCallback(() => {
     savedFocusRef.current?.focus()
@@ -604,6 +605,7 @@ export default function AdminPanel() {
   useEffect(() => {
     if (gateUnlocked !== true) return
     checkAdminAccess()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gateUnlocked])
 
   // Deployment identity check: ensure we're on inthecircle-web (not wrong project)
@@ -709,6 +711,7 @@ export default function AdminPanel() {
       supabase.removeChannel(threadsChannel)
       console.log('🔌 Real-time sync disconnected')
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authorized])
 
   // Gate: check if password screen is needed (optional ADMIN_GATE_PASSWORD)
@@ -1124,13 +1127,8 @@ export default function AdminPanel() {
       setRefreshing(false)
       setLastRefreshed(new Date())
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appSort, appAssignmentFilter, applicationsPage, activeTab, handle403])
-
-  // Lazy-load tab data when switching to a non-overview tab (overview tab is loaded by initial loadData())
-  useEffect(() => {
-    if (!authorized || activeTab === 'overview') return
-    loadData(undefined, { skipOverview: true })
-  }, [activeTab, authorized, loadData])
 
   // When role changes, if current tab is no longer visible, switch to first visible tab (Phase 11)
   useEffect(() => {
@@ -1140,6 +1138,12 @@ export default function AdminPanel() {
     )
     if (visibleIds.length && !visibleIds.includes(activeTab)) setActiveTab(visibleIds[0])
   }, [authorized, adminRoles, activeTab])
+
+  // Lazy-load tab data when switching to a non-overview tab (overview tab is loaded by initial loadData())
+  useEffect(() => {
+    if (!authorized || activeTab === 'overview') return
+    loadData(undefined, { skipOverview: true })
+  }, [activeTab, authorized, loadData])
 
   // Log admin action for audit trail (fire-and-forget). Pass reason for destructive actions.
   async function logAudit(
@@ -1395,6 +1399,7 @@ export default function AdminPanel() {
     if (activeTab === 'approvals') loadApprovals()
     if (activeTab === 'compliance') loadCompliance()
     if (activeTab === 'inbox' && currentUserId) loadInbox()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authorized, activeTab, currentUserId, loadInbox])
 
   // Fetch governance score for sidebar badge after a delay (keeps initial load fast)
@@ -1932,7 +1937,7 @@ export default function AdminPanel() {
   const thisWeekSignups = signupsByWeek[signupsByWeek.length - 1]?.count ?? 0
   const growthRateWoW = lastWeekSignups > 0 ? Math.round(((thisWeekSignups - lastWeekSignups) / lastWeekSignups) * 100) : (thisWeekSignups > 0 ? 100 : 0)
   const avgMessagesPerUser = totalUsers > 0 ? (totalMessages / totalUsers).toFixed(1) : '0'
-  const usersWithAtLeastOneMessage = totalThreads > 0 ? '—' : '0'
+  const _usersWithAtLeastOneMessage = totalThreads > 0 ? '—' : '0'
   const applicationsApprovedLast7d = overviewCounts?.applicationsApprovedLast7d ?? applications.filter(a => {
     const status = (a.status || '').toUpperCase()
     if (status !== 'ACTIVE') return false
@@ -3058,7 +3063,7 @@ function OverviewTab({
       <div className="rounded-2xl bg-[var(--surface)] border border-[var(--separator)] p-4 md:p-6 shadow-[var(--shadow-soft)]">
         <h3 className="text-lg font-semibold text-[var(--text)] mb-4">12-week signup growth</h3>
         <div className="h-64 flex items-end gap-1">
-          {signupsByWeek.map((w, i) => (
+          {signupsByWeek.map((w, _i) => (
             <div key={w.label} className="flex-1 flex flex-col items-center gap-1">
               <div
                 className="w-full rounded-t bg-[var(--accent-purple)]/80 hover:bg-[var(--accent-purple)] transition-colors min-h-[4px]"
@@ -3238,7 +3243,7 @@ function DashboardTab({
           User signups · Last 7 days
         </h3>
         <div className="flex items-end gap-2 h-24">
-          {signupsByDay.map((day, i) => (
+          {signupsByDay.map((day, _i) => (
             <div key={day.label} className="flex-1 flex flex-col items-center gap-1">
               <div 
                 className="w-full rounded-t-md min-h-[4px] transition-all duration-300"
@@ -3495,7 +3500,7 @@ function DashboardTab({
 // ============================================
 
 function ApplicationsTab({
-  applications, allApplications, stats, filter, setFilter, getFilterCount,
+  applications, allApplications: _allApplications, stats: _stats, filter, setFilter, getFilterCount,
   onStatusFilterChange,
   appSearch, setAppSearch, appSort, appAssignmentFilter, onSortFilterChange,
   applicationsTotal, applicationsPage, applicationsPageSize, onApplicationsPageChange,
@@ -3955,6 +3960,7 @@ function ReportsTab({
   useEffect(() => {
     if (!didMountRef.current) { didMountRef.current = true; return }
     onRefresh({ sort, filter: assignmentFilter, status: reportFilter === 'all' ? undefined : reportFilter })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sort, assignmentFilter, reportFilter])
 
   return (
@@ -5335,7 +5341,7 @@ function ConversationRow({
 }
 
 function ConversationModal({
-  conversation, onClose, currentUserId, senderProfiles
+  conversation, onClose, currentUserId: _currentUserId, senderProfiles
 }: {
   conversation: ConversationDisplay
   onClose: () => void
@@ -5405,6 +5411,7 @@ function ConversationModal({
                     {msg.media_url && (
                       <div className="mb-2">
                         {msg.media_type?.startsWith('image') ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
                           <img 
                             src={msg.media_url} 
                             alt="Media" 
@@ -5459,7 +5466,7 @@ function ConversationModal({
 // SKELETON LOADERS (enterprise-style)
 // ============================================
 
-function AdminSkeletonCard() {
+function _AdminSkeletonCard() {
   return (
     <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-2xl p-5 shadow-[var(--shadow-soft)] animate-pulse">
       <div className="w-10 h-10 rounded-full bg-[var(--surface-hover)] mb-3" />
@@ -5518,7 +5525,7 @@ function StatCard({ title, value, icon, color, trend }: {
   )
 }
 
-function MiniStat({ title, value, color }: { title: string; value: number; color: string }) {
+function _MiniStat({ title, value, color }: { title: string; value: number; color: string }) {
   return (
     <div className="bg-[var(--surface)] border border-[var(--separator)] px-4 py-3 rounded-xl flex-shrink-0">
       <p className="text-xs text-[var(--text-secondary)]">{title}</p>
@@ -5566,6 +5573,7 @@ function QuickAction({ icon, label, onClick }: { icon: string; label: string; on
 function Avatar({ url, name, size }: { url: string | null; name: string; size: number }) {
   if (url) {
     return (
+      /* eslint-disable-next-line @next/next/no-img-element */
       <img 
         src={url} 
         alt={name}
@@ -5589,7 +5597,7 @@ function ApplicationCard({
   onApprove,
   onReject,
   onWaitlist,
-  onSuspend,
+  onSuspend: _onSuspend,
   onViewDetails,
   isLoading,
   canAct = true,
@@ -5705,7 +5713,7 @@ function ApplicationDetailModal({
   canActReason?: string
 }) {
   const statusUpper = (app.status || '').toUpperCase()
-  const isPending = ['SUBMITTED', 'PENDING_REVIEW', 'DRAFT', 'PENDING'].includes(statusUpper)
+  const _isPending = ['SUBMITTED', 'PENDING_REVIEW', 'DRAFT', 'PENDING'].includes(statusUpper)
   const dialogRef = useRef<HTMLDivElement>(null)
   const handleClose = useModalFocusTrap(dialogRef, onClose)
   return (

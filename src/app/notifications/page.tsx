@@ -227,6 +227,7 @@ export default function NotificationsPage() {
                   {/* Actor avatar or icon */}
                   <div className="relative flex-shrink-0">
                     {notification.actor_avatar_url ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         src={notification.actor_avatar_url}
                         alt={notification.actor_name || 'User'}

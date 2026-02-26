@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     userIds.add(b.blocked_id)
   })
 
-  let profiles: Record<string, { username: string | null; name: string | null }> = {}
+  const profiles: Record<string, { username: string | null; name: string | null }> = {}
   if (userIds.size > 0) {
     const { data: profData } = await supabase
       .from('profiles')

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
@@ -25,15 +25,7 @@ export default function BlockedUsersPage() {
   const [loading, setLoading] = useState(true)
   const [unblocking, setUnblocking] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!user) {
-      router.push('/signup')
-      return
-    }
-    loadBlockedUsers()
-  }, [user])
-
-  async function loadBlockedUsers() {
+  const loadBlockedUsers = useCallback(async () => {
     if (!user) return
     setLoading(true)
     const supabase = createClient()
@@ -65,7 +57,16 @@ export default function BlockedUsersPage() {
 
     setBlockedUsers(transformed)
     setLoading(false)
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (!user) {
+      router.push('/signup')
+      return
+    }
+    queueMicrotask(() => loadBlockedUsers())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
 
   async function handleUnblock(blockedUserId: string) {
     if (!user || unblocking) return
@@ -149,6 +150,7 @@ export default function BlockedUsersPage() {
                 {/* Avatar */}
                 <div className="flex-shrink-0">
                   {blocked.profile?.profile_image_url ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={blocked.profile.profile_image_url}
                       alt={blocked.profile.name || 'User'}

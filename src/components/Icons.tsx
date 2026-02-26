@@ -1,7 +1,6 @@
 'use client'
 
 /** Shared icons – 24px default, consistent stroke (1.5) for outline, fill for active. */
-const sizeClass = 'w-6 h-6'
 
 interface IconProps {
   className?: string

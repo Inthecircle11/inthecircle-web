@@ -281,7 +281,7 @@ export default function InboxPage() {
     setSendingMessage(false)
   }
 
-  function handleKeyPress(e: React.KeyboardEvent<HTMLInputElement>) {
+  function _handleKeyPress(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       sendMessage()
@@ -397,6 +397,7 @@ export default function InboxPage() {
                 {/* Avatar */}
                 <div className="relative flex-shrink-0">
                   {convo.otherUserAvatar ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={`${convo.otherUserAvatar}${convo.otherUserAvatar.includes('?') ? '&' : '?'}t=${imageVersion}`}
                       alt={convo.otherUserName}
@@ -454,7 +455,7 @@ export default function InboxPage() {
 // ============================================
 
 function ConversationModal({
-  conversation, onClose, currentUserId, profileMap, imageVersion, onMessageSent
+  conversation, onClose, currentUserId, profileMap: _profileMap, imageVersion, onMessageSent
 }: {
   conversation: Conversation
   onClose: () => void
@@ -522,6 +523,7 @@ function ConversationModal({
         <div className="p-4 border-b border-[var(--separator)] flex items-center justify-between">
           <div className="flex items-center gap-3">
             {conversation.otherUserAvatar ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={`${conversation.otherUserAvatar}${conversation.otherUserAvatar.includes('?') ? '&' : '?'}t=${imageVersion}`}
                 alt={conversation.otherUserName}
@@ -573,6 +575,7 @@ function ConversationModal({
                     {msg.media_url && (
                       <div className="mb-2">
                         {msg.media_type?.startsWith('image') ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
                           <img 
                             src={msg.media_url} 
                             alt="Media" 

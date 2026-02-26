@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   }
 
   const userIds = [...new Set((requests ?? []).map((r: { user_id: string }) => r.user_id))]
-  let profiles: Record<string, { username: string | null; name: string | null; email?: string }> = {}
+  const profiles: Record<string, { username: string | null; name: string | null; email?: string }> = {}
   if (userIds.length > 0) {
     const { data: profData } = await supabase
       .from('profiles')

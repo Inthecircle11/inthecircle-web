@@ -22,7 +22,7 @@ export default function EditProfilePage() {
   const { user, profile, refreshProfile } = useApp()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
-  const [loading, setLoading] = useState(false)
+  const [loading, _setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -224,6 +224,7 @@ export default function EditProfilePage() {
             <div className="relative group">
               <div className="w-28 h-28 rounded-full overflow-hidden bg-[var(--surface)] border-2 border-[var(--separator)]">
                 {displayImage ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={displayImage}
                     alt="Profile"

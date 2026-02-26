@@ -93,7 +93,7 @@ function isValidEmail(email: string): boolean {
 type Step = 'basic' | 'profile' | 'social' | 'complete'
 
 export default function SignUp() {
-  const router = useRouter()
+  const _router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<Step>('basic')

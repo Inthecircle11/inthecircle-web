@@ -67,12 +67,14 @@ export default function UserProfilePage() {
 
   useEffect(() => {
     if (identifier) loadUser()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [identifier])
 
   // Check connection status
   useEffect(() => {
     if (!currentUser || !profile || currentUser.id === profile.id) return
     checkConnectionStatus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, profile?.id])
 
   async function checkConnectionStatus() {
@@ -180,6 +182,7 @@ export default function UserProfilePage() {
       supabase.removeChannel(ch1)
       supabase.removeChannel(ch2)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id])
 
   async function loadUser() {
@@ -303,6 +306,7 @@ export default function UserProfilePage() {
               >
                 <div className="w-full h-full rounded-full bg-[var(--bg)] overflow-hidden">
                   {profile.profile_image_url?.trim() && !avatarError ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={`${profile.profile_image_url}${profile.profile_image_url.includes('?') ? '&' : '?'}t=${imageVersion}`}
                       alt={profile.name || 'Profile'}

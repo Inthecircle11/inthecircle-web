@@ -101,6 +101,7 @@ export default function CreateIntentModal({ isOpen, onClose, onCreated, user, pr
   // Check rate limit when modal opens
   useEffect(() => {
     if (isOpen && user) checkRateLimit()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, user?.id])
 
   if (!isOpen) return null
@@ -157,6 +158,7 @@ export default function CreateIntentModal({ isOpen, onClose, onCreated, user, pr
           <div className="p-5">
             <div className="flex items-start gap-3">
               {profile?.profile_image_url ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={profile.profile_image_url}
                   alt="Your avatar"

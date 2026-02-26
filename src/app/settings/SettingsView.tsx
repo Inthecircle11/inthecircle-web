@@ -73,7 +73,7 @@ export default function SettingsView({ initialSection = null }: { initialSection
   }, [user])
 
   useEffect(() => {
-    if (initialSection && !activeSection) setActiveSection(initialSection)
+    if (initialSection && !activeSection) queueMicrotask(() => setActiveSection(initialSection))
   }, [initialSection, activeSection])
 
   useEffect(() => {
@@ -87,7 +87,7 @@ export default function SettingsView({ initialSection = null }: { initialSection
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'system' | 'dark' | 'light' | null
-    if (savedTheme) setTheme(savedTheme)
+    if (savedTheme) queueMicrotask(() => setTheme(savedTheme))
   }, [])
 
   function handleThemeChange(newTheme: 'system' | 'dark' | 'light') {
@@ -113,7 +113,7 @@ export default function SettingsView({ initialSection = null }: { initialSection
       })
       alert('Your account deletion request has been submitted. You will receive an email confirmation.')
       signOut()
-    } catch (err) {
+    } catch {
       alert('Failed to submit deletion request. Please try again.')
     }
     setLoading(false)
@@ -130,7 +130,7 @@ export default function SettingsView({ initialSection = null }: { initialSection
         status: 'pending',
       })
       alert('Your data download request has been submitted. You will receive an email with your data.')
-    } catch (err) {
+    } catch {
       alert('Failed to submit request. Please try again.')
     }
     setLoading(false)

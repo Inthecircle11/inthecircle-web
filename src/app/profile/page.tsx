@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase'
 import { useApp, profileImageUrl, type ConnectedAccount } from '@/components/AppShell'
@@ -58,9 +58,41 @@ export default function ProfilePage() {
   const [avatarError, setAvatarError] = useState(false)
   const [hasMFA, setHasMFA] = useState<boolean | null>(null)
   const [showMFAEnroll, setShowMFAEnroll] = useState(false)
+  const [now, setNow] = useState(0)
+
+  const loadProfileData = useCallback(async () => {
+    if (!user) return
+    const supabase = createClient()
+    const { data: intentsData } = await supabase
+      .from('intents')
+      .select('id, content, created_at, view_count')
+      .eq('author_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    setIntents(intentsData || [])
+    const { count: connectionCount } = await supabase
+      .from('creator_matches')
+      .select('*', { count: 'exact', head: true })
+      .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`)
+    setStats({
+      posts: intentsData?.length || 0,
+      connections: connectionCount || 0,
+      followers: getTotalFollowers(profile?.connected_accounts ?? null)
+    })
+    setLoading(false)
+  }, [user, profile])
 
   useEffect(() => {
-    if (user) loadProfileData()
+    if (typeof window !== 'undefined') {
+      queueMicrotask(() => setNow(Date.now()))
+      const id = setInterval(() => queueMicrotask(() => setNow(Date.now())), 60000)
+      return () => clearInterval(id)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (user) queueMicrotask(() => loadProfileData())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   useEffect(() => {
@@ -69,9 +101,9 @@ export default function ProfilePage() {
       const supabase = createClient()
       const { data } = await supabase.auth.mfa.listFactors()
       const totpCount = data?.totp?.length ?? 0
-      setHasMFA(totpCount > 0)
+      setTimeout(() => setHasMFA(totpCount > 0), 0)
     }
-    if (user) checkMFA()
+    if (user) queueMicrotask(() => checkMFA())
   }, [user])
 
   // Real-time sync
@@ -104,39 +136,22 @@ export default function ProfilePage() {
       supabase.removeChannel(ch1)
       supabase.removeChannel(ch2)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
-
-  async function loadProfileData() {
-    if (!user) return
-    const supabase = createClient()
-    const { data: intentsData } = await supabase
-      .from('intents')
-      .select('id, content, created_at, view_count')
-      .eq('author_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(50)
-    setIntents(intentsData || [])
-    const { count: connectionCount } = await supabase
-      .from('creator_matches')
-      .select('*', { count: 'exact', head: true })
-      .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`)
-    setStats({
-      posts: intentsData?.length || 0,
-      connections: connectionCount || 0,
-      followers: getTotalFollowers(profile?.connected_accounts ?? null)
-    })
-    setLoading(false)
-  }
 
   useEffect(() => {
     if (profile) {
-      setStats(prev => ({ ...prev, followers: getTotalFollowers(profile.connected_accounts ?? null) }))
-      setAvatarError(false)
+      queueMicrotask(() => {
+        setStats(prev => ({ ...prev, followers: getTotalFollowers(profile.connected_accounts ?? null) }))
+        setAvatarError(false)
+      })
     }
   }, [profile])
 
-  function formatTimeAgo(dateStr: string): string {
-    const s = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+  function formatTimeAgo(dateStr: string, nowMs?: number): string {
+    const t = nowMs ?? 0
+    if (!t) return new Date(dateStr).toLocaleDateString()
+    const s = Math.floor((t - new Date(dateStr).getTime()) / 1000)
     if (s < 60) return 'now'
     if (s < 3600) return `${Math.floor(s / 60)}m`
     if (s < 86400) return `${Math.floor(s / 3600)}h`
@@ -186,6 +201,7 @@ export default function ProfilePage() {
             <div className="relative group">
               <div className="avatar-ring w-[120px] h-[120px]">
                 {profile?.profile_image_url?.trim() && !avatarError ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={profileImageUrl(profile.profile_image_url, profileImageVersion)}
                     alt={profile.name || profile.username || 'Profile'}
@@ -360,7 +376,7 @@ export default function ProfilePage() {
                       {intent.view_count || 0} {(intent.view_count || 0) === 1 ? 'view' : 'views'}
                     </span>
                     <span>·</span>
-                    <span>{formatTimeAgo(intent.created_at)}</span>
+                    <span>{formatTimeAgo(intent.created_at, now)}</span>
                   </div>
                 </article>
               ))

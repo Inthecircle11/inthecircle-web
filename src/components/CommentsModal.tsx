@@ -228,6 +228,7 @@ export default function CommentsModal({
             comments.map(comment => (
               <div key={comment.id} className="flex gap-3">
                 {comment.author_image_url ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={comment.author_image_url}
                     alt={comment.author_name}
@@ -276,6 +277,7 @@ export default function CommentsModal({
         {/* Comment Input */}
         <form onSubmit={handleSubmit} className="p-4 border-t border-[var(--separator)] flex items-center gap-3">
           {profile?.profile_image_url ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={profile.profile_image_url}
               alt="Your avatar"

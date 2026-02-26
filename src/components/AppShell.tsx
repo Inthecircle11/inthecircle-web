@@ -97,6 +97,7 @@ export default function AppShell({
 
   useEffect(() => {
     checkAuth()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function checkAuth() {
@@ -196,6 +197,7 @@ export default function AppShell({
       signingOutRef.current = false
       setSigningOut(false)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Real-time subscriptions: unread count + profile sync (debounced for performance)
@@ -239,6 +241,7 @@ export default function AppShell({
       supabase.removeChannel(ch1)
       supabase.removeChannel(ch2)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   // Show loading state

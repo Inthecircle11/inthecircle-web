@@ -138,7 +138,9 @@ export default function FeedPage() {
     setLoading(false)
   }, [activeFilter, user])
 
-  useEffect(() => { loadFeed() }, [loadFeed])
+  useEffect(() => {
+    queueMicrotask(() => loadFeed())
+  }, [loadFeed])
   
   useEffect(() => {
     const supabase = createClient()

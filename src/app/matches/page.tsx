@@ -125,6 +125,7 @@ export default function MatchesPage() {
                 className="flex items-center gap-4 p-4 rounded-[var(--radius-md)] bg-[var(--surface)] border border-[var(--separator)] hover:border-[var(--border-strong)] transition-all"
               >
                 {match.other_user?.profile_image_url ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={match.other_user.profile_image_url}
                     alt={match.other_user.name || 'Match'}

@@ -158,7 +158,7 @@ export default function ChallengesHub({ embedded, onClose }: ChallengesHubProps)
       setShowJoinModal(false)
       setJoinCode('')
       setActiveTab('my')
-    } catch (err) {
+    } catch {
       setJoiningError('Failed to join challenge')
     }
   }

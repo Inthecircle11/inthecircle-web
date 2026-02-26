@@ -39,6 +39,7 @@ export default function MFAEnroll({ onEnrolled, onCancelled }: MFAEnrollProps) {
       }
     }
     enroll()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleEnable = async (e: React.FormEvent) => {
@@ -108,6 +109,7 @@ export default function MFAEnroll({ onEnrolled, onCancelled }: MFAEnrollProps) {
 
       {qrCode && (
         <div className="flex justify-center p-4 bg-white rounded-xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={qrCode}
             alt="QR code for authenticator"

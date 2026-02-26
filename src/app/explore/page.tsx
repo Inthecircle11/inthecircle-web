@@ -91,7 +91,7 @@ export default function ExplorePage() {
   }, [user, selectedNiche])
 
   useEffect(() => {
-    if (user !== undefined) loadCreators()
+    if (user !== undefined) queueMicrotask(() => loadCreators())
   }, [user, selectedNiche, loadCreators])
 
   // Real-time sync

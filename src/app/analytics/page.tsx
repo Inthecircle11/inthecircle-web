@@ -29,7 +29,7 @@ interface TopViewer {
 }
 
 export default function AnalyticsPage() {
-  const { user, profile } = useApp()
+  const { user, profile: _profile } = useApp()
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('7d')
   const [totals, setTotals] = useState<AnalyticsData>({
     profile_views: 0,
@@ -165,7 +165,7 @@ export default function AnalyticsPage() {
   }, [user, timeRange])
 
   useEffect(() => {
-    if (user) loadAnalytics()
+    if (user) queueMicrotask(() => loadAnalytics())
   }, [user, loadAnalytics])
 
   function getPercentChange(current: number, previous: number): number {
@@ -252,7 +252,7 @@ export default function AnalyticsPage() {
           <h3 className="text-[15px] font-semibold mb-4">Profile Views Over Time</h3>
           {dailyData.length > 0 ? (
             <div className="flex items-end gap-1 h-32">
-              {dailyData.map((d, i) => (
+              {dailyData.map((d, _i) => (
                 <div
                   key={d.date}
                   className="flex-1 bg-[var(--accent-purple)] rounded-t-sm transition-all hover:bg-[var(--accent-purple-alt)]"
@@ -281,6 +281,7 @@ export default function AnalyticsPage() {
                 <div key={viewer.viewer_id} className="flex items-center gap-3">
                   <span className="w-6 text-[var(--text-muted)] text-[13px] text-center">{i + 1}</span>
                   {viewer.viewer_image ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={viewer.viewer_image} alt="" className="w-10 h-10 rounded-full object-cover" />
                   ) : (
                     <div className="w-10 h-10 rounded-full bg-[var(--surface-hover)] flex items-center justify-center text-[var(--text-muted)] font-bold">

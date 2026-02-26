@@ -44,7 +44,7 @@ export default function ConnectPage() {
   const [creators, setCreators] = useState<Creator[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [swipedIds, setSwipedIds] = useState<Set<string>>(new Set())
+  const [_swipedIds, setSwipedIds] = useState<Set<string>>(new Set())
   const [matches, setMatches] = useState<Match[]>([])
   const [selectedNiche, setSelectedNiche] = useState('All')
   const [showMatchModal, setShowMatchModal] = useState<Creator | null>(null)
@@ -271,6 +271,7 @@ export default function ConnectPage() {
               {/* Cover Image or Gradient */}
               <div className="h-[300px] relative overflow-hidden">
                 {currentCreator.profile_image_url ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={currentCreator.profile_image_url}
                     alt={currentCreator.name || 'Creator'}
@@ -357,6 +358,7 @@ export default function ConnectPage() {
                   <div className="mt-4 grid grid-cols-3 gap-2">
                     {currentCreator.work_sample_urls.slice(0, 3).map((url, i) => (
                       <div key={i} className="aspect-square rounded-lg overflow-hidden bg-[var(--surface-hover)]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={url} alt="Work sample" className="w-full h-full object-cover" />
                       </div>
                     ))}

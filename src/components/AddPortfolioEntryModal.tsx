@@ -332,6 +332,7 @@ export default function AddPortfolioEntryModal({ userId, onClose, onAdded }: Add
                       {media.file.type.startsWith('video/') ? (
                         <video src={media.preview} className="w-full h-full object-cover" />
                       ) : (
+                        /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={media.preview} alt="" className="w-full h-full object-cover" />
                       )}
                       <button

@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
     if (r.reporter_id) userIds.add(r.reporter_id as string)
     if (r.reported_user_id) userIds.add(r.reported_user_id as string)
   })
-  let profiles: Record<string, { username: string | null; name: string | null }> = {}
+  const profiles: Record<string, { username: string | null; name: string | null }> = {}
   if (userIds.size > 0) {
     const { data: profData } = await supabase
       .from('profiles')

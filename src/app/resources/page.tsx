@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { useApp } from '@/components/AppShell'
@@ -307,25 +307,26 @@ export default function ResourcesPage() {
   const [noteContent, setNoteContent] = useState('')
   const [savingNote, setSavingNote] = useState(false)
 
-  // Load notes from Supabase
-  useEffect(() => {
-    if (user) loadNotes()
-  }, [user])
-
-  async function loadNotes() {
+  const loadNotes = useCallback(async () => {
     if (!user) return
     setLoadingNotes(true)
     const supabase = createClient()
-    
+
     const { data } = await supabase
       .from('user_notes')
       .select('*')
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
-    
+
     setNotes(data || [])
     setLoadingNotes(false)
-  }
+  }, [user])
+
+  // Load notes from Supabase
+  useEffect(() => {
+    if (user) queueMicrotask(() => loadNotes())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
 
   async function saveNote() {
     if (!user || !noteContent.trim()) return

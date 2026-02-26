@@ -20,7 +20,7 @@ interface RecentSearch {
 }
 
 export default function SearchPage() {
-  const { user } = useApp()
+  const { user: _user } = useApp()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -28,11 +28,10 @@ export default function SearchPage() {
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([])
   const [trending, setTrending] = useState<{ tag: string; count: number }[]>([])
 
-  // Load recent searches from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('recentSearches')
     if (saved) {
-      setRecentSearches(JSON.parse(saved))
+      queueMicrotask(() => setRecentSearches(JSON.parse(saved)))
     }
   }, [])
 
@@ -226,7 +225,7 @@ export default function SearchPage() {
         ) : query ? (
           results.length === 0 ? (
             <div className="text-center py-16">
-              <p className="text-[var(--text-muted)] text-[15px]">No results found for "{query}"</p>
+              <p className="text-[var(--text-muted)] text-[15px]">No results found for &quot;{query}&quot;</p>
             </div>
           ) : (
             <div className="space-y-1">
@@ -238,6 +237,7 @@ export default function SearchPage() {
                 >
                   {result.type === 'user' && (
                     result.image ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={result.image} alt={result.title} className="w-12 h-12 rounded-full object-cover" />
                     ) : (
                       <div className="w-12 h-12 rounded-full bg-[var(--accent-purple)] flex items-center justify-center text-white font-bold">
@@ -247,6 +247,7 @@ export default function SearchPage() {
                   )}
                   {result.type === 'intent' && (
                     result.image ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={result.image} alt="" className="w-12 h-12 rounded-full object-cover" />
                     ) : (
                       <div className="w-12 h-12 rounded-full bg-[var(--surface)] flex items-center justify-center">

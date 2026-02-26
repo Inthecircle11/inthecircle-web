@@ -112,7 +112,6 @@ async function checkCC62(supabase: SupabaseClient): Promise<ControlHealthResult>
     .eq('status', 'open')
   const total = activeCount ?? 0
   const anomalyCount = (anomalies ?? []).length
-  let status: HealthStatus = 'healthy'
   let score = 100
   const notes: string[] = []
   if (total > SESSION_ANOMALY_THRESHOLD * 5) {
@@ -120,7 +119,6 @@ async function checkCC62(supabase: SupabaseClient): Promise<ControlHealthResult>
     notes.push(`High active session count: ${total}`)
   }
   if (anomalyCount > 0) {
-    status = anomalyCount >= 3 ? 'failed' : 'warning'
     score = Math.max(0, score - anomalyCount * 25)
     notes.push(`${anomalyCount} unresolved session_anomaly escalation(s)`)
   }

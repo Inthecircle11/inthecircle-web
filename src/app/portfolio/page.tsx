@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, Fragment } from 'react'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase'
 import { useApp } from '@/components/AppShell'
-import Link from 'next/link'
 
 const AddPortfolioEntryModal = dynamic(() => import('@/components/AddPortfolioEntryModal'), { ssr: false })
 
@@ -61,7 +60,7 @@ const ENTRY_KINDS = [
 ]
 
 export default function PortfolioPage() {
-  const { user, profile } = useApp()
+  const { user, profile: _profile } = useApp()
   const [entries, setEntries] = useState<PortfolioEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedKind, setSelectedKind] = useState('all')
@@ -215,6 +214,7 @@ export default function PortfolioPage() {
                 {/* Cover Media */}
                 {entry.media && entry.media.length > 0 ? (
                   <div className="aspect-video bg-[var(--surface-hover)] overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={entry.media[0].storage_path}
                       alt={entry.title}
@@ -287,6 +287,7 @@ export default function PortfolioPage() {
             {selectedEntry.media && selectedEntry.media.length > 0 && (
               <div className="relative">
                 <div className="aspect-video bg-black">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={selectedEntry.media[0].storage_path}
                     alt={selectedEntry.title}
@@ -296,12 +297,14 @@ export default function PortfolioPage() {
                 {selectedEntry.media.length > 1 && (
                   <div className="flex gap-2 p-4 overflow-x-auto scrollbar-hide">
                     {selectedEntry.media.map((media, i) => (
-                      <img
-                        key={media.id}
-                        src={media.storage_path}
-                        alt={`${selectedEntry.title} ${i + 1}`}
-                        className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
-                      />
+                      <Fragment key={media.id}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={media.storage_path}
+                          alt={`${selectedEntry.title} ${i + 1}`}
+                          className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+                        />
+                      </Fragment>
                     ))}
                   </div>
                 )}
