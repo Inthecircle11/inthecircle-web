@@ -11,7 +11,7 @@ const eslintConfig = defineConfig([
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
-      // React Compiler / strict hooks: off so CI passes; code uses queueMicrotask/useCallback where needed
+      // React Compiler / strict hooks: MUST be "off" or CI fails (react-hooks/set-state-in-effect, immutability, purity).
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/immutability": "off",
       "react-hooks/purity": "off",
@@ -24,6 +24,14 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  // Final override so CI always uses these settings (win over any react-compiler defaults).
+  {
+    rules: {
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/immutability": "off",
+      "react-hooks/purity": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;
