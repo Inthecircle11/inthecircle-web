@@ -88,3 +88,4 @@ Open [http://localhost:3000](http://localhost:3000). Use `.env.local` for local 
 
 **CI:** Pull requests to `main` run lint, typecheck, and build. No secrets required. If the **CI** check fails on lint, run `npm run lint:ci` locally and fix the reported errors.
 <!-- trigger CI -->
+<!-- test CI clean run -->
