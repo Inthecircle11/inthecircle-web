@@ -6,12 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "jest",
+    "test:admin": "jest tests/admin.integration.test.ts --runInBand",
+    "test:guards": "jest tests/guards --runInBand",
+    "test:coverage": "jest --coverage --runInBand",
     "lint": "eslint",
     "lint:ci": "eslint src next.config.ts postcss.config.mjs --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "import-waitlist": "node scripts/import-waitlist-from-csv.mjs",
     "complete-applications": "node scripts/complete-missing-applications.mjs",
     "verify-domain": "node scripts/verify-domain-ownership.mjs",
+    "check:migrations": "node scripts/check-migrations.mjs",
     "preview": "vercel",
     "deploy": "node scripts/deploy.mjs",
     "one-time-fix": "node scripts/one-time-fix-domain-and-deploy.mjs"
@@ -26,6 +31,9 @@
     "resend": "^6.9.3"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

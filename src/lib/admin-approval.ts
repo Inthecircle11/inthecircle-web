@@ -8,6 +8,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { NextRequest } from 'next/server'
 import { writeAuditLog } from './audit-server'
 import type { AuditUser } from './audit-server'
+import { deleteUserById } from './admin-delete-user'
 
 const APPROVAL_EXPIRY_HOURS = 24
 
@@ -96,8 +97,8 @@ export async function executeApprovedAction(
   if (action === 'user_delete') {
     const userId = payload.user_id as string
     if (!userId) return { error: 'user_id missing in payload' }
-    const { error } = await supabase.rpc('admin_delete_user', { p_user_id: userId })
-    return error ? { error: error.message } : { error: null }
+    const outcome = await deleteUserById(supabase, userId)
+    return outcome.error ? { error: outcome.error } : { error: null }
   }
 
   if (action === 'user_anonymize') {
@@ -123,9 +124,12 @@ export async function executeApprovedAction(
   if (action === 'bulk_reject' || action === 'bulk_suspend') {
     const ids = payload.application_ids as string[]
     if (!Array.isArray(ids) || ids.length === 0) return { error: 'application_ids missing in payload' }
-    const rpcName = action === 'bulk_reject' ? 'admin_reject_application' : 'admin_suspend_application'
+    const newStatus = action === 'bulk_reject' ? 'REJECTED' : 'SUSPENDED'
     for (const id of ids) {
-      const { error } = await supabase.rpc(rpcName, { p_application_id: id })
+      const { error } = await supabase
+        .from('applications')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', id)
       if (error) return { error: `${id}: ${error.message}` }
     }
     return { error: null }

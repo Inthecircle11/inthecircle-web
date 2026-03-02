@@ -8,7 +8,7 @@ import { Logo } from '@/components/Logo'
 import { hasPermission, ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import type { AdminPermission } from '@/lib/admin-rbac'
 import AdminProductAnalyticsTab from './ProductAnalyticsTab'
-import { trackAdminEvent, startSession, endSession, ADMIN_EVENTS } from '@/lib/analytics'
+import { trackAdminEvent, startSession, endSessionWithBeacon, ADMIN_EVENTS } from '@/lib/analytics'
 
 // ============================================
 // TYPES - Matching iOS Admin exactly
@@ -734,14 +734,11 @@ export default function AdminPanel() {
     }
   }, [authorized, activeTab])
 
-  // Product analytics: end session on leave
+  // Product analytics: end session on leave (pagehide — not deprecated; beforeunload is deprecated for unload listeners)
   useEffect(() => {
-    const onBeforeUnload = () => endSession('admin')
-    window.addEventListener('beforeunload', onBeforeUnload)
-    return () => {
-      window.removeEventListener('beforeunload', onBeforeUnload)
-      endSession('admin')
-    }
+    const onPageHide = () => endSessionWithBeacon('admin')
+    window.addEventListener('pagehide', onPageHide)
+    return () => window.removeEventListener('pagehide', onPageHide)
   }, [])
 
   // Gate: check if password screen is needed (optional ADMIN_GATE_PASSWORD)
@@ -926,36 +923,34 @@ export default function AdminPanel() {
           const counts = data?.counts && typeof data.counts.pending === 'number' ? data.counts as { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number } : null
           return { apps, total, counts, permissionDenied: false }
         }
-        if (res.status !== 403) {
-          try {
-            const { data } = await supabase.rpc('admin_get_applications')
-            const arr = data || []
-            return { apps: arr, total: arr.length, counts: null, permissionDenied: false }
-          } catch {
-            return { apps: [], total: 0, counts: null, permissionDenied: false }
-          }
-        }
         return { apps: [], total: 0, counts: null, permissionDenied: false }
       } catch (e) {
         console.error('Applications error:', e)
-        try {
-          const { data } = await supabase.rpc('admin_get_applications')
-          const arr = data || []
-          return { apps: arr, total: arr.length, counts: null, permissionDenied: false }
-        } catch {
-          return { apps: [], total: 0, counts: null, permissionDenied: false }
-        }
+        return { apps: [], total: 0, counts: null, permissionDenied: false }
       }
     }
 
     const fetchUsersAndProfiles = async (): Promise<{ users: User[]; profiles: { id: string; location: string | null; niche: string | null }[] }> => {
       try {
-        const { data: usersData } = await supabase.rpc('admin_get_all_users')
-        const users = (usersData || []) as User[]
-        if (users.length === 0) return { users, profiles: [] }
-        const ids = users.map((u) => u.id)
-        const { data: profilesData } = await supabase.from('profiles').select('id, location, niche').in('id', ids)
-        return { users, profiles: (profilesData as { id: string; location: string | null; niche: string | null }[]) || [] }
+        const res = await fetch('/api/admin/users', { credentials: 'include' })
+        if (!res.ok) return { users: [], profiles: [] }
+        const data = await res.json()
+        const users = (data.users || []).map((u: User & { location?: string | null; niche?: string | null }) => ({
+          id: u.id,
+          name: u.name,
+          username: u.username,
+          email: u.email,
+          profile_image_url: u.profile_image_url,
+          is_verified: u.is_verified,
+          is_banned: u.is_banned,
+          created_at: u.created_at,
+        })) as User[]
+        const profiles = (data.users || []).map((u: { id: string; location?: string | null; niche?: string | null }) => ({
+          id: u.id,
+          location: u.location ?? null,
+          niche: u.niche ?? null,
+        }))
+        return { users, profiles }
       } catch (e) {
         console.error('Users error:', e)
         return { users: [], profiles: [] }
@@ -963,12 +958,7 @@ export default function AdminPanel() {
     }
 
     const fetchActiveToday = async (): Promise<number | null> => {
-      try {
-        const { data } = await supabase.rpc('admin_get_active_today_count')
-        return data?.[0]?.active_count ?? null
-      } catch {
-        return null
-      }
+      return null
     }
 
     const fetchActiveSessions = async () => {
@@ -982,15 +972,16 @@ export default function AdminPanel() {
 
     const fetchVerificationActivity = async (): Promise<RecentActivity[]> => {
       try {
-        const { data } = await supabase.rpc('admin_get_recent_verification_activity')
-        if (!data) return []
-        return data.map((item: { status: string; username?: string; reviewed_at: string }, index: number) => ({
-          id: `activity-${index}`,
-          type: item.status === 'approved' ? 'verification_approved' : 'verification_rejected',
-          title: item.status === 'approved' ? 'Verification approved' : 'Verification rejected',
-          subtitle: `@${item.username ?? 'unknown'}`,
-          timestamp: new Date(item.reviewed_at),
-          color: item.status === 'approved' ? '#10B981' : '#EF4444',
+        const res = await fetch('/api/admin/verification-activity', { credentials: 'include' })
+        if (!res.ok) return []
+        const data = await res.json()
+        return (Array.isArray(data) ? data : []).map((item: { id?: string; title: string; subtitle: string; timestamp: string; color: string }, index: number) => ({
+          id: item.id ?? `activity-${index}`,
+          type: item.title?.includes('approved') ? 'verification_approved' : 'verification_rejected',
+          title: item.title ?? '',
+          subtitle: item.subtitle ?? '',
+          timestamp: new Date(item.timestamp),
+          color: item.color ?? '#6B7280',
         }))
       } catch {
         return []
@@ -999,18 +990,16 @@ export default function AdminPanel() {
 
     const fetchPendingVerifications = async () => {
       try {
-        const { data } = await supabase
-          .from('verification_requests')
-          .select('id, user_id, created_at, profiles(username, profile_image_url)')
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
-        if (!data) return []
-        return data.map((v: { id: string; user_id: string; created_at: string; profiles?: { username?: string; profile_image_url?: string } }) => ({
+        const res = await fetch('/api/admin/verification-requests?status=pending', { credentials: 'include' })
+        if (!res.ok) return []
+        const data = await res.json()
+        const requests = data.requests || []
+        return requests.map((v: { id: string; user_id: string; requested_at: string; username?: string; profile_image_url?: string | null }) => ({
           id: v.id,
           user_id: v.user_id,
-          username: v.profiles?.username || 'Unknown',
-          profile_image_url: v.profiles?.profile_image_url,
-          requested_at: v.created_at,
+          username: v.username ?? 'Unknown',
+          profile_image_url: v.profile_image_url ?? undefined,
+          requested_at: v.requested_at,
         }))
       } catch {
         return []
@@ -1670,37 +1659,51 @@ export default function AdminPanel() {
 
   async function toggleVerification(userId: string, currentStatus: boolean) {
     setActionLoading(userId)
-    const supabase = createClient()
-    const { error } = await supabase.rpc('admin_set_verification', { 
-      p_target_user_id: userId, 
-      p_is_verified: !currentStatus 
-    })
-    if (error) setError(`Failed to update verification: ${error.message}`)
-    else {
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ is_verified: !currentStatus }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data?.error || `Failed to update verification`)
+        return
+      }
       await loadData()
       showToast('Verification updated')
       logAudit(currentStatus ? 'verification_remove' : 'verification_set', 'user', userId)
       if (selectedUser?.id === userId) {
         setSelectedUser(prev => prev ? { ...prev, is_verified: !currentStatus } : null)
       }
+    } catch {
+      setError('Failed to update verification')
     }
     setActionLoading(null)
   }
 
   async function toggleBan(userId: string, currentStatus: boolean) {
     setActionLoading(userId)
-    const supabase = createClient()
-    const { error } = await supabase.rpc('admin_set_banned', { 
-      p_target_user_id: userId, 
-      p_is_banned: !currentStatus 
-    })
-    if (error) setError(`Failed to update ban status: ${error.message}`)
-    else {
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/ban`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ is_banned: !currentStatus }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data?.error || `Failed to update ban status`)
+        return
+      }
       await loadData()
       logAudit(currentStatus ? 'user_unban' : 'user_ban', 'user', userId)
       if (selectedUser?.id === userId) {
         setSelectedUser(prev => prev ? { ...prev, is_banned: !currentStatus } : null)
       }
+    } catch {
+      setError('Failed to update ban status')
     }
     setActionLoading(null)
   }
@@ -1743,31 +1746,50 @@ export default function AdminPanel() {
 
   async function approveVerification(userId: string) {
     setActionLoading(userId)
-    const supabase = createClient()
-    const { error } = await supabase.rpc('admin_set_verification', { 
-      p_target_user_id: userId, 
-      p_is_verified: true 
-    })
-    if (error) setError(`Failed to approve verification: ${error.message}`)
-    else {
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ is_verified: true }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data?.error || `Failed to approve verification`)
+        return
+      }
       await loadData()
       logAudit('verification_approve', 'user', userId)
+    } catch {
+      setError('Failed to approve verification')
     }
     setActionLoading(null)
   }
 
   async function rejectVerification(userId: string) {
     setActionLoading(userId)
-    const supabase = createClient()
-    const { error } = await supabase
-      .from('verification_requests')
-      .update({ status: 'rejected', reviewed_at: new Date().toISOString() })
-      .eq('user_id', userId)
-    if (error) setError(`Failed to reject verification: ${error.message}`)
-    else {
+    try {
+      const pending = pendingVerifications.find((p) => p.user_id === userId)
+      if (!pending?.id) {
+        setError('Verification request not found')
+        setActionLoading(null)
+        return
+      }
+      const res = await fetch(`/api/admin/verification-requests/${encodeURIComponent(pending.id)}/reject`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data?.error || `Failed to reject verification`)
+        setActionLoading(null)
+        return
+      }
       await loadData()
       showToast('Verification updated')
       logAudit('verification_reject', 'user', userId)
+    } catch {
+      setError('Failed to reject verification')
     }
     setActionLoading(null)
   }

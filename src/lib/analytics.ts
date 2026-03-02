@@ -105,6 +105,40 @@ function flush(): void {
   })
 }
 
+/**
+ * Flush pending events and end-session payload via sendBeacon (for pagehide/termination).
+ * Use this instead of flush() when the page is being unloaded so the request is reliably sent.
+ */
+function flushWithBeacon(userType: UserType): void {
+  if (flushTimer) {
+    clearTimeout(flushTimer)
+    flushTimer = null
+  }
+  const sessionId = getSessionId()
+  const deviceType = getDeviceType()
+  const appVersion = getAppVersion()
+  const eventName = userType === 'admin' ? ADMIN_EVENTS.admin_session_end : APP_EVENTS.session_end
+  const events = queue.splice(0, BATCH_MAX).map((e) => ({
+    ...e,
+    session_id: sessionId,
+    device_type: deviceType,
+    app_version: appVersion,
+  }))
+  events.push(
+    { event_name: eventName, user_type: userType, metadata: { new_session: false }, session_id: sessionId, device_type: deviceType, app_version: appVersion },
+    { event_name: '_end_session', user_type: userType, metadata: { end: true }, session_id: sessionId, device_type: deviceType, app_version: appVersion }
+  )
+  const body = {
+    events,
+    session_id: sessionId,
+    device_type: deviceType,
+    app_version: appVersion,
+    end_session: true,
+  }
+  const url = typeof window !== 'undefined' && window.location?.origin ? `${window.location.origin}${ENDPOINT}` : ENDPOINT
+  navigator.sendBeacon(url, new Blob([JSON.stringify(body)], { type: 'application/json' }))
+}
+
 function scheduleFlush(): void {
   if (flushTimer) return
   flushTimer = setTimeout(() => {
@@ -179,7 +213,7 @@ export function startSession(userType: UserType): void {
   }
 }
 
-/** Call when user leaves (beforeunload) or after inactivity to end session. */
+/** Call when user leaves (pagehide) or after inactivity to end session. */
 export function endSession(userType: UserType): void {
   if (typeof window === 'undefined') return
   const eventName = userType === 'admin' ? ADMIN_EVENTS.admin_session_end : APP_EVENTS.session_end
@@ -190,6 +224,16 @@ export function endSession(userType: UserType): void {
     metadata: { end: true },
   })
   flush()
+}
+
+/**
+ * End session and send via sendBeacon (for pagehide/visibilitychange).
+ * Use this in pagehide handler so the request is reliably delivered when the tab is closed.
+ * Replaces deprecated beforeunload/unload listeners.
+ */
+export function endSessionWithBeacon(userType: UserType): void {
+  if (typeof window === 'undefined') return
+  flushWithBeacon(userType)
 }
 
 /** Heartbeat: call periodically (e.g. every 5 min) to extend session and optionally send tab time. */

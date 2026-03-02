@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
+import { triggerWelcomeEmailForApplication } from '@/lib/trigger-welcome-email'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,6 +56,9 @@ export async function POST(
         { status: 409 }
       )
     }
+    if (action === 'approve') {
+      void triggerWelcomeEmailForApplication(supabase, applicationId)
+    }
     return NextResponse.json({ ok: true })
   }
 
@@ -70,6 +74,9 @@ export async function POST(
       ? 'Database column missing. Run Supabase migrations (applications.updated_at).'
       : 'Operation failed. Please try again.'
     return NextResponse.json({ error: msg }, { status: 500 })
+  }
+  if (action === 'approve') {
+    void triggerWelcomeEmailForApplication(supabase, applicationId)
   }
   return NextResponse.json({ ok: true })
 }

@@ -1,62 +1,79 @@
-# Console errors – end-to-end fix
+# Console errors – production hardening (root-cause fixes)
 
-This doc covers the errors you see in the browser console on **app.inthecircle.co** and how to fix or ignore them.
-
----
-
-## 1. `GET https://app.inthecircle.co/favicon.ico 404 (Not Found)`
-
-**Cause:** The site had no file at `/favicon.ico`, so the browser’s default request returned 404.
-
-**Fix (done in the repo):**
-- **Static file:** `public/favicon.ico` (copy of logo) is served by Next.js at `/favicon.ico`.
-- **Metadata:** Root layout sets `icons.icon` and `icons.shortcut` to `/favicon.ico` so the correct `<link>` tags are emitted.
-- **Route fallback:** `src/app/favicon.ico/route.ts` serves `public/logo.png` if the static file were missing.
-- **Rewrite:** `next.config.ts` rewrites `/favicon.ico` → `/logo.png` as another fallback.
-
-**What you do after deploy:**
-1. Push to `main` and wait for Vercel to finish deploying (2–5 min).
-2. Hard refresh: **Cmd+Shift+R** (Mac) or **Ctrl+Shift+R** (Windows), or open the site in an **incognito/private** window.
-3. If you still see 404, wait 1–2 minutes (CDN cache) and try again.
+This doc describes the **root-cause fixes** applied so that the following no longer appear (or are not caused by our app) on **https://app.inthecircle.co**.
 
 ---
 
-## 2. `WebSocket connection to 'ws://localhost:8081/' failed` (refresh.js)
+## 1. WebSocket connection to `ws://localhost:8081` failed (refresh.js)
 
-**Cause:** This is **not from the inthecircle-web app**. There is no reference to `refresh.js`, `8081`, `initClient`, or `addRefresh` in the repo or in `node_modules`. The script is injected by a **browser extension** (e.g. “Live Reload”, “Auto Refresh”, React/Redux DevTools, or similar) that tries to connect to a local dev server.
+**Root cause:**  
+- **Not from our app:** There is no `refresh.js`, `8081`, or HMR/WebSocket code in the repo. Production builds do not include Fast Refresh.  
+- The error is typically from a **browser extension** (e.g. Live Reload, React DevTools) that injects a script trying to connect to a local dev server.  
+- If `next dev` were ever run in production, the Next.js dev client would try to connect to `ws://localhost:8081` and cause this error.
 
-**Fix (what you do):**
-- **Option A (recommended):** Open **app.inthecircle.co** in an **incognito/private window** (extensions are usually disabled). The WebSocket error will disappear.
-- **Option B:** Disable extensions one by one, reload, and see which one removes the error; leave that extension off when using the admin panel.
-- **Option C:** Ignore it. It does not affect app behavior or security; it’s just console noise from the extension.
+**Fixes applied (no suppression):**
+- Removed the `SuppressExtensionConsoleError` component that patched `console.error` (no suppressing).
+- Documented in `next.config.ts` that production must use `next build` + `next start` (never `next dev`).
+- Production (Vercel) uses `next build` + `next start`; no dev client is loaded.
 
-We cannot remove or “fix” this in app code because the app does not load that script.
-
----
-
-## 3. `Unload event listeners are deprecated` (frame.js)
-
-**Cause:** Browser deprecation warning. Some script (often from the browser or an extension) uses the `unload` event, which is being phased out. It is not from the inthecircle-web codebase.
-
-**Fix:** None required. Safe to ignore. It will go away when the underlying script is updated by the vendor.
+**If the error still appears:** Use an incognito/private window (extensions disabled) or disable the offending extension. The app does not load any WebSocket to localhost.
 
 ---
 
-## Checklist after each deploy
+## 2. GET /favicon.ico 404
 
-| Step | Action |
-|------|--------|
-| 1 | Push to `main` and wait for Vercel deploy to complete. |
-| 2 | Open **https://app.inthecircle.co** in **incognito** (or hard refresh). |
-| 3 | Check console: favicon should be **200**; WebSocket error should be **gone** in incognito. |
-| 4 | If favicon still 404, wait 1–2 min and try again (cache). |
+**Root cause:**  
+- Browsers request `/favicon.ico` by default. If the app didn’t serve it, the request returned 404.
+
+**Fixes applied:**
+- **Static file:** `public/favicon.ico` is served at `/favicon.ico` when present.
+- **Route fallback:** `src/app/favicon.ico/route.ts` handles GET `/favicon.ico`: tries `public/favicon.ico`, then `public/logo.png`; if both fail, returns a 1×1 PNG so the route **never returns 404**.
+- **No rewrite:** Removed the rewrite from `/favicon.ico` to `/logo.png`; the route and static file are the single source of truth.
+- **Metadata:** Root layout already sets `icons` including `/favicon.ico`.
+
+**Validation:** After deploy, open https://app.inthecircle.co/favicon.ico — expect 200.
+
+---
+
+## 3. “Unload event listeners are deprecated and will be removed”
+
+**Root cause:**  
+- Our app used `window.addEventListener('beforeunload', ...)` for analytics session end in `AppShell.tsx` and `src/app/admin/page.tsx`.  
+- Browsers are deprecating **unload** (and related) listeners; the warning can appear when such listeners are used.
+
+**Fixes applied (no suppression):**
+- Replaced **beforeunload** with **pagehide** in:
+  - `src/components/AppShell.tsx` (app session end)
+  - `src/app/admin/page.tsx` (admin session end)
+- **pagehide** is the recommended way to run logic when the page is being hidden or terminated; it is not deprecated.
+- Session end is sent via **navigator.sendBeacon** in `endSessionWithBeacon()` so the request is delivered reliably when the tab is closed (fetch with keepalive can be dropped at unload).
+- **New API:** `src/lib/analytics.ts` now exports `endSessionWithBeacon(userType)` and uses an internal `flushWithBeacon()` that builds the end-session payload and sends it with `navigator.sendBeacon()`.
+
+**Why this is correct:**
+- **pagehide** fires when the tab is closed, navigated away, or hidden; it replaces unload/beforeunload for “page is going away” without triggering deprecation.
+- **sendBeacon** is designed for analytics and logging on page unload; the browser queues it and sends it even as the page is torn down.
+- Session end and `_end_session` still run; server-side session closure and analytics behavior are preserved.
+
+---
+
+## Validation checklist (Section 4)
+
+After deploying to production:
+
+| Check | How |
+|-------|-----|
+| No WebSocket localhost errors from our app | Production uses `next build` + `next start`; no dev client. If you still see it, use incognito (extension). |
+| No favicon 404 | Open https://app.inthecircle.co/favicon.ico — expect 200. |
+| No unload deprecation from our code | We use **pagehide** + **sendBeacon** only; no beforeunload/unload for session end. |
+| Admin panel still works | Smoke-test login, tabs, and key actions. |
+| Analytics/session tracking | Session end still sent via sendBeacon on pagehide; server closes session when it receives `end_session: true`. |
 
 ---
 
 ## Summary
 
-| Error | Source | Fix |
-|-------|--------|-----|
-| Favicon 404 | App (missing file) | Fixed in repo: static file + metadata + route + rewrite. After deploy + hard refresh, it’s resolved. |
-| WebSocket localhost:8081 | Browser extension | Use incognito or disable the extension; cannot be fixed in app code. |
-| Unload deprecated | Browser/extension | Ignore; not from our app. |
+| Issue | Root cause | Fix (strict, no hacks) |
+|-------|------------|-------------------------|
+| WebSocket 8081 | Extension or (if ever) `next dev` in prod | Removed console suppressor; doc that prod = next build + next start. |
+| Favicon 404 | Missing or failing /favicon.ico | Route that never 404s (fallback 1×1 PNG); static file when present. |
+| Unload deprecated | beforeunload in our code | Replaced with pagehide + endSessionWithBeacon (sendBeacon). |

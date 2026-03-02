@@ -5,7 +5,6 @@ import "./globals.css";
 import AppShell from "@/components/AppShell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { StructuredData } from "@/components/StructuredData";
-import { SuppressExtensionConsoleError } from "@/components/SuppressExtensionConsoleError";
 import { SITE_URL } from "@/lib/constants";
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -94,7 +93,6 @@ export default async function RootLayout({
   return (
     <html lang="en" className={plusJakarta.variable}>
       <body className="antialiased bg-[var(--bg)] text-[var(--text)]">
-        <SuppressExtensionConsoleError />
         <StructuredData />
         <ErrorBoundary>
           <AppShell adminBasePath={adminBasePath}>{children}</AppShell>

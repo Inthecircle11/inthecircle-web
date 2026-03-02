@@ -13,6 +13,7 @@ export const ADMIN_PERMISSIONS = {
   read_audit: 'read_audit',
   export_audit: 'export_audit',
   read_users: 'read_users',
+  mutate_users: 'mutate_users',   // set verification, ban (replaces client RPC)
   export_user: 'export_user',       // GDPR export single user
   ban_users: 'ban_users',
   delete_users: 'delete_users',
@@ -69,12 +70,14 @@ const ROLE_PERMISSIONS: Record<AdminRoleName, readonly AdminPermission[]> = {
   moderator: [
     ...viewerPerms,
     ADMIN_PERMISSIONS.mutate_applications,
+    ADMIN_PERMISSIONS.mutate_users,
     ADMIN_PERMISSIONS.resolve_reports,
     ADMIN_PERMISSIONS.request_approval,
   ],
   supervisor: [
     ...viewerPerms,
     ADMIN_PERMISSIONS.mutate_applications,
+    ADMIN_PERMISSIONS.mutate_users,
     ADMIN_PERMISSIONS.resolve_reports,
     ADMIN_PERMISSIONS.bulk_applications,
     ADMIN_PERMISSIONS.export_user,

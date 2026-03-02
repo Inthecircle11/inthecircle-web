@@ -12,6 +12,9 @@ if (
   );
 }
 
+// Production must use `next build` + `next start`. Do not run `next dev` in production;
+// dev client (Fast Refresh / HMR) would try to connect to ws://localhost:8081 and cause console errors.
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseHost = supabaseUrl ? new URL(supabaseUrl).hostname : null
 
@@ -57,11 +60,8 @@ const nextConfig: NextConfig = {
             { source: `/${base}/:path*`, destination: '/admin/:path*' },
           ]
         : []
-    return [
-      // Serve logo as favicon so GET /favicon.ico does not 404
-      { source: '/favicon.ico', destination: '/logo.png' },
-      ...adminRewrites,
-    ]
+    // Favicon: serve from public/favicon.ico (no rewrite). Ensures GET /favicon.ico returns 200.
+    return [...adminRewrites]
   },
   // Performance optimizations
   experimental: {

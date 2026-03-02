@@ -10,6 +10,7 @@ import {
   requiresApproval,
   createApprovalRequest,
 } from '@/lib/admin-approval'
+import { deleteUserById } from '@/lib/admin-delete-user'
 
 export const dynamic = 'force-dynamic'
 
@@ -71,9 +72,9 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { error } = await serviceSupabase.rpc('admin_delete_user', { p_user_id: userId })
-  if (error) {
-    console.error('[admin 500]', error)
+  const outcome = await deleteUserById(serviceSupabase, userId)
+  if (outcome.error) {
+    console.error('[admin 500]', outcome.error)
     return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
   }
 

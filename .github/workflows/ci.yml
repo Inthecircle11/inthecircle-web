@@ -1,5 +1,5 @@
-# CI: Lint, typecheck, and build on pull requests and pushes to main
-# No secrets required; uses placeholder env for next build.
+# CI: Lint, typecheck, tests, and build on pull requests and pushes to main
+# Fails on any step. No secrets required for build; uses placeholder env.
 
 name: CI
 
@@ -33,14 +33,21 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: Admin integration tests
+        run: npm run test:admin
+
+      - name: Architecture guards
+        run: npm run test:guards
+
+      - name: Migration safety check
+        run: npm run check:migrations
+
       - name: Build
         run: npm run build
         env:
-          # Placeholders so next build runs without real secrets (CI only).
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
 
-      # On push to main: verify app.inthecircle.co is only on inthecircle-web (set VERCEL_TOKEN in repo secrets for this step).
       - name: Verify Vercel domain (main only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: npm run verify-domain

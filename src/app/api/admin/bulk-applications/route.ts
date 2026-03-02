@@ -10,6 +10,7 @@ import { getIdempotencyResponse, setIdempotencyResponse } from '@/lib/admin-idem
 import { requiresApproval, createApprovalRequest } from '@/lib/admin-approval'
 import { checkBulkRateLimit } from '@/lib/admin-bulk-rate-limit'
 import { getRequestId, jsonError } from '@/lib/request-id'
+import { triggerWelcomeEmailForApplication } from '@/lib/trigger-welcome-email'
 
 export const dynamic = 'force-dynamic'
 
@@ -100,19 +101,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const rpcName =
+  const newStatus =
     action === 'approve'
-      ? 'admin_approve_application'
+      ? 'ACTIVE'
       : action === 'reject'
-        ? 'admin_reject_application'
+        ? 'REJECTED'
         : action === 'waitlist'
-          ? 'admin_waitlist_application'
-          : 'admin_suspend_application'
-  const paramName = 'p_application_id'
+          ? 'WAITLISTED'
+          : 'SUSPENDED'
 
   const errors: string[] = []
   for (const id of ids) {
-    const { error } = await serviceSupabase.rpc(rpcName, { [paramName]: id })
+    const { error } = await serviceSupabase
+      .from('applications')
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .eq('id', id)
     if (error) errors.push(`${id}: ${error.message}`)
   }
 
@@ -131,6 +134,12 @@ export async function POST(req: NextRequest) {
     details: { count: ids.length, ids },
     reason: auditReason ?? null,
   })
+
+  if (action === 'approve') {
+    for (const id of ids) {
+      void triggerWelcomeEmailForApplication(serviceSupabase, id)
+    }
+  }
 
   const resBody = JSON.stringify({ ok: true, count: ids.length })
   if (idempotencyKey && serviceSupabase) await setIdempotencyResponse(serviceSupabase, idempotencyKey, user.id, actionKey, 200, resBody)

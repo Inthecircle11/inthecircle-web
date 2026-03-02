@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase'
 import { getAdminBase } from '@/lib/admin'
 import { Logo } from '@/components/Logo'
 import Navigation from './Navigation'
-import { startSession, endSession, trackAppEvent, APP_EVENTS } from '@/lib/analytics'
+import { startSession, endSessionWithBeacon, trackAppEvent, APP_EVENTS } from '@/lib/analytics'
 
 const MFAChallenge = dynamic(() => import('./MFAChallenge'), { ssr: false })
 
@@ -122,12 +122,10 @@ export default function AppShell({
 
   useEffect(() => {
     if (isAdminRoute) return
-    const onBeforeUnload = () => endSession('app')
-    window.addEventListener('beforeunload', onBeforeUnload)
-    return () => {
-      window.removeEventListener('beforeunload', onBeforeUnload)
-      endSession('app')
-    }
+    // Use pagehide (not deprecated) instead of beforeunload for session end. sendBeacon in endSessionWithBeacon delivers reliably on tab close.
+    const onPageHide = () => endSessionWithBeacon('app')
+    window.addEventListener('pagehide', onPageHide)
+    return () => window.removeEventListener('pagehide', onPageHide)
   }, [isAdminRoute])
 
   async function checkAuth() {
