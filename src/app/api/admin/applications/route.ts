@@ -10,13 +10,13 @@ export const dynamic = 'force-dynamic'
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 200
 
-/** AGGRESSIVE CACHING: 60s for counts, 30s for application lists */
+/** CACHING DISABLED: Was causing stale data issues */
 let countsCache: { at: number; counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number; total: number } } | null = null
-const COUNTS_CACHE_TTL_MS = 60_000
+const COUNTS_CACHE_TTL_MS = 0  // Disabled
 
-/** Cache for application lists by status+page */
+/** Cache for application lists by status+page - DISABLED */
 const appsCache = new Map<string, { at: number; data: Array<Record<string, unknown>> }>()
-const APPS_CACHE_TTL_MS = 30_000
+const APPS_CACHE_TTL_MS = 0  // Disabled
 
 function normalizeApplicationStatus(raw: unknown): string {
   const s = String(raw ?? '').trim().toUpperCase()
