@@ -3617,21 +3617,30 @@ function DashboardTab({
 }
 
 // ============================================
-// APPLICATIONS TAB - Matching iOS with ALL fields
+// APPLICATIONS TAB - Clean rebuild
 // ============================================
 
 function ApplicationsTab({
-  applications, allApplications: _allApplications, stats: _stats, filter, setFilter, getFilterCount,
+  applications,
+  filter,
+  setFilter,
+  getFilterCount,
   onStatusFilterChange,
-  appSearch, setAppSearch, appSort, appAssignmentFilter, onSortFilterChange,
-  applicationsTotal, applicationsPage, applicationsPageSize, onApplicationsPageChange,
+  appSearch,
+  setAppSearch,
+  applicationsTotal,
+  applicationsPage,
+  applicationsPageSize,
+  onApplicationsPageChange,
   applicationsLoading = false,
-  selectedAppIds, setSelectedAppIds,
-  onApprove, onReject, onWaitlist, onSuspend, onBulkAction, onExportCsv,
-  actionLoading, selectedApp, setSelectedApp,
-  currentUserId = null,
-  onClaim,
-  onRelease,
+  onApprove,
+  onReject,
+  onWaitlist,
+  onSuspend,
+  onExportCsv,
+  actionLoading,
+  selectedApp,
+  setSelectedApp,
 }: {
   applications: Application[]
   allApplications: Application[]
@@ -3665,221 +3674,181 @@ function ApplicationsTab({
   onClaim?: (id: string) => Promise<void>
   onRelease?: (id: string) => Promise<void>
 }) {
-  const [claimingId, setClaimingId] = useState<string | null>(null)
   const totalPages = Math.max(1, Math.ceil(applicationsTotal / applicationsPageSize))
-  const paginatedApps = applications
-  const now = new Date()
-  const isClaimedByMe = (a: Application): boolean => {
-    const assignedTo = a.assigned_to
-    const expiresAt = a.assignment_expires_at
-    return !!(assignedTo === currentUserId && expiresAt && new Date(expiresAt) >= now)
+  
+  const isPendingApp = (status: string) => {
+    const s = status?.toUpperCase() ?? ''
+    return ['SUBMITTED', 'PENDING_REVIEW', 'DRAFT', 'PENDING'].includes(s)
   }
-  const isClaimedByOther = (a: Application): boolean => {
-    const assignedTo = a.assigned_to
-    const expiresAt = a.assignment_expires_at
-    if (!assignedTo) return false
-    if (expiresAt && new Date(expiresAt) < now) return false
-    return assignedTo !== currentUserId
+
+  const getStatusBadge = (status: string) => {
+    const s = status?.toUpperCase() ?? ''
+    if (s === 'APPROVED' || s === 'ACTIVE') return { bg: 'bg-green-500/20', text: 'text-green-400', label: 'Approved' }
+    if (s === 'REJECTED') return { bg: 'bg-red-500/20', text: 'text-red-400', label: 'Rejected' }
+    if (s === 'WAITLIST' || s === 'WAITLISTED') return { bg: 'bg-purple-500/20', text: 'text-purple-400', label: 'Waitlisted' }
+    if (s === 'SUSPENDED') return { bg: 'bg-gray-500/20', text: 'text-gray-400', label: 'Suspended' }
+    return { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: 'Pending' }
   }
-  const canActOnApp = (a: Application) => !isClaimedByOther(a)
-  const isPending = (a: Application) => ['SUBMITTED', 'PENDING_REVIEW', 'DRAFT', 'PENDING'].includes(a.status?.toUpperCase() ?? '')
-  const pendingInSelection = paginatedApps.filter(a => selectedAppIds.has(a.id) && isPending(a)).map(a => a.id)
-  const toggleSelect = (id: string) => {
-    setSelectedAppIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-  const toggleSelectAll = () => {
-    if (selectedAppIds.size >= paginatedApps.length) setSelectedAppIds(new Set())
-    else setSelectedAppIds(new Set(paginatedApps.map(a => a.id)))
-  }
+
+  const filters: { key: AppFilter; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'waitlisted', label: 'Waitlisted' },
+    { key: 'rejected', label: 'Rejected' },
+    { key: 'suspended', label: 'Suspended' },
+  ]
 
   return (
-    <div className="space-y-4">
-      {/* Top bar: Search + Filters + Export */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex-1 min-w-[280px] max-w-md">
-          <input
-            id="admin-applications-search"
-            name="applications-search"
-            type="text"
-            placeholder="Search name, email, username..."
-            value={appSearch}
-            onChange={e => setAppSearch(e.target.value)}
-            className="w-full px-4 py-2 rounded-lg bg-[var(--surface)] border border-[var(--separator)] text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-purple)]"
-            aria-label="Search applications"
-          />
+    <div>
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-[var(--text)]">Applications</h2>
+          <button
+            onClick={onExportCsv}
+            className="text-sm text-[var(--text-muted)] hover:text-[var(--text)]"
+          >
+            Export CSV
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onExportCsv}
-          className="px-4 py-2 rounded-lg bg-[var(--surface)] border border-[var(--separator)] text-sm text-[var(--text)] hover:bg-[var(--surface-hover)]"
-        >
-          Export
-        </button>
-      </div>
+        
+        {/* Search */}
+        <input
+          type="text"
+          placeholder="Search by name, email, or username..."
+          value={appSearch}
+          onChange={e => setAppSearch(e.target.value)}
+          className="w-full max-w-md px-4 py-2 mb-4 text-sm bg-[var(--surface)] border border-[var(--separator)] rounded-lg text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-purple)]"
+        />
 
-      {/* Status tabs */}
-      <div className="flex gap-1 p-1 rounded-lg bg-[var(--surface)] border border-[var(--separator)] w-fit">
-        {(['all', 'pending', 'approved', 'rejected', 'waitlisted', 'suspended'] as AppFilter[]).map(f => {
-          const count = getFilterCount(f)
-          const isActive = filter === f
-          return (
+        {/* Filter tabs */}
+        <div className="flex flex-wrap gap-2">
+          {filters.map(({ key, label }) => (
             <button
-              type="button"
-              key={f}
-              onClick={() => (onStatusFilterChange ?? setFilter)(f)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                isActive 
-                  ? 'bg-[var(--accent-purple)] text-white' 
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
+              key={key}
+              onClick={() => (onStatusFilterChange ?? setFilter)(key)}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                filter === key
+                  ? 'bg-[var(--accent-purple)] text-white'
+                  : 'bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--separator)]'
               }`}
             >
-              {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)} ({count})
+              {label} ({getFilterCount(key)})
             </button>
-          )
-        })}
-      </div>
-
-      {/* Bulk actions */}
-      {pendingInSelection.length > 0 && (
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--accent-purple)]/10 border border-[var(--accent-purple)]/20">
-          <span className="text-sm text-[var(--text)]">{pendingInSelection.length} selected</span>
-          <div className="flex gap-2 ml-auto">
-            <button type="button" onClick={() => onBulkAction(pendingInSelection, 'approve')} disabled={actionLoading === 'bulk'} className="px-3 py-1.5 rounded-md bg-emerald-500 text-white text-sm hover:bg-emerald-600 disabled:opacity-50">Approve</button>
-            <button type="button" onClick={() => onBulkAction(pendingInSelection, 'reject')} disabled={actionLoading === 'bulk'} className="px-3 py-1.5 rounded-md bg-red-500/20 text-red-400 text-sm hover:bg-red-500/30 disabled:opacity-50">Reject</button>
-            <button type="button" onClick={() => onBulkAction(pendingInSelection, 'waitlist')} disabled={actionLoading === 'bulk'} className="px-3 py-1.5 rounded-md bg-purple-500/20 text-purple-400 text-sm hover:bg-purple-500/30 disabled:opacity-50">Waitlist</button>
-            <button type="button" onClick={() => setSelectedAppIds(new Set())} className="px-3 py-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">Clear</button>
-          </div>
-        </div>
-      )}
-
-      {/* List header with pagination */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-[var(--text-muted)]">{applicationsTotal.toLocaleString()} total</span>
-          {applications.length > 0 && (
-            <button type="button" onClick={toggleSelectAll} className="text-sm text-[var(--accent-purple)] hover:underline">
-              {selectedAppIds.size >= paginatedApps.length ? 'Deselect all' : 'Select all'}
-            </button>
-          )}
-        </div>
-        {applicationsTotal > applicationsPageSize && (
-          <div className="flex items-center gap-2">
-            <button 
-              type="button" 
-              onClick={() => onApplicationsPageChange(applicationsPage - 1)} 
-              disabled={applicationsPage <= 1} 
-              className="p-1.5 rounded-md hover:bg-[var(--surface-hover)] disabled:opacity-30"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-            </button>
-            <span className="text-sm text-[var(--text-muted)]">{applicationsPage} / {totalPages}</span>
-            <button 
-              type="button" 
-              onClick={() => onApplicationsPageChange(applicationsPage + 1)} 
-              disabled={applicationsPage >= totalPages} 
-              className="p-1.5 rounded-md hover:bg-[var(--surface-hover)] disabled:opacity-30"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Loading state */}
-      {applicationsLoading && (
-        <div className="flex items-center justify-center py-12">
-          <div className="w-8 h-8 rounded-full border-2 border-[var(--accent-purple)] border-t-transparent animate-spin" />
-        </div>
-      )}
-      
-      {/* Empty state */}
-      {!applicationsLoading && applications.length === 0 && (
-        <div className="text-center py-12 text-[var(--text-muted)]">
-          <p>No applications found</p>
-        </div>
-      )}
-
-      {/* Applications list */}
-      {!applicationsLoading && applications.length > 0 && (
-        <div className="border border-[var(--separator)] rounded-xl overflow-hidden">
-          {paginatedApps.map((app, idx) => (
-            <div 
-              key={app.id} 
-              className={`flex items-center gap-4 p-4 hover:bg-[var(--surface-hover)] cursor-pointer ${idx !== 0 ? 'border-t border-[var(--separator)]' : ''}`}
-              onClick={() => setSelectedApp(app)}
-            >
-              <input
-                type="checkbox"
-                checked={selectedAppIds.has(app.id)}
-                onChange={(e) => { e.stopPropagation(); toggleSelect(app.id) }}
-                onClick={(e) => e.stopPropagation()}
-                className="rounded border-[var(--separator)] text-[var(--accent-purple)] focus:ring-[var(--accent-purple)]"
-              />
-              <Avatar url={app.profile_image_url} name={app.name} size={44} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-[var(--text)] truncate">{app.name || 'No name'}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    app.status.toUpperCase() === 'APPROVED' || app.status.toUpperCase() === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-400' :
-                    app.status.toUpperCase() === 'REJECTED' ? 'bg-red-500/20 text-red-400' :
-                    app.status.toUpperCase() === 'WAITLIST' || app.status.toUpperCase() === 'WAITLISTED' ? 'bg-purple-500/20 text-purple-400' :
-                    app.status.toUpperCase() === 'SUSPENDED' ? 'bg-slate-500/20 text-slate-400' :
-                    'bg-amber-500/20 text-amber-400'
-                  }`}>
-                    {getStatusLabel(app.status)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-                  <span>@{app.username}</span>
-                  <span>·</span>
-                  <span className="truncate">{app.email}</span>
-                  {app.niche && <><span>·</span><span className="text-[var(--accent-purple)]">{app.niche}</span></>}
-                </div>
-              </div>
-              <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                {isPending(app) && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => onApprove(app.id, app.updated_at)}
-                      disabled={!canActOnApp(app) || actionLoading === app.id}
-                      className="px-3 py-1.5 rounded-md bg-emerald-500 text-white text-sm hover:bg-emerald-600 disabled:opacity-50"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onWaitlist(app.id, app.updated_at)}
-                      disabled={!canActOnApp(app) || actionLoading === app.id}
-                      className="px-3 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--separator)] text-sm text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
-                    >
-                      Waitlist
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onReject(app.id, app.updated_at)}
-                      disabled={!canActOnApp(app) || actionLoading === app.id}
-                      className="px-3 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--separator)] text-sm text-red-400 hover:bg-red-500/10 disabled:opacity-50"
-                    >
-                      Reject
-                    </button>
-                  </>
-                )}
-              </div>
-              <span className="text-xs text-[var(--text-muted)] whitespace-nowrap">
-                {app.application_date ? new Date(app.application_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
-              </span>
-            </div>
           ))}
         </div>
+      </div>
+
+      {/* Loading */}
+      {applicationsLoading && (
+        <div className="flex justify-center py-20">
+          <div className="w-8 h-8 border-2 border-[var(--accent-purple)] border-t-transparent rounded-full animate-spin" />
+        </div>
       )}
 
-      {/* Modal */}
+      {/* Empty */}
+      {!applicationsLoading && applications.length === 0 && (
+        <div className="text-center py-20 text-[var(--text-muted)]">
+          No applications found
+        </div>
+      )}
+
+      {/* List */}
+      {!applicationsLoading && applications.length > 0 && (
+        <>
+          <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-xl divide-y divide-[var(--separator)]">
+            {applications.map(app => {
+              const badge = getStatusBadge(app.status)
+              const pending = isPendingApp(app.status)
+              
+              return (
+                <div
+                  key={app.id}
+                  className="p-4 hover:bg-[var(--surface-hover)] cursor-pointer"
+                  onClick={() => setSelectedApp(app)}
+                >
+                  <div className="flex items-center gap-4">
+                    {/* Avatar */}
+                    <Avatar url={app.profile_image_url} name={app.name} size={48} />
+                    
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-[var(--text)]">{app.name || 'No name'}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>
+                          {badge.label}
+                        </span>
+                      </div>
+                      <div className="text-sm text-[var(--text-muted)]">
+                        @{app.username} · {app.email}
+                        {app.niche && <span className="text-[var(--accent-purple)]"> · {app.niche}</span>}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    {pending && (
+                      <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => onApprove(app.id, app.updated_at)}
+                          disabled={actionLoading === app.id}
+                          className="px-3 py-1.5 text-sm font-medium text-white bg-green-500 rounded-lg hover:bg-green-600 disabled:opacity-50"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => onWaitlist(app.id, app.updated_at)}
+                          disabled={actionLoading === app.id}
+                          className="px-3 py-1.5 text-sm font-medium text-[var(--text)] bg-[var(--surface-hover)] border border-[var(--separator)] rounded-lg hover:bg-[var(--separator)] disabled:opacity-50"
+                        >
+                          Waitlist
+                        </button>
+                        <button
+                          onClick={() => onReject(app.id, app.updated_at)}
+                          disabled={actionLoading === app.id}
+                          className="px-3 py-1.5 text-sm font-medium text-red-400 bg-[var(--surface-hover)] border border-[var(--separator)] rounded-lg hover:bg-red-500/10 disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Date */}
+                    <span className="text-xs text-[var(--text-muted)]">
+                      {app.application_date && new Date(app.application_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 mt-6">
+              <button
+                onClick={() => onApplicationsPageChange(applicationsPage - 1)}
+                disabled={applicationsPage <= 1}
+                className="px-4 py-2 text-sm bg-[var(--surface)] border border-[var(--separator)] rounded-lg disabled:opacity-30"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-[var(--text-muted)]">
+                Page {applicationsPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => onApplicationsPageChange(applicationsPage + 1)}
+                disabled={applicationsPage >= totalPages}
+                className="px-4 py-2 text-sm bg-[var(--surface)] border border-[var(--separator)] rounded-lg disabled:opacity-30"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Detail Modal */}
       {selectedApp && (
         <ApplicationDetailModal
           app={selectedApp}
@@ -3889,8 +3858,7 @@ function ApplicationsTab({
           onWaitlist={() => onWaitlist(selectedApp.id, selectedApp.updated_at)}
           onSuspend={() => onSuspend(selectedApp.id, selectedApp.updated_at)}
           isLoading={actionLoading === selectedApp.id}
-          canAct={canActOnApp(selectedApp)}
-          canActReason={!canActOnApp(selectedApp) ? 'Claimed by another moderator.' : undefined}
+          canAct={true}
         />
       )}
     </div>

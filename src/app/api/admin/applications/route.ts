@@ -52,8 +52,9 @@ export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams
   const sort = params.get('sort') || 'overdue'
   const filter = params.get('filter') || 'all'
-  // Pass status directly to RPC - the RPC handles mapping (e.g., 'waitlisted' -> 'waitlist')
-  const statusParam = (params.get('status') || 'all').toLowerCase()
+  // Map UI status to DB status (UI uses 'waitlisted', DB uses 'waitlist')
+  const rawStatus = (params.get('status') || 'all').toLowerCase()
+  const statusParam = rawStatus === 'waitlisted' ? 'waitlist' : rawStatus
   const pageParam = params.get('page')
   const limitParam = params.get('limit')
   const usePagination = pageParam != null && pageParam !== ''
