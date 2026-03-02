@@ -5620,6 +5620,7 @@ function StatCard({ title, value, icon, color, trend }: {
     value === undefined || value === null || value === ''
       ? '0'
       : String(value)
+  const visibleText = display || '0'
   return (
     <div className="bg-[var(--surface)] border border-[var(--separator)] p-5 rounded-2xl shadow-[var(--shadow-card)]">
       <div 
@@ -5628,8 +5629,8 @@ function StatCard({ title, value, icon, color, trend }: {
       >
         {icon}
       </div>
-      <p className="text-3xl font-bold min-h-[1.25em]" style={{ color }} aria-label={`${title}: ${display}`}>
-        {display}
+      <p className="text-3xl font-bold min-h-[1.25em] tabular-nums" style={{ color }} aria-label={`${title}: ${visibleText}`} data-stat-value={visibleText}>
+        {visibleText}
       </p>
       <p className="text-sm text-[var(--text-secondary)] mt-1">{title}</p>
       <p className="text-xs mt-2" style={{ color }}>{trend}</p>
