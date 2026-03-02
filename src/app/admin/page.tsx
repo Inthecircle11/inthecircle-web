@@ -3627,7 +3627,7 @@ function ApplicationsTab({
     if (expiresAt && new Date(expiresAt) < now) return false
     return assignedTo !== currentUserId
   }
-  const canActOnApp = (a: Application) => isPending(a) && !isClaimedByOther(a)
+  const canActOnApp = (a: Application) => !isClaimedByOther(a)
   const isPending = (a: Application) => ['SUBMITTED', 'PENDING_REVIEW', 'DRAFT', 'PENDING'].includes(a.status?.toUpperCase() ?? '')
   const pendingInSelection = paginatedApps.filter(a => selectedAppIds.has(a.id) && isPending(a)).map(a => a.id)
   const toggleSelect = (id: string) => {
@@ -3805,7 +3805,7 @@ function ApplicationsTab({
           onSuspend={() => onSuspend(selectedApp.id, selectedApp.updated_at)}
           isLoading={actionLoading === selectedApp.id}
           canAct={canActOnApp(selectedApp)}
-          canActReason={!canActOnApp(selectedApp) ? (isClaimedByOther(selectedApp) ? 'Claimed by another moderator.' : 'This application is not pending.') : undefined}
+          canActReason={!canActOnApp(selectedApp) ? 'Claimed by another moderator.' : undefined}
         />
       )}
     </div>
