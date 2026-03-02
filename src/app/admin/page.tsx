@@ -3083,7 +3083,7 @@ function OverviewTab({
       {/* Executive KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard title="Total users" value={totalUsers} icon="👥" color="#A855F7" trend={`+${newUsersLast30d} last 30d`} />
-        <StatCard title="Active today" value={activeUsersToday ?? '—'} icon="📈" color="#3B82F6" trend="Logged in last 24h" />
+        <StatCard title="Active today" value={activeUsersToday ?? 0} icon="📈" color="#3B82F6" trend="Logged in last 24h" />
         <StatCard title="Conversations" value={totalThreads} icon="💬" color="#8B5CF6" trend={`${totalMessages} messages · ${avgMessagesPerUser} avg/user`} />
         <StatCard title="Verified" value={verifiedUsersCount} icon="✓" color="#10B981" trend={`${verificationRate}% of users`} />
       </div>
@@ -3294,7 +3294,7 @@ function DashboardTab({
         />
         <StatCard 
           title="Active Today" 
-          value={activeUsersToday ?? '—'} 
+          value={activeUsersToday ?? 0} 
           icon="📈" 
           color="#3B82F6"
           trend={activeUsersToday !== null ? "Last 24h" : "Loading..."}
