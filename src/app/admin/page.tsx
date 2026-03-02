@@ -3099,7 +3099,7 @@ function OverviewTab({
       {/* Executive KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard title="Total users" value={totalUsers} icon="👥" color="#A855F7" trend={`+${newUsersLast30d} last 30d`} />
-        <StatCard title="Active today" value={Number(activeUsersToday ?? 0)} icon="📈" color="#3B82F6" trend="Logged in last 24h" />
+        <ActiveTodayCard activeUsersToday={activeUsersToday} />
         <StatCard title="Conversations" value={totalThreads} icon="💬" color="#8B5CF6" trend={`${totalMessages} messages · ${avgMessagesPerUser} avg/user`} />
         <StatCard title="Verified" value={Number(verifiedUsersCount ?? 0)} icon="✓" color="#10B981" trend={`${verificationRate}% of users`} />
       </div>
@@ -5611,6 +5611,28 @@ function AdminSkeletonTable({ rows = 5 }: { rows?: number }) {
 // ============================================
 // COMPONENTS
 // ============================================
+
+/** Active today card: always render the number inline so it never appears blank (avoids any StatCard/value edge case). */
+function ActiveTodayCard({ activeUsersToday }: { activeUsersToday: number }) {
+  const n = Number.isFinite(Number(activeUsersToday)) ? Number(activeUsersToday) : 0
+  const display = String(n)
+  const color = '#3B82F6'
+  return (
+    <div className="bg-[var(--surface)] border border-[var(--separator)] p-5 rounded-2xl shadow-[var(--shadow-card)]">
+      <div
+        className="w-10 h-10 rounded-full flex items-center justify-center text-lg mb-3"
+        style={{ backgroundColor: `${color}20`, color }}
+      >
+        📈
+      </div>
+      <p className="text-3xl font-bold min-h-[1.25em] tabular-nums" style={{ color }} aria-label={`Active today: ${display}`}>
+        {display}
+      </p>
+      <p className="text-sm text-[var(--text-secondary)] mt-1">Active today</p>
+      <p className="text-xs mt-2" style={{ color }}>Logged in last 24h</p>
+    </div>
+  )
+}
 
 function StatCard({ title, value, icon, color, trend }: { 
   title: string; value: number | string; icon: string; color: string; trend: string 
