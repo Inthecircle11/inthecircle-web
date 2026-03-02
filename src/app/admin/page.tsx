@@ -3754,10 +3754,12 @@ function ApplicationsTab({
                 className="p-4 hover:bg-[var(--surface-hover)] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:ring-inset"
               >
                 <div className="flex items-center gap-4">
-                  <Avatar url={app.profile_image_url} name={app.name} size={48} />
+                  <Avatar url={app.profile_image_url} name={app.name || app.username || app.email || ''} size={48} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="font-medium text-[var(--text)]">{app.name || 'No name'}</span>
+                      <span className="font-medium text-[var(--text)]">
+                        {app.name || app.username || app.email || (app.user_id ? `User ${String(app.user_id).slice(0, 8)}` : 'Unknown')}
+                      </span>
                       <span className={`text-xs px-2 py-0.5 rounded-full ${
                         (app.status?.toUpperCase() ?? '') === 'ACTIVE' || app.status?.toUpperCase() === 'APPROVED' ? 'bg-green-500/20 text-green-400' :
                         app.status?.toUpperCase() === 'REJECTED' ? 'bg-red-500/20 text-red-400' :
@@ -3769,8 +3771,7 @@ function ApplicationsTab({
                       </span>
                     </div>
                     <p className="text-sm text-[var(--text-muted)]">
-                      @{app.username} · {app.email}
-                      {app.niche ? ` · ${app.niche}` : ''}
+                      {[app.username && `@${app.username}`, app.email, app.niche].filter(Boolean).join(' · ') || (app.user_id ? `ID: ${String(app.user_id).slice(0, 8)}` : '—')}
                     </p>
                   </div>
                   {isPending(app.status) && (
@@ -3855,7 +3856,7 @@ function ApplicationDetailModal({
   onApprove,
   onReject,
   onWaitlist,
-  onSuspend,
+  onSuspend: _onSuspend,
   isLoading,
   canAct = true,
 }: {

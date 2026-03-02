@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import { getRequestId, jsonError } from '@/lib/request-id'
+import { getServiceRoleClient } from '@/lib/supabase-service'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest) {
     return jsonError(req, { error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, 500)
   }
 
-  const supabase = createClient(url, serviceKey, {
+  const supabase = getServiceRoleClient() ?? createClient(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
@@ -124,33 +125,41 @@ export async function GET(req: NextRequest) {
       return jsonError(req, { error: 'Failed to fetch applications' }, 500)
     }
 
-    // Get user IDs and fetch profiles
-    const userIds = (appsData ?? []).map(a => a.user_id).filter(Boolean)
+    // Get user IDs and fetch profiles (normalize UUIDs to lowercase for reliable lookup)
+    const userIds = [...new Set((appsData ?? []).map((a: Record<string, unknown>) => a.user_id).filter(Boolean) as string[])]
     let profilesMap: Record<string, Record<string, unknown>> = {}
     
     if (userIds.length > 0) {
-      const { data: profilesData } = await supabase
+      const cols = 'id, name, username, email, profile_image_url, bio, niche, phone'
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, name, username, email, profile_image_url, bio, niche, phone')
+        .select(cols)
         .in('id', userIds)
       
-      if (profilesData) {
-        profilesMap = Object.fromEntries(profilesData.map(p => [p.id, p]))
+      if (profilesError) {
+        console.error('[admin applications] profiles fetch', profilesError)
+      }
+      if (profilesData && profilesData.length > 0) {
+        for (const p of profilesData as Array<Record<string, unknown>>) {
+          const key = String(p.id ?? '').toLowerCase()
+          if (key) profilesMap[key] = p
+        }
       }
     }
     
-    // Merge applications with profiles
+    // Merge applications with profiles (match by user_id normalized to lowercase)
     list = (appsData ?? []).map((a: Record<string, unknown>) => {
-      const profile = profilesMap[a.user_id as string] || {}
+      const uid = a.user_id != null ? String(a.user_id).toLowerCase() : ''
+      const profile = profilesMap[uid] || {}
       return {
         ...a,
-        name: profile.name ?? '',
-        username: profile.username ?? '',
-        email: profile.email ?? '',
-        profile_image_url: profile.profile_image_url ?? null,
-        bio: profile.bio ?? '',
-        niche: profile.niche ?? '',
-        phone: profile.phone ?? null,
+        name: profile.name ?? a.name ?? '',
+        username: profile.username ?? a.username ?? '',
+        email: profile.email ?? a.email ?? '',
+        profile_image_url: profile.profile_image_url ?? a.profile_image_url ?? null,
+        bio: profile.bio ?? a.bio ?? '',
+        niche: profile.niche ?? a.niche ?? '',
+        phone: profile.phone ?? a.phone ?? null,
       }
     })
     
@@ -219,10 +228,11 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  // Determine total for current filter
+  // Determine total for current filter (counts keys use 'waitlisted' not 'waitlist')
   let total = counts.total
   if (statusParam !== 'all') {
-    const key = statusParam as keyof typeof counts
+    const countsKey = statusParam === 'waitlist' ? 'waitlisted' : statusParam
+    const key = countsKey as keyof typeof counts
     if (key in counts) total = counts[key]
   }
 
