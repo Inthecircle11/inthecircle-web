@@ -15,14 +15,46 @@ function UpdatePasswordForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasSession, setHasSession] = useState<boolean | null>(null)
+  const [processingToken, setProcessingToken] = useState(true)
 
   useEffect(() => {
-    async function check() {
+    async function handleAuth() {
       const supabase = createClient()
+      
+      // Check if there's a hash fragment with access_token (from direct reset link)
+      if (typeof window !== 'undefined' && window.location.hash) {
+        const hash = window.location.hash.substring(1)
+        const params = new URLSearchParams(hash)
+        const accessToken = params.get('access_token')
+        const refreshToken = params.get('refresh_token')
+        const type = params.get('type')
+        
+        if (accessToken && refreshToken && type === 'recovery') {
+          // Set the session from the hash tokens
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
+          
+          if (!sessionError) {
+            // Clear the hash from URL for cleaner display
+            window.history.replaceState(null, '', window.location.pathname + window.location.search)
+            setHasSession(true)
+            setProcessingToken(false)
+            return
+          } else {
+            console.error('[update-password] Failed to set session from hash:', sessionError.message)
+          }
+        }
+      }
+      
+      // Fallback: check if user already has a session
       const { data } = await supabase.auth.getUser()
       setHasSession(!!data.user)
+      setProcessingToken(false)
     }
-    void check()
+    
+    void handleAuth()
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {

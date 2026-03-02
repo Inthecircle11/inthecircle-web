@@ -29,7 +29,8 @@ export async function GET(req: NextRequest) {
   ])
 
   const { data: profiles, error } = listResult
-  const totalCount = countResult.count ?? countResult.error ? null : undefined
+  // Get total count from the count query (not limited by MAX_USERS)
+  const totalCount = countResult.error ? null : (countResult.count ?? null)
 
   if (error) {
     console.error('[admin users]', error)

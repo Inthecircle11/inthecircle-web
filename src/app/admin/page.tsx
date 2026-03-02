@@ -1883,7 +1883,8 @@ export default function AdminPanel() {
   // COMPUTED VALUES & ADVANCED METRICS
   // ============================================
 
-  const totalUsers = usersTotalCount ?? overviewCounts?.totalUsers ?? users.length
+  // Prefer overviewCounts (from admin_get_overview_counts RPC) as the source of truth
+  const totalUsers = overviewCounts?.totalUsers ?? usersTotalCount ?? users.length
   const verifiedUsersCount = overviewCounts?.verifiedCount ?? users.filter(u => u.is_verified).length
   const newUsersThisWeek = overviewCounts?.newUsersLast7d ?? users.filter(u => {
     if (!u.created_at) return false
