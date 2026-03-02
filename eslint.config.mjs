@@ -1,6 +1,6 @@
 import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import nextVitals from "eslint-config-next/core-web-vitals.js";
+import nextTs from "eslint-config-next/typescript.js";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -11,7 +11,6 @@ const eslintConfig = defineConfig([
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
-      // React Compiler / strict hooks: MUST be "off" or CI fails (react-hooks/set-state-in-effect, immutability, purity).
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/immutability": "off",
       "react-hooks/purity": "off",
@@ -24,7 +23,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
-  // Final override so CI always uses these settings (win over any react-compiler defaults).
+  // Final override so CI uses these settings.
   {
     rules: {
       "react-hooks/set-state-in-effect": "off",

@@ -21,8 +21,9 @@ function addRequestId(request: NextRequest): NextResponse | null {
  * When ADMIN_BASE_PATH is set, only that path serves the admin panel.
  * Direct /admin and /admin/* return 404. Use a LONG random string (24+ chars) for security.
  * Optional ADMIN_ALLOWED_IPS: comma-separated IPs; only those can reach admin.
+ * Note: middleware cannot read runtime env on Vercel; obscure path is handled by next.config rewrites.
  */
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const requestIdResponse = addRequestId(request)
   if (requestIdResponse) return requestIdResponse
 
@@ -46,6 +47,13 @@ export function proxy(request: NextRequest) {
     const noLeading = pathname.slice(1)
     const onePath = noLeading.replace(/\/+/g, '')
     if (onePath.toLowerCase() === baseLower) {
+      const url = request.nextUrl.clone()
+      url.pathname = `/${basePath}`
+      return NextResponse.redirect(url, 301)
+    }
+    // Typo: path has one slash where there should be "r".
+    const parts = noLeading.split('/').filter(Boolean)
+    if (parts.length === 2 && (parts[0] + 'r' + parts[1]).toLowerCase() === baseLower) {
       const url = request.nextUrl.clone()
       url.pathname = `/${basePath}`
       return NextResponse.redirect(url, 301)
@@ -83,7 +91,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Run for all page paths so obscure admin path (e.g. /m8k2p9q) is always handled.
-  // Also match /api/admin/* for request-id (handled inside proxy).
   matcher: ['/((?!_next/|api/|auth/|favicon|icon\\.svg|.*\\.).*)', '/api/admin/:path*'],
 }

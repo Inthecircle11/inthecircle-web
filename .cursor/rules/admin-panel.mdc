@@ -15,12 +15,12 @@ globs: src/app/admin/**/*
 
 - Do **not** remove the inline login form from `src/app/admin/page.tsx` (the block that renders when `!authorized`).
 - Do **not** remove `src/app/admin/page.tsx` or `src/app/admin/login/page.tsx`.
-- Do **not** add middleware or rewrites that exclude `/admin` or `/admin/login` (or break the obscure-path logic in `src/proxy.ts`).
+- Do **not** add middleware or rewrites that exclude `/admin` or `/admin/login` (or break the obscure-path logic in `src/middleware.ts`).
 - After any change under `src/app/admin/`, ensure the project still builds and deploy so production has the latest admin routes.
 
 ## Obscure admin path (optional)
 
-When **ADMIN_BASE_PATH** is set in env, proxy rewrites only that path to the admin panel and returns 404 for direct `/admin`. Do not remove this logic from `src/proxy.ts`; use `getAdminBase()` from `@/lib/admin` for client redirects so the obscure path works.
+When **ADMIN_BASE_PATH** is set in env, middleware rewrites that path to the admin panel and returns 404 for direct `/admin`. The obscure path is also rewritten in `next.config.ts` at build time (middleware cannot read env at runtime on Vercel). Do not remove this logic from `src/middleware.ts`; use `getAdminBase()` from `@/lib/admin` for client redirects so the obscure path works.
 
 ## Why this prevents 404s
 

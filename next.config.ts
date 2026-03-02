@@ -17,7 +17,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseHost = supabaseUrl ? new URL(supabaseUrl).hostname : null
 
 const nextConfig: NextConfig = {
-  reactCompiler: true,
   images: {
     remotePatterns: [
       ...(supabaseHost
@@ -61,7 +60,6 @@ const nextConfig: NextConfig = {
   },
   // Performance optimizations
   experimental: {
-    optimizeCss: true,
     optimizePackageImports: ['@supabase/supabase-js', '@supabase/ssr'],
   },
   // Compression
