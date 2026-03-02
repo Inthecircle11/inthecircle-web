@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Logo } from '@/components/Logo'
 
@@ -10,10 +11,20 @@ function isValidEmail(email: string): boolean {
 }
 
 export default function ForgotPassword() {
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
+
+  // Pre-fill email from URL when coming from welcome email "Reset it here" link
+  useEffect(() => {
+    const fromUrl = searchParams.get('email')
+    if (fromUrl) {
+      const decoded = decodeURIComponent(fromUrl).trim()
+      if (isValidEmail(decoded)) setEmail(decoded)
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,9 +35,15 @@ export default function ForgotPassword() {
     }
     setLoading(true)
     const supabase = createClient()
+    const appOrigin =
+      typeof process.env.NEXT_PUBLIC_APP_URL === 'string' && process.env.NEXT_PUBLIC_APP_URL
+        ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
+        : typeof window !== 'undefined'
+          ? window.location.origin
+          : ''
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-        redirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback?next=/update-password`,
+        redirectTo: `${appOrigin}/auth/callback?next=/update-password`,
       })
       if (resetError) throw resetError
       setSent(true)
