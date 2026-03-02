@@ -29,12 +29,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
   }
 
-  // Try single RPC first; if missing (e.g. admin_get_all_stats not in DB), fall back to separate RPCs
-  const { data: allStats, error } = await supabase.rpc('admin_get_all_stats').single()
-
+  // Always use admin_get_overview_counts (the accurate source) + admin_get_overview_app_stats
+  // Note: admin_get_all_stats exists but returns outdated data (wrong verifiedCount, missing newUsersLast7d)
   let parsed: { stats: Record<string, number>; overview: Record<string, number>; activeToday?: number | string }
-  if (error || !allStats) {
-    // Fallback: admin_get_all_stats missing or failed — call admin_get_overview_app_stats + admin_get_overview_counts
+  {
     const [appRes, countsRes] = await Promise.all([
       supabase.rpc('admin_get_overview_app_stats').single(),
       supabase.rpc('admin_get_overview_counts').single(),
@@ -80,8 +78,6 @@ export async function GET(req: NextRequest) {
         applicationsApprovedLast7d: Number(c.applications_approved_7d) || 0,
       },
     }
-  } else {
-    parsed = allStats as { stats: Record<string, number>; overview: Record<string, number>; activeToday?: number | string }
   }
   
   // Sanity check: ensure new_users_7d >= new_users_24h (logical constraint)
