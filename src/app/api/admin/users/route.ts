@@ -19,11 +19,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
   }
 
-  const { data: profiles, error } = await supabase
-    .from('profiles')
-    .select('id, name, username, profile_image_url, is_verified, is_banned, created_at, location, niche')
-    .order('created_at', { ascending: false })
-    .limit(MAX_USERS)
+  const [listResult, countResult] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id, name, username, profile_image_url, is_verified, is_banned, created_at, location, niche')
+      .order('created_at', { ascending: false })
+      .limit(MAX_USERS),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }),
+  ])
+
+  const { data: profiles, error } = listResult
+  const totalCount = countResult.count ?? countResult.error ? null : undefined
 
   if (error) {
     console.error('[admin users]', error)
@@ -43,5 +49,7 @@ export async function GET(req: NextRequest) {
     niche: p.niche ?? null,
   }))
 
-  return NextResponse.json({ users: list })
+  const total =
+    totalCount != null && !countResult.error ? totalCount : list.length
+  return NextResponse.json({ users: list, total })
 }

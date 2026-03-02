@@ -386,6 +386,7 @@ export default function AdminPanel() {
   const [applicationsPage, setApplicationsPage] = useState(1)
   const APPLICATIONS_PAGE_SIZE = 50
   const [users, setUsers] = useState<User[]>([])
+  const [usersTotalCount, setUsersTotalCount] = useState<number | null>(null)
   const [profilesWithDemographics, setProfilesWithDemographics] = useState<{ id: string; location: string | null; niche: string | null }[]>([])
   const [pendingVerifications, setPendingVerifications] = useState<VerificationRequest[]>([])
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
@@ -930,10 +931,10 @@ export default function AdminPanel() {
       }
     }
 
-    const fetchUsersAndProfiles = async (): Promise<{ users: User[]; profiles: { id: string; location: string | null; niche: string | null }[] }> => {
+    const fetchUsersAndProfiles = async (): Promise<{ users: User[]; profiles: { id: string; location: string | null; niche: string | null }[]; total: number }> => {
       try {
         const res = await fetch('/api/admin/users', { credentials: 'include' })
-        if (!res.ok) return { users: [], profiles: [] }
+        if (!res.ok) return { users: [], profiles: [], total: 0 }
         const data = await res.json()
         const users = (data.users || []).map((u: User & { location?: string | null; niche?: string | null }) => ({
           id: u.id,
@@ -950,10 +951,11 @@ export default function AdminPanel() {
           location: u.location ?? null,
           niche: u.niche ?? null,
         }))
-        return { users, profiles }
+        const total = typeof data.total === 'number' ? data.total : users.length
+        return { users, profiles, total }
       } catch (e) {
         console.error('Users error:', e)
-        return { users: [], profiles: [] }
+        return { users: [], profiles: [], total: 0 }
       }
     }
 
@@ -1046,10 +1048,11 @@ export default function AdminPanel() {
     }
 
     if (!options?.skipOverview) {
-      // Run overview and tab data in parallel so numbers and list load together
-      const [overviewRes] = await Promise.all([
+      // Run overview, tab data, and Active today in parallel so both metrics have independent sources
+      const [overviewRes, , activeTodayFromApi] = await Promise.all([
         fetchOverviewStats(),
         loadTabData(activeTab, thisLoadId),
+        fetchActiveToday(),
       ])
       if (loadIdRef.current !== thisLoadId) return
       const overview = overviewRes
@@ -1064,21 +1067,19 @@ export default function AdminPanel() {
         setOverviewCounts(null)
       } else if (overview) {
         setStats(overview.stats)
-        setActiveUsersToday(overview.activeToday ?? null)
         setActiveSessions(overview.activeSessions)
         if (overview.overviewCounts) {
           setOverviewCounts(overview.overviewCounts)
           setTotalThreadCount(overview.overviewCounts.totalThreadCount)
           setTotalMessageCount(overview.overviewCounts.totalMessageCount)
         }
+        // Active today: prefer dedicated endpoint (always called above), then overview
+        setActiveUsersToday(activeTodayFromApi ?? overview.activeToday ?? null)
       } else {
-        // Overview failed or timed out: load active sessions/today (applications already set by loadTabData)
-        const [activeSessionsData, activeTodayCount] = await Promise.all([
-          fetchActiveSessions(),
-          fetchActiveToday(),
-        ])
+        // Overview failed or timed out; we still have activeTodayFromApi from parallel fetch
+        const activeSessionsData = await fetchActiveSessions()
         setActiveSessions(activeSessionsData)
-        if (activeTodayCount !== null) setActiveUsersToday(activeTodayCount)
+        setActiveUsersToday(activeTodayFromApi ?? null)
       }
     }
 
@@ -1106,6 +1107,7 @@ export default function AdminPanel() {
         }
         setUsers(usersAndProfiles.users)
         setProfilesWithDemographics(usersAndProfiles.profiles)
+        setUsersTotalCount(usersAndProfiles.total)
       } else if (tab === 'applications') {
         const page = options?.applicationsPage ?? applicationsPage
         const appResult = await fetchApplications(sort, filter, page, APPLICATIONS_PAGE_SIZE, statusFilter)
@@ -1130,6 +1132,7 @@ export default function AdminPanel() {
         if (loadIdRef.current !== loadId) return
         setUsers(usersAndProfiles.users)
         setProfilesWithDemographics(usersAndProfiles.profiles)
+        setUsersTotalCount(usersAndProfiles.total)
       } else if (tab === 'dashboard') {
         const [activityList, pendingVerificationsList, engagement, reportsAndData] = await Promise.all([
           fetchVerificationActivity(),
@@ -1844,7 +1847,7 @@ export default function AdminPanel() {
   // COMPUTED VALUES & ADVANCED METRICS
   // ============================================
 
-  const totalUsers = overviewCounts?.totalUsers ?? users.length
+  const totalUsers = usersTotalCount ?? overviewCounts?.totalUsers ?? users.length
   const verifiedUsersCount = overviewCounts?.verifiedCount ?? users.filter(u => u.is_verified).length
   const newUsersThisWeek = overviewCounts?.newUsersLast7d ?? users.filter(u => {
     if (!u.created_at) return false

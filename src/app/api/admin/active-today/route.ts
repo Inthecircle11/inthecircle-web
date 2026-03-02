@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest) {
   const result = await requireAdmin(req)
   if ('response' in result) return result.response
-  const forbidden = requirePermission(result, ADMIN_PERMISSIONS.active_sessions)
+  const forbidden = requirePermission(result, ADMIN_PERMISSIONS.read_applications)
   if (forbidden) return forbidden
 
   const supabase = getServiceRoleClient()

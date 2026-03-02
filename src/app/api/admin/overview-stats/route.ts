@@ -36,7 +36,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 })
   }
 
-  const parsed = allStats as { stats: Record<string, number>; overview: Record<string, number>; activeToday: number }
+  const parsed = allStats as { stats: Record<string, number>; overview: Record<string, number>; activeToday?: number | string }
+
+  // If admin_get_all_stats didn't return activeToday, fetch it from dedicated RPC (same DB, no extra permission)
+  let activeToday: number | null =
+    parsed.activeToday != null && parsed.activeToday !== ''
+      ? Number(parsed.activeToday)
+      : null
+  if (activeToday === null) {
+    const { data: activeTodayRow } = await supabase.rpc('admin_get_active_today_count').maybeSingle()
+    if (activeTodayRow != null && typeof (activeTodayRow as { active_count?: unknown }).active_count !== 'undefined') {
+      const raw = (activeTodayRow as { active_count: number | string }).active_count
+      activeToday =
+        typeof raw === 'number'
+          ? Math.max(0, Math.floor(raw))
+          : Math.max(0, parseInt(String(raw), 10) || 0)
+    }
+  }
 
   // Fetch active sessions separately (requires profile join, but only if user has permission)
   let activeSessions = null
@@ -75,7 +91,7 @@ export async function GET(req: NextRequest) {
       waitlisted: Number(parsed.stats?.waitlisted) || 0,
       suspended: Number(parsed.stats?.suspended) || 0,
     },
-    activeToday: Number(parsed.activeToday) || null,
+    activeToday,
     activeSessions,
     overviewCounts: {
       totalUsers: Number(parsed.overview?.totalUsers) || 0,
