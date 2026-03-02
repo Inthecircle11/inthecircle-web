@@ -6006,6 +6006,23 @@ function ApplicationDetailModal({
   const dialogRef = useRef<HTMLDivElement>(null)
   const handleClose = useModalFocusTrap(dialogRef, onClose)
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    const scrollY = window.scrollY
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${scrollY}px`
+    document.body.style.width = '100%'
+    document.body.style.overflow = 'hidden'
+    
+    return () => {
+      document.body.style.position = ''
+      document.body.style.top = ''
+      document.body.style.width = ''
+      document.body.style.overflow = ''
+      window.scrollTo(0, scrollY)
+    }
+  }, [])
+
   const statusStyles: Record<string, { bg: string; text: string; border: string }> = {
     'ACTIVE': { bg: 'bg-emerald-500/15', text: 'text-emerald-400', border: 'border-emerald-500/30' },
     'APPROVED': { bg: 'bg-emerald-500/15', text: 'text-emerald-400', border: 'border-emerald-500/30' },
