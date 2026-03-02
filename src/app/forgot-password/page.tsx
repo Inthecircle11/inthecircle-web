@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Logo } from '@/components/Logo'
 
@@ -10,21 +9,31 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
+function getEmailFromUrl(): string {
+  if (typeof window === 'undefined') return ''
+  try {
+    const raw = new URLSearchParams(window.location.search).get('email')
+    if (!raw) return ''
+    const decoded = decodeURIComponent(raw).trim()
+    return isValidEmail(decoded) ? decoded : ''
+  } catch {
+    return ''
+  }
+}
+
 export default function ForgotPassword() {
-  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
-  // Pre-fill email from URL when coming from welcome email "Reset it here" link
+  // Pre-fill email from URL after mount (window is available). No useSearchParams = no suspension.
   useEffect(() => {
-    const fromUrl = searchParams.get('email')
-    if (fromUrl) {
-      const decoded = decodeURIComponent(fromUrl).trim()
-      if (isValidEmail(decoded)) setEmail(decoded)
-    }
-  }, [searchParams])
+    setMounted(true)
+    const fromUrl = getEmailFromUrl()
+    if (fromUrl) setEmail(fromUrl)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,6 +92,17 @@ export default function ForgotPassword() {
     )
   }
 
+  // Avoid flash: show minimal loading only until we've read the URL (client-side).
+  if (!mounted) {
+    return (
+      <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-[var(--bg)]">
+        <div className="max-w-md w-full animate-pulse text-center text-[var(--text-secondary)]">
+          Loading…
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-[var(--bg)]">
       <div className="max-w-md w-full animate-fade-in">
@@ -92,7 +112,9 @@ export default function ForgotPassword() {
         </Link>
         <h2 className="text-xl font-semibold text-center mb-2 text-[var(--text)]">Reset password</h2>
         <p className="text-center text-[var(--text-secondary)] text-sm mb-8">
-          Enter your email and we&apos;ll send you a link to reset your password
+          {email.trim()
+            ? "We'll send you a one-time link. When you click it, you'll go straight to set your new password — no need to enter your email again."
+            : "Enter your email and we'll send you a link to reset your password"}
         </p>
 
         {error && (

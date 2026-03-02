@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { Logo } from '@/components/Logo'
 
-export default function UpdatePassword() {
+function UpdatePasswordForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const next = searchParams.get('next') || '/feed'
@@ -129,5 +129,23 @@ export default function UpdatePassword() {
         </p>
       </div>
     </main>
+  )
+}
+
+function UpdatePasswordFallback() {
+  return (
+    <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-[var(--bg)]">
+      <div className="max-w-md w-full animate-pulse text-center text-[var(--text-secondary)]">
+        Loading…
+      </div>
+    </main>
+  )
+}
+
+export default function UpdatePassword() {
+  return (
+    <Suspense fallback={<UpdatePasswordFallback />}>
+      <UpdatePasswordForm />
+    </Suspense>
   )
 }
