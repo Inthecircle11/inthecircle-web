@@ -3697,54 +3697,34 @@ function ApplicationsTab({
     else setSelectedAppIds(new Set(paginatedApps.map(a => a.id)))
   }
 
-  const statusFilterColors: Record<AppFilter, { active: string; inactive: string; count: string }> = {
-    all: { active: 'bg-[var(--accent-purple)] text-white', inactive: 'bg-[var(--surface)] text-[var(--text)]', count: 'bg-white/20' },
-    pending: { active: 'bg-amber-500 text-white', inactive: 'bg-amber-500/10 text-amber-400 border-amber-500/30', count: 'bg-amber-600' },
-    approved: { active: 'bg-emerald-500 text-white', inactive: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30', count: 'bg-emerald-600' },
-    rejected: { active: 'bg-red-500 text-white', inactive: 'bg-red-500/10 text-red-400 border-red-500/30', count: 'bg-red-600' },
-    waitlisted: { active: 'bg-purple-500 text-white', inactive: 'bg-purple-500/10 text-purple-400 border-purple-500/30', count: 'bg-purple-600' },
-    suspended: { active: 'bg-slate-500 text-white', inactive: 'bg-slate-500/10 text-slate-400 border-slate-500/30', count: 'bg-slate-600' },
-  }
-
   return (
-    <div className="space-y-5">
-      {/* Header: Search + Export */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-        <div className="flex-1 w-full sm:max-w-lg relative">
-          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-            <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
+    <div className="space-y-4">
+      {/* Top bar: Search + Filters + Export */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex-1 min-w-[280px] max-w-md">
           <input
             id="admin-applications-search"
             name="applications-search"
             type="text"
-            placeholder="Search by name, username, email, niche, referrer..."
+            placeholder="Search name, email, username..."
             value={appSearch}
             onChange={e => setAppSearch(e.target.value)}
-            className="input-field w-full pl-10"
+            className="w-full px-4 py-2 rounded-lg bg-[var(--surface)] border border-[var(--separator)] text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-purple)]"
             aria-label="Search applications"
           />
-          <p className="text-xs text-[var(--text-muted)] mt-1.5 ml-1">Search applies to current page only.</p>
         </div>
         <button
           type="button"
           onClick={onExportCsv}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-[var(--text)] text-sm font-medium hover:bg-[var(--surface-hover)] hover:border-[var(--text-muted)] transition-all shadow-sm"
-          title="Exports current page only. Use pagination to export other pages."
+          className="px-4 py-2 rounded-lg bg-[var(--surface)] border border-[var(--separator)] text-sm text-[var(--text)] hover:bg-[var(--surface-hover)]"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          Export CSV
+          Export
         </button>
       </div>
 
-      {/* Status Filter Tabs - Color-coded pills */}
-      <div className="flex flex-wrap gap-2">
+      {/* Status tabs */}
+      <div className="flex gap-1 p-1 rounded-lg bg-[var(--surface)] border border-[var(--separator)] w-fit">
         {(['all', 'pending', 'approved', 'rejected', 'waitlisted', 'suspended'] as AppFilter[]).map(f => {
-          const colors = statusFilterColors[f]
           const count = getFilterCount(f)
           const isActive = filter === f
           return (
@@ -3752,193 +3732,154 @@ function ApplicationsTab({
               type="button"
               key={f}
               onClick={() => (onStatusFilterChange ?? setFilter)(f)}
-              className={`group flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all border ${
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 isActive 
-                  ? `${colors.active} border-transparent shadow-md` 
-                  : `${colors.inactive} border hover:scale-[1.02]`
+                  ? 'bg-[var(--accent-purple)] text-white' 
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
               }`}
             >
-              <span>{f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}</span>
-              <span className={`text-xs px-1.5 py-0.5 rounded-md font-semibold ${
-                isActive ? colors.count : 'bg-black/10 dark:bg-white/10'
-              }`}>
-                {count}
-              </span>
+              {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)} ({count})
             </button>
           )
         })}
       </div>
 
-      {/* Assignment + Sort Controls - Grouped in a card */}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 p-3 rounded-xl bg-[var(--surface)]/50 border border-[var(--separator)]">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">Assignment:</span>
-          <div className="flex gap-1.5">
-            {['all', 'unassigned', 'assigned_to_me'].map(f => (
-              <button 
-                key={f} 
-                type="button" 
-                onClick={() => onSortFilterChange(appSort, f)} 
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  appAssignmentFilter === f 
-                    ? 'bg-[var(--accent-purple)] text-white shadow-sm' 
-                    : 'bg-[var(--surface)] border border-[var(--separator)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--text-muted)]'
-                }`}
-              >
-                {f === 'assigned_to_me' ? 'Assigned to me' : f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">Sort:</span>
-          <div className="flex gap-1.5">
-            {['overdue', 'oldest', 'assigned_to_me'].map(s => (
-              <button 
-                key={s} 
-                type="button" 
-                onClick={() => onSortFilterChange(s, appAssignmentFilter)} 
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  appSort === s 
-                    ? 'bg-[var(--accent-purple)] text-white shadow-sm' 
-                    : 'bg-[var(--surface)] border border-[var(--separator)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--text-muted)]'
-                }`}
-              >
-                {s === 'assigned_to_me' ? 'My items first' : s.charAt(0).toUpperCase() + s.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Bulk action bar */}
+      {/* Bulk actions */}
       {pendingInSelection.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-[var(--accent-purple)]/10 to-[var(--accent-purple)]/5 border border-[var(--accent-purple)]/30 shadow-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-[var(--accent-purple)] flex items-center justify-center text-white font-bold text-sm">
-              {pendingInSelection.length}
-            </div>
-            <span className="text-sm font-medium text-[var(--text)]">pending selected</span>
-          </div>
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--accent-purple)]/10 border border-[var(--accent-purple)]/20">
+          <span className="text-sm text-[var(--text)]">{pendingInSelection.length} selected</span>
           <div className="flex gap-2 ml-auto">
-            <button type="button" onClick={() => onBulkAction(pendingInSelection, 'approve')} disabled={actionLoading === 'bulk'} className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50 shadow-sm transition-all">
-              Approve all
-            </button>
-            <button type="button" onClick={() => onBulkAction(pendingInSelection, 'reject')} disabled={actionLoading === 'bulk'} className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/30 disabled:opacity-50 transition-all">
-              Reject all
-            </button>
-            <button type="button" onClick={() => onBulkAction(pendingInSelection, 'waitlist')} disabled={actionLoading === 'bulk'} className="px-4 py-2 rounded-lg bg-purple-500/20 text-purple-400 text-sm font-medium hover:bg-purple-500/30 disabled:opacity-50 transition-all">
-              Waitlist all
-            </button>
-            <button type="button" onClick={() => setSelectedAppIds(new Set())} className="px-3 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
-              Clear
-            </button>
+            <button type="button" onClick={() => onBulkAction(pendingInSelection, 'approve')} disabled={actionLoading === 'bulk'} className="px-3 py-1.5 rounded-md bg-emerald-500 text-white text-sm hover:bg-emerald-600 disabled:opacity-50">Approve</button>
+            <button type="button" onClick={() => onBulkAction(pendingInSelection, 'reject')} disabled={actionLoading === 'bulk'} className="px-3 py-1.5 rounded-md bg-red-500/20 text-red-400 text-sm hover:bg-red-500/30 disabled:opacity-50">Reject</button>
+            <button type="button" onClick={() => onBulkAction(pendingInSelection, 'waitlist')} disabled={actionLoading === 'bulk'} className="px-3 py-1.5 rounded-md bg-purple-500/20 text-purple-400 text-sm hover:bg-purple-500/30 disabled:opacity-50">Waitlist</button>
+            <button type="button" onClick={() => setSelectedAppIds(new Set())} className="px-3 py-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text)]">Clear</button>
           </div>
         </div>
       )}
 
-      {/* List header: count + select all + pagination */}
-      <div className="flex flex-wrap items-center justify-between gap-3 py-3 px-4 rounded-xl bg-[var(--surface)] border border-[var(--separator)]">
-        <div className="text-sm text-[var(--text-secondary)] flex items-center gap-3">
-          <span className="font-semibold text-[var(--text)] text-base">{applicationsTotal.toLocaleString()} applications</span>
+      {/* List header with pagination */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-[var(--text-muted)]">{applicationsTotal.toLocaleString()} total</span>
           {applications.length > 0 && (
-            <button type="button" onClick={toggleSelectAll} className="text-[var(--accent-purple)] hover:underline text-sm">
+            <button type="button" onClick={toggleSelectAll} className="text-sm text-[var(--accent-purple)] hover:underline">
               {selectedAppIds.size >= paginatedApps.length ? 'Deselect all' : 'Select all'}
             </button>
           )}
         </div>
         {applicationsTotal > applicationsPageSize && (
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-[var(--text-muted)]">
-              {(applicationsPage - 1) * applicationsPageSize + 1}–{Math.min(applicationsPage * applicationsPageSize, applicationsTotal)} of {applicationsTotal.toLocaleString()}
-            </span>
-            <div className="flex items-center rounded-lg border border-[var(--separator)] overflow-hidden">
-              <button 
-                type="button" 
-                onClick={() => onApplicationsPageChange(applicationsPage - 1)} 
-                disabled={applicationsPage <= 1} 
-                className="px-3 py-1.5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <span className="px-3 py-1.5 text-sm font-medium bg-[var(--surface-hover)] border-x border-[var(--separator)]">
-                {applicationsPage} / {totalPages}
-              </span>
-              <button 
-                type="button" 
-                onClick={() => onApplicationsPageChange(applicationsPage + 1)} 
-                disabled={applicationsPage >= totalPages} 
-                className="px-3 py-1.5 bg-[var(--surface)] hover:bg-[var(--surface-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
+          <div className="flex items-center gap-2">
+            <button 
+              type="button" 
+              onClick={() => onApplicationsPageChange(applicationsPage - 1)} 
+              disabled={applicationsPage <= 1} 
+              className="p-1.5 rounded-md hover:bg-[var(--surface-hover)] disabled:opacity-30"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <span className="text-sm text-[var(--text-muted)]">{applicationsPage} / {totalPages}</span>
+            <button 
+              type="button" 
+              onClick={() => onApplicationsPageChange(applicationsPage + 1)} 
+              disabled={applicationsPage >= totalPages} 
+              className="p-1.5 rounded-md hover:bg-[var(--surface-hover)] disabled:opacity-30"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            </button>
           </div>
         )}
       </div>
 
+      {/* Loading state */}
       {applicationsLoading && (
-        <div className="flex flex-col items-center justify-center gap-3 py-16 rounded-2xl bg-[var(--surface)] border border-[var(--separator)]">
-          <div className="w-10 h-10 rounded-full border-2 border-[var(--accent-purple)] border-t-transparent animate-spin" />
-          <span className="text-sm text-[var(--text-secondary)]">Loading applications…</span>
+        <div className="flex items-center justify-center py-12">
+          <div className="w-8 h-8 rounded-full border-2 border-[var(--accent-purple)] border-t-transparent animate-spin" />
         </div>
       )}
       
-      {!applicationsLoading && applications.length === 0 ? (
-        <div className="text-center py-20 rounded-2xl bg-[var(--surface)] border border-[var(--separator)]">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--surface-hover)] flex items-center justify-center">
-            <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <p className="text-[var(--text)] font-semibold text-lg">
-            {applicationsTotal === 0
-              ? 'No applications yet'
-              : `No ${filter === 'all' ? 'applications' : filter} applications`}
-          </p>
-          <p className="text-sm text-[var(--text-muted)] mt-2 max-w-sm mx-auto">
-            {applicationsTotal === 0
-              ? 'New applications will appear here when users submit them.'
-              : 'Try changing the filter or check another page.'}
-          </p>
+      {/* Empty state */}
+      {!applicationsLoading && applications.length === 0 && (
+        <div className="text-center py-12 text-[var(--text-muted)]">
+          <p>No applications found</p>
         </div>
-      ) : !applicationsLoading ? (
-        <div className="space-y-3">
-          {paginatedApps.map(app => (
-            <div key={app.id} className="flex items-start gap-3 group">
+      )}
+
+      {/* Applications list */}
+      {!applicationsLoading && applications.length > 0 && (
+        <div className="border border-[var(--separator)] rounded-xl overflow-hidden">
+          {paginatedApps.map((app, idx) => (
+            <div 
+              key={app.id} 
+              className={`flex items-center gap-4 p-4 hover:bg-[var(--surface-hover)] cursor-pointer ${idx !== 0 ? 'border-t border-[var(--separator)]' : ''}`}
+              onClick={() => setSelectedApp(app)}
+            >
               <input
                 type="checkbox"
                 checked={selectedAppIds.has(app.id)}
-                onChange={() => toggleSelect(app.id)}
-                aria-label={`Select ${app.name || app.username}`}
-                className="mt-5 rounded border-[var(--separator)] text-[var(--accent-purple)] focus:ring-[var(--accent-purple)] flex-shrink-0"
+                onChange={(e) => { e.stopPropagation(); toggleSelect(app.id) }}
+                onClick={(e) => e.stopPropagation()}
+                className="rounded border-[var(--separator)] text-[var(--accent-purple)] focus:ring-[var(--accent-purple)]"
               />
+              <Avatar url={app.profile_image_url} name={app.name} size={44} />
               <div className="flex-1 min-w-0">
-                <ApplicationCard
-                  app={app}
-                  onApprove={() => onApprove(app.id, app.updated_at)}
-                  onReject={() => onReject(app.id, app.updated_at)}
-                  onWaitlist={() => onWaitlist(app.id, app.updated_at)}
-                  onSuspend={() => onSuspend(app.id, app.updated_at)}
-                  onViewDetails={() => setSelectedApp(app)}
-                  isLoading={actionLoading === app.id}
-                  canAct={canActOnApp(app)}
-                  claimedByMe={isClaimedByMe(app)}
-                  claimedByOther={isClaimedByOther(app)}
-                  onClaim={onClaim ? async () => { setClaimingId(app.id); await onClaim(app.id); setClaimingId(null) } : undefined}
-                  onRelease={onRelease ? async () => { setClaimingId(app.id); await onRelease(app.id); setClaimingId(null) } : undefined}
-                  claiming={claimingId === app.id}
-                />
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-[var(--text)] truncate">{app.name || 'No name'}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    app.status.toUpperCase() === 'APPROVED' || app.status.toUpperCase() === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-400' :
+                    app.status.toUpperCase() === 'REJECTED' ? 'bg-red-500/20 text-red-400' :
+                    app.status.toUpperCase() === 'WAITLIST' || app.status.toUpperCase() === 'WAITLISTED' ? 'bg-purple-500/20 text-purple-400' :
+                    app.status.toUpperCase() === 'SUSPENDED' ? 'bg-slate-500/20 text-slate-400' :
+                    'bg-amber-500/20 text-amber-400'
+                  }`}>
+                    {getStatusLabel(app.status)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+                  <span>@{app.username}</span>
+                  <span>·</span>
+                  <span className="truncate">{app.email}</span>
+                  {app.niche && <><span>·</span><span className="text-[var(--accent-purple)]">{app.niche}</span></>}
+                </div>
               </div>
+              <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                {isPending(app) && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onApprove(app.id, app.updated_at)}
+                      disabled={!canActOnApp(app) || actionLoading === app.id}
+                      className="px-3 py-1.5 rounded-md bg-emerald-500 text-white text-sm hover:bg-emerald-600 disabled:opacity-50"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onWaitlist(app.id, app.updated_at)}
+                      disabled={!canActOnApp(app) || actionLoading === app.id}
+                      className="px-3 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--separator)] text-sm text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] disabled:opacity-50"
+                    >
+                      Waitlist
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onReject(app.id, app.updated_at)}
+                      disabled={!canActOnApp(app) || actionLoading === app.id}
+                      className="px-3 py-1.5 rounded-md bg-[var(--surface)] border border-[var(--separator)] text-sm text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
+                  </>
+                )}
+              </div>
+              <span className="text-xs text-[var(--text-muted)] whitespace-nowrap">
+                {app.application_date ? new Date(app.application_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+              </span>
             </div>
           ))}
         </div>
-      ) : null}
+      )}
 
+      {/* Modal */}
       {selectedApp && (
         <ApplicationDetailModal
           app={selectedApp}
@@ -6033,309 +5974,142 @@ function ApplicationDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/80 overflow-hidden flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
       onClick={e => e.target === e.currentTarget && handleClose()}
       role="presentation"
     >
       <div
         ref={dialogRef}
-        className="bg-[var(--background)] rounded-3xl max-w-xl w-full flex flex-col shadow-2xl border border-[var(--separator)] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
-        style={{ maxHeight: 'min(85vh, 800px)' }}
+        className="bg-[var(--background)] rounded-2xl max-w-lg w-full flex flex-col shadow-xl border border-[var(--separator)] overflow-hidden"
+        style={{ maxHeight: 'min(90vh, 700px)' }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="application-detail-title"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header with gradient background */}
-        <div className="relative bg-gradient-to-br from-[var(--accent-purple)]/20 via-[var(--surface)] to-[var(--surface)] p-6 pb-4">
-          {/* Close button */}
-          <button 
-            type="button" 
-            onClick={handleClose} 
-            className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-[var(--surface)]/80 text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-all border border-[var(--separator)]" 
-            aria-label="Close"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-
-          {/* Profile section */}
-          <div className="flex items-start gap-4">
-            <div className="relative">
-              <Avatar url={app.profile_image_url} name={app.name} size={80} />
-              <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full ${currentStatusStyle.bg} ${currentStatusStyle.border} border-2 flex items-center justify-center`}>
-                {statusUpper === 'APPROVED' || statusUpper === 'ACTIVE' ? (
-                  <svg className="w-3.5 h-3.5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                ) : statusUpper === 'REJECTED' ? (
-                  <svg className="w-3.5 h-3.5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                ) : (
-                  <svg className="w-3.5 h-3.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </div>
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-[var(--separator)]">
+          <div className="flex items-center gap-3">
+            <Avatar url={app.profile_image_url} name={app.name} size={48} />
+            <div>
+              <h2 id="application-detail-title" className="font-semibold text-[var(--text)]">{app.name || 'No name'}</h2>
+              <p className="text-sm text-[var(--text-muted)]">@{app.username}</p>
             </div>
-            <div className="flex-1 min-w-0 pt-1">
-              <h2 id="application-detail-title" className="text-xl font-bold text-[var(--text)] truncate">{app.name || 'No name'}</h2>
-              <p className="text-[var(--text-secondary)] text-sm">@{app.username}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-medium ${currentStatusStyle.bg} ${currentStatusStyle.text} ${currentStatusStyle.border} border`}>
-                  {getStatusLabel(app.status)}
-                </span>
-                {app.niche && (
-                  <span className="text-xs px-2.5 py-1 rounded-lg bg-[var(--accent-purple)]/10 text-[var(--accent-purple)] font-medium">
-                    {app.niche}
-                  </span>
-                )}
-              </div>
-            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs px-2 py-1 rounded-full ${
+              statusUpper === 'APPROVED' || statusUpper === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-400' :
+              statusUpper === 'REJECTED' ? 'bg-red-500/20 text-red-400' :
+              statusUpper === 'WAITLIST' || statusUpper === 'WAITLISTED' ? 'bg-purple-500/20 text-purple-400' :
+              statusUpper === 'SUSPENDED' ? 'bg-slate-500/20 text-slate-400' :
+              'bg-amber-500/20 text-amber-400'
+            }`}>
+              {getStatusLabel(app.status)}
+            </span>
+            <button type="button" onClick={handleClose} className="p-2 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-muted)]" aria-label="Close">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         </div>
 
-        {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto min-h-0">
-          {/* Contact & Basic Info */}
-          <div className="px-6 py-4 border-b border-[var(--separator)]">
-            <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Contact Information</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--surface)]">
-                <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4.5 h-4.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">Email</p>
-                  <p className="text-sm text-[var(--text)] truncate">{app.email || 'Not provided'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--surface)]">
-                <div className="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4.5 h-4.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">Phone</p>
-                  <p className="text-sm text-[var(--text)]">{app.phone || 'Not provided'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--surface)]">
-                <div className="w-9 h-9 rounded-lg bg-pink-500/10 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4.5 h-4.5 text-pink-400" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                  </svg>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">Instagram</p>
-                  <p className="text-sm text-[var(--text)]">{app.instagram_username ? `@${app.instagram_username}` : 'Not linked'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--surface)]">
-                <div className="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-4.5 h-4.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wide">Followers</p>
-                  <p className="text-sm text-[var(--text)]">{app.follower_count?.toLocaleString() || 'Unknown'}</p>
-                </div>
-              </div>
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Info grid */}
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="text-[var(--text-muted)]">Email</span>
+              <p className="text-[var(--text)] truncate">{app.email || '-'}</p>
             </div>
-            
-            {/* Additional info row */}
-            <div className="flex items-center gap-4 mt-3 text-sm">
-              {app.referrer_username && (
-                <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
-                  <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  <span>Referred by <span className="text-[var(--accent-purple)]">@{app.referrer_username}</span></span>
-                </div>
-              )}
-              <div className="flex items-center gap-1.5 text-[var(--text-muted)]">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span>{app.application_date ? new Date(app.application_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}</span>
+            <div>
+              <span className="text-[var(--text-muted)]">Phone</span>
+              <p className="text-[var(--text)]">{app.phone || '-'}</p>
+            </div>
+            <div>
+              <span className="text-[var(--text-muted)]">Instagram</span>
+              <p className="text-[var(--text)]">{app.instagram_username ? `@${app.instagram_username}` : '-'}</p>
+            </div>
+            <div>
+              <span className="text-[var(--text-muted)]">Followers</span>
+              <p className="text-[var(--text)]">{app.follower_count?.toLocaleString() || '-'}</p>
+            </div>
+            {app.niche && (
+              <div>
+                <span className="text-[var(--text-muted)]">Niche</span>
+                <p className="text-[var(--accent-purple)]">{app.niche}</p>
               </div>
+            )}
+            {app.referrer_username && (
+              <div>
+                <span className="text-[var(--text-muted)]">Referred by</span>
+                <p className="text-[var(--text)]">@{app.referrer_username}</p>
+              </div>
+            )}
+            <div>
+              <span className="text-[var(--text-muted)]">Applied</span>
+              <p className="text-[var(--text)]">{app.application_date ? new Date(app.application_date).toLocaleDateString() : '-'}</p>
             </div>
           </div>
 
-          {/* Bio & Application Responses */}
-          <div className="px-6 py-4 space-y-4">
-            {app.bio && (
-              <div>
-                <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">Bio</h3>
-                <p className="text-sm text-[var(--text)] leading-relaxed bg-[var(--surface)] p-4 rounded-xl border border-[var(--separator)]">{app.bio}</p>
-              </div>
-            )}
-
-            {app.why_join && (
-              <div>
-                <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2 flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 text-xs">1</span>
-                  Why do you want to join?
-                </h3>
-                <p className="text-sm text-[var(--text)] leading-relaxed bg-[var(--surface)] p-4 rounded-xl border border-[var(--separator)]">{app.why_join}</p>
-              </div>
-            )}
-
-            {app.what_to_offer && (
-              <div>
-                <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2 flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 text-xs">2</span>
-                  What do you have to offer?
-                </h3>
-                <p className="text-sm text-[var(--text)] leading-relaxed bg-[var(--surface)] p-4 rounded-xl border border-[var(--separator)]">{app.what_to_offer}</p>
-              </div>
-            )}
-
-            {app.collaboration_goals && (
-              <div>
-                <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2 flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400 text-xs">3</span>
-                  Collaboration goals
-                </h3>
-                <p className="text-sm text-[var(--text)] leading-relaxed bg-[var(--surface)] p-4 rounded-xl border border-[var(--separator)]">{app.collaboration_goals}</p>
-              </div>
-            )}
-
-            {!app.bio && !app.why_join && !app.what_to_offer && !app.collaboration_goals && (
-              <div className="text-center py-8">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--surface)] flex items-center justify-center">
-                  <svg className="w-6 h-6 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <p className="text-sm text-[var(--text-muted)]">No additional information provided</p>
-              </div>
-            )}
-          </div>
+          {/* Responses */}
+          {app.bio && (
+            <div>
+              <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase mb-1">Bio</h3>
+              <p className="text-sm text-[var(--text)] p-3 rounded-lg bg-[var(--surface)]">{app.bio}</p>
+            </div>
+          )}
+          {app.why_join && (
+            <div>
+              <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase mb-1">Why join?</h3>
+              <p className="text-sm text-[var(--text)] p-3 rounded-lg bg-[var(--surface)]">{app.why_join}</p>
+            </div>
+          )}
+          {app.what_to_offer && (
+            <div>
+              <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase mb-1">What to offer</h3>
+              <p className="text-sm text-[var(--text)] p-3 rounded-lg bg-[var(--surface)]">{app.what_to_offer}</p>
+            </div>
+          )}
+          {app.collaboration_goals && (
+            <div>
+              <h3 className="text-xs font-medium text-[var(--text-muted)] uppercase mb-1">Collaboration goals</h3>
+              <p className="text-sm text-[var(--text)] p-3 rounded-lg bg-[var(--surface)]">{app.collaboration_goals}</p>
+            </div>
+          )}
         </div>
 
-        {/* Sticky footer: actions */}
+        {/* Footer actions */}
         <div className="p-4 border-t border-[var(--separator)] bg-[var(--surface)]">
           {!canAct && canActReason && (
-            <div className="flex items-center gap-2 mb-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
-              <svg className="w-4 h-4 text-amber-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-              <p className="text-sm text-amber-400">{canActReason}</p>
-            </div>
+            <p className="text-sm text-amber-400 mb-3">{canActReason}</p>
           )}
-          
-          {isPending && (
-            <div className="grid grid-cols-4 gap-2 mb-3">
-              <button
-                type="button"
-                onClick={onApprove}
-                disabled={!canAct || isLoading}
-                className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed bg-emerald-500 text-white hover:bg-emerald-600 transition-all shadow-sm"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Approve</span>
-              </button>
-              <button
-                type="button"
-                onClick={onWaitlist}
-                disabled={!canAct || isLoading}
-                className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 border border-purple-500/30 transition-all"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>Waitlist</span>
-              </button>
-              <button
-                type="button"
-                onClick={onReject}
-                disabled={!canAct || isLoading}
-                className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed bg-red-500/15 text-red-400 hover:bg-red-500/25 border border-red-500/30 transition-all"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                <span>Reject</span>
-              </button>
-              <button
-                type="button"
-                onClick={onSuspend}
-                disabled={!canAct || isLoading}
-                className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed bg-slate-500/15 text-slate-400 hover:bg-slate-500/25 border border-slate-500/30 transition-all"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                </svg>
-                <span>Suspend</span>
-              </button>
-            </div>
-          )}
-
-          {!isPending && (
-            <div className="grid grid-cols-4 gap-2 mb-3">
-              <button
-                type="button"
-                onClick={onApprove}
-                disabled={!canAct || isLoading || statusUpper === 'APPROVED' || statusUpper === 'ACTIVE'}
-                className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30 transition-all"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Approve</span>
-              </button>
-              <button
-                type="button"
-                onClick={onWaitlist}
-                disabled={!canAct || isLoading || statusUpper === 'WAITLIST' || statusUpper === 'WAITLISTED'}
-                className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed bg-purple-500/15 text-purple-400 hover:bg-purple-500/25 border border-purple-500/30 transition-all"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>Waitlist</span>
-              </button>
-              <button
-                type="button"
-                onClick={onReject}
-                disabled={!canAct || isLoading || statusUpper === 'REJECTED'}
-                className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed bg-red-500/15 text-red-400 hover:bg-red-500/25 border border-red-500/30 transition-all"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                <span>Reject</span>
-              </button>
-              <button
-                type="button"
-                onClick={onSuspend}
-                disabled={!canAct || isLoading || statusUpper === 'SUSPENDED'}
-                className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed bg-slate-500/15 text-slate-400 hover:bg-slate-500/25 border border-slate-500/30 transition-all"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                </svg>
-                <span>Suspend</span>
-              </button>
-            </div>
-          )}
-
-          <button 
-            type="button" 
-            onClick={handleClose} 
-            className="w-full py-2.5 rounded-xl bg-[var(--surface-hover)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--separator)] text-sm font-medium transition-all"
-          >
-            Close
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onApprove}
+              disabled={!canAct || isLoading || statusUpper === 'APPROVED' || statusUpper === 'ACTIVE'}
+              className="flex-1 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-40"
+            >
+              Approve
+            </button>
+            <button
+              type="button"
+              onClick={onWaitlist}
+              disabled={!canAct || isLoading || statusUpper === 'WAITLIST' || statusUpper === 'WAITLISTED'}
+              className="flex-1 py-2 rounded-lg bg-[var(--surface-hover)] border border-[var(--separator)] text-sm font-medium text-[var(--text)] hover:bg-[var(--separator)] disabled:opacity-40"
+            >
+              Waitlist
+            </button>
+            <button
+              type="button"
+              onClick={onReject}
+              disabled={!canAct || isLoading || statusUpper === 'REJECTED'}
+              className="flex-1 py-2 rounded-lg bg-[var(--surface-hover)] border border-[var(--separator)] text-sm font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-40"
+            >
+              Reject
+            </button>
+          </div>
         </div>
       </div>
     </div>
