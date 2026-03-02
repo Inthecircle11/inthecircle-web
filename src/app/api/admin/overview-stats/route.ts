@@ -52,6 +52,12 @@ export async function GET(req: NextRequest) {
           ? Math.max(0, Math.floor(raw))
           : Math.max(0, parseInt(String(raw), 10) || 0)
     }
+    // Fallback when admin_get_active_today_count is missing (e.g. migration not run)
+    if (activeToday === null) {
+      const { data: rows } = await supabase.rpc('get_active_sessions', { active_minutes: 24 * 60 })
+      const list = (rows ?? []) as Array<{ user_id: string }>
+      activeToday = new Set(list.map((r) => r.user_id)).size
+    }
   }
 
   // Fetch active sessions separately (requires profile join, but only if user has permission)
@@ -91,7 +97,7 @@ export async function GET(req: NextRequest) {
       waitlisted: Number(parsed.stats?.waitlisted) || 0,
       suspended: Number(parsed.stats?.suspended) || 0,
     },
-    activeToday,
+    activeToday: activeToday ?? 0,
     activeSessions,
     overviewCounts: {
       totalUsers: Number(parsed.overview?.totalUsers) || 0,
