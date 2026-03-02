@@ -39,13 +39,16 @@ export async function GET(req: NextRequest) {
       supabase.rpc('admin_get_overview_app_stats').single(),
       supabase.rpc('admin_get_overview_counts').single(),
     ])
-    const app = (appRes.data ?? {}) as { total?: number; approved?: number; rejected?: number; waitlisted?: number; suspended?: number }
-    const c = (countsRes.data ?? {}) as { total_users?: number; verified_count?: number; new_users_24h?: number; new_users_7d?: number; new_users_30d?: number; total_threads?: number; total_messages?: number; applications_7d?: number; applications_approved_7d?: number }
-    const total = Number(app.total) || 0
-    const approved = Number(app.approved) || 0
-    const rejected = Number(app.rejected) || 0
-    const waitlisted = Number(app.waitlisted) || 0
-    const suspended = Number(app.suspended) || 0
+    // TABLE-returning RPCs can return array of one row; .single() gives that row, but be defensive
+    const app = (Array.isArray(appRes.data) ? appRes.data[0] : appRes.data) ?? {}
+    const countsRow = (Array.isArray(countsRes.data) ? countsRes.data[0] : countsRes.data) ?? {}
+    const appData = app as { total?: number; approved?: number; rejected?: number; waitlisted?: number; suspended?: number }
+    const c = countsRow as { total_users?: number; verified_count?: number; new_users_24h?: number; new_users_7d?: number; new_users_30d?: number; total_threads?: number; total_messages?: number; applications_7d?: number; applications_approved_7d?: number }
+    const total = Number(appData.total) || 0
+    const approved = Number(appData.approved) || 0
+    const rejected = Number(appData.rejected) || 0
+    const waitlisted = Number(appData.waitlisted) || 0
+    const suspended = Number(appData.suspended) || 0
     parsed = {
       stats: {
         total,

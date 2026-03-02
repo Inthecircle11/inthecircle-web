@@ -3099,9 +3099,9 @@ function OverviewTab({
       {/* Executive KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard title="Total users" value={totalUsers} icon="👥" color="#A855F7" trend={`+${newUsersLast30d} last 30d`} />
-        <StatCard title="Active today" value={activeUsersToday} icon="📈" color="#3B82F6" trend="Logged in last 24h" />
+        <StatCard title="Active today" value={Number(activeUsersToday ?? 0)} icon="📈" color="#3B82F6" trend="Logged in last 24h" />
         <StatCard title="Conversations" value={totalThreads} icon="💬" color="#8B5CF6" trend={`${totalMessages} messages · ${avgMessagesPerUser} avg/user`} />
-        <StatCard title="Verified" value={verifiedUsersCount ?? 0} icon="✓" color="#10B981" trend={`${verificationRate}% of users`} />
+        <StatCard title="Verified" value={Number(verifiedUsersCount ?? 0)} icon="✓" color="#10B981" trend={`${verificationRate}% of users`} />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -5615,7 +5615,11 @@ function AdminSkeletonTable({ rows = 5 }: { rows?: number }) {
 function StatCard({ title, value, icon, color, trend }: { 
   title: string; value: number | string; icon: string; color: string; trend: string 
 }) {
-  const display = value != null && value !== '' ? value : 0
+  // Always show a visible number: coerce null/undefined/'' to '0' so the card is never blank
+  const display =
+    value === undefined || value === null || value === ''
+      ? '0'
+      : String(value)
   return (
     <div className="bg-[var(--surface)] border border-[var(--separator)] p-5 rounded-2xl shadow-[var(--shadow-card)]">
       <div 
@@ -5624,7 +5628,9 @@ function StatCard({ title, value, icon, color, trend }: {
       >
         {icon}
       </div>
-      <p className="text-3xl font-bold" style={{ color }}>{display}</p>
+      <p className="text-3xl font-bold min-h-[1.25em]" style={{ color }} aria-label={`${title}: ${display}`}>
+        {display}
+      </p>
       <p className="text-sm text-[var(--text-secondary)] mt-1">{title}</p>
       <p className="text-xs mt-2" style={{ color }}>{trend}</p>
     </div>
