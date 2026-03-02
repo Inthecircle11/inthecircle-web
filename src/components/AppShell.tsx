@@ -293,8 +293,9 @@ export default function AppShell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
-  // Show loading state
-  if (loading) {
+  // Show loading state only for protected routes - public routes render immediately
+  // This ensures server-rendered props (like initialEmail) are preserved during hydration
+  if (loading && !isPublicRoute) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
         <div className="text-center">
