@@ -95,69 +95,62 @@ export async function GET(req: NextRequest) {
   if (cached && Date.now() - cached.at < APPS_CACHE_TTL_MS) {
     list = cached.data
   } else {
-    // Build query
-    let query = supabase
+    // Status filter mapping - UI names to DB values
+    const statusMap: Record<string, string[]> = {
+      'pending': ['SUBMITTED', 'PENDING_REVIEW', 'DRAFT', 'PENDING'],
+      'approved': ['ACTIVE', 'APPROVED'],
+      'rejected': ['REJECTED'],
+      'waitlist': ['WAITLISTED', 'WAITLIST'],
+      'waitlisted': ['WAITLISTED', 'WAITLIST'],
+      'suspended': ['SUSPENDED'],
+    }
+
+    // First get applications
+    let appsQuery = supabase
       .from('applications')
-      .select(`
-        id,
-        user_id,
-        status,
-        submitted_at,
-        review_notes,
-        why_join,
-        what_to_offer,
-        collaboration_goals,
-        updated_at,
-        assigned_to,
-        assigned_at,
-        assignment_expires_at,
-        profiles:user_id (
-          name,
-          username,
-          email,
-          profile_image_url,
-          bio,
-          niche,
-          phone
-        )
-      `)
+      .select('*')
       .order('submitted_at', { ascending: true })
       .range(offset, offset + limit - 1)
 
-    // Apply status filter - map UI status names to actual DB values
     if (statusParam !== 'all') {
-      // DB stores: ACTIVE, REJECTED, WAITLISTED, SUSPENDED, SUBMITTED, PENDING_REVIEW, DRAFT
-      const statusMap: Record<string, string[]> = {
-        'pending': ['SUBMITTED', 'PENDING_REVIEW', 'DRAFT', 'PENDING'],
-        'approved': ['ACTIVE', 'APPROVED'],
-        'rejected': ['REJECTED'],
-        'waitlist': ['WAITLISTED', 'WAITLIST'],
-        'waitlisted': ['WAITLISTED', 'WAITLIST'],
-        'suspended': ['SUSPENDED'],
-      }
       const dbStatuses = statusMap[statusParam] || [statusParam.toUpperCase()]
-      query = query.in('status', dbStatuses)
+      appsQuery = appsQuery.in('status', dbStatuses)
     }
 
-    const { data: appsData, error: appsError } = await query
+    const { data: appsData, error: appsError } = await appsQuery
 
     if (appsError) {
       console.error('[admin 500] applications list', appsError)
       return jsonError(req, { error: 'Failed to fetch applications' }, 500)
     }
+
+    // Get user IDs and fetch profiles
+    const userIds = (appsData ?? []).map(a => a.user_id).filter(Boolean)
+    let profilesMap: Record<string, Record<string, unknown>> = {}
     
-    // Flatten the profile data
+    if (userIds.length > 0) {
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, name, username, email, profile_image_url, bio, niche, phone')
+        .in('id', userIds)
+      
+      if (profilesData) {
+        profilesMap = Object.fromEntries(profilesData.map(p => [p.id, p]))
+      }
+    }
+    
+    // Merge applications with profiles
     list = (appsData ?? []).map((a: Record<string, unknown>) => {
-      const profile = a.profiles as Record<string, unknown> | null
+      const profile = profilesMap[a.user_id as string] || {}
       return {
         ...a,
-        name: profile?.name ?? '',
-        username: profile?.username ?? '',
-        email: profile?.email ?? '',
-        profile_image_url: profile?.profile_image_url ?? null,
-        bio: profile?.bio ?? '',
-        niche: profile?.niche ?? '',
-        phone: profile?.phone ?? null,
+        name: profile.name ?? '',
+        username: profile.username ?? '',
+        email: profile.email ?? '',
+        profile_image_url: profile.profile_image_url ?? null,
+        bio: profile.bio ?? '',
+        niche: profile.niche ?? '',
+        phone: profile.phone ?? null,
       }
     })
     
