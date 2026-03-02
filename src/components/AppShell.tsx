@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase'
 import { getAdminBase } from '@/lib/admin'
 import { Logo } from '@/components/Logo'
 import Navigation from './Navigation'
+import { startSession, endSession, trackAppEvent, APP_EVENTS } from '@/lib/analytics'
 
 const MFAChallenge = dynamic(() => import('./MFAChallenge'), { ssr: false })
 
@@ -88,17 +89,46 @@ export default function AppShell({
   const publicRoutes = ['/', '/login', '/signup', '/success', '/forgot-password', '/update-password']
   const isPublicRoute = publicRoutes.includes(pathname || '')
 
-  // Admin route: /admin or obscure path (e.g. /m8k2p9q) — don't redirect to signup, show admin login instead
+  // Admin route: /admin or obscure path (e.g. /K7x2mN9pQ4rT1vW6yB0cD3eF8gH2jL5n) — don't redirect to signup, show admin login instead
+  // Check both the header-provided path and the hardcoded obscure path from env (build-time)
   const adminBase = adminBasePath ? `/${adminBasePath}` : getAdminBase()
+  const obscureAdminPath = '/K7x2mN9pQ4rT1vW6yB0cD3eF8gH2jL5n'
   const isAdminRoute =
     pathname?.startsWith('/admin') ||
     pathname === adminBase ||
-    (pathname?.startsWith(adminBase + '/') ?? false)
+    (pathname?.startsWith(adminBase + '/') ?? false) ||
+    pathname === obscureAdminPath ||
+    (pathname?.startsWith(obscureAdminPath + '/') ?? false)
+
+  const appSessionStartedRef = useRef(false)
 
   useEffect(() => {
     checkAuth()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!user || isAdminRoute || !pathname) return
+    if (!appSessionStartedRef.current) {
+      appSessionStartedRef.current = true
+      startSession('app')
+    }
+    trackAppEvent(APP_EVENTS.feature_viewed, { pageName: pathname })
+  }, [user, pathname, isAdminRoute])
+
+  useEffect(() => {
+    if (!user) appSessionStartedRef.current = false
+  }, [user])
+
+  useEffect(() => {
+    if (isAdminRoute) return
+    const onBeforeUnload = () => endSession('app')
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload)
+      endSession('app')
+    }
+  }, [isAdminRoute])
 
   async function checkAuth() {
     const supabase = createClient()

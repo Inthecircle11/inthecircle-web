@@ -7,6 +7,8 @@ import { getAdminBase } from '@/lib/admin'
 import { Logo } from '@/components/Logo'
 import { hasPermission, ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import type { AdminPermission } from '@/lib/admin-rbac'
+import AdminProductAnalyticsTab from './ProductAnalyticsTab'
+import { trackAdminEvent, startSession, endSession, ADMIN_EVENTS } from '@/lib/analytics'
 
 // ============================================
 // TYPES - Matching iOS Admin exactly
@@ -200,7 +202,7 @@ interface ConversationDisplay {
   messages: InboxMessage[]
 }
 
-type Tab = 'overview' | 'dashboard' | 'applications' | 'users' | 'verifications' | 'inbox' | 'reports' | 'data-requests' | 'risk' | 'approvals' | 'audit' | 'compliance' | 'settings'
+type Tab = 'overview' | 'dashboard' | 'applications' | 'users' | 'verifications' | 'inbox' | 'reports' | 'data-requests' | 'risk' | 'approvals' | 'audit' | 'compliance' | 'analytics' | 'settings'
 type AppFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'waitlisted' | 'suspended'
 
 /** Tab visibility: show tab only if user has this permission (Phase 11). */
@@ -217,6 +219,7 @@ const TAB_PERMISSION: Record<Tab, AdminPermission> = {
   approvals: ADMIN_PERMISSIONS.approve_approval,
   audit: ADMIN_PERMISSIONS.read_audit,
   compliance: ADMIN_PERMISSIONS.read_audit,
+  analytics: ADMIN_PERMISSIONS.read_analytics,
   settings: ADMIN_PERMISSIONS.read_config,
 }
 
@@ -313,6 +316,13 @@ function NavIconRisk() {
     </svg>
   )
 }
+function NavIconAnalytics() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    </svg>
+  )
+}
 
 /** Focus trap and return-focus for modal dialogs */
 function useModalFocusTrap(dialogRef: React.RefObject<HTMLElement | null>, onClose: () => void) {
@@ -338,8 +348,7 @@ function useModalFocusTrap(dialogRef: React.RefObject<HTMLElement | null>, onClo
     }
     el.addEventListener('keydown', handleKey)
     return () => el.removeEventListener('keydown', handleKey)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onClose])
+  }, [onClose]) // eslint-disable-line react-hooks/exhaustive-deps
   return useCallback(() => {
     savedFocusRef.current?.focus()
     onClose()
@@ -605,8 +614,7 @@ export default function AdminPanel() {
   useEffect(() => {
     if (gateUnlocked !== true) return
     checkAdminAccess()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gateUnlocked])
+  }, [gateUnlocked]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Deployment identity check: ensure we're on inthecircle-web (not wrong project)
   useEffect(() => {
@@ -711,8 +719,29 @@ export default function AdminPanel() {
       supabase.removeChannel(threadsChannel)
       console.log('🔌 Real-time sync disconnected')
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authorized]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Product analytics: session start when admin is authorized
+  useEffect(() => {
+    if (authorized) startSession('admin')
   }, [authorized])
+
+  // Product analytics: track tab open
+  useEffect(() => {
+    if (authorized && activeTab) {
+      trackAdminEvent(ADMIN_EVENTS.admin_tab_opened, { featureName: activeTab })
+    }
+  }, [authorized, activeTab])
+
+  // Product analytics: end session on leave
+  useEffect(() => {
+    const onBeforeUnload = () => endSession('admin')
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload)
+      endSession('admin')
+    }
+  }, [])
 
   // Gate: check if password screen is needed (optional ADMIN_GATE_PASSWORD)
   useEffect(() => {
@@ -803,7 +832,7 @@ export default function AdminPanel() {
     const roles = Array.isArray(data?.roles) ? data.roles : []
     if (data?.authorized && roles.length) {
       setAdminRoles(roles)
-      const visibleIds = (['overview', 'dashboard', 'applications', 'users', 'verifications', 'inbox', 'reports', 'data-requests', 'risk', 'approvals', 'audit', 'compliance', 'settings'] as const).filter(
+      const visibleIds = (['overview', 'dashboard', 'applications', 'users', 'verifications', 'inbox', 'reports', 'data-requests', 'risk', 'approvals', 'audit', 'compliance', 'analytics', 'settings'] as const).filter(
         (id) => hasPermission(roles as Array<'viewer' | 'moderator' | 'supervisor' | 'compliance' | 'super_admin'>, TAB_PERMISSION[id])
       )
       setActiveTab((prev) => (visibleIds.length && !visibleIds.includes(prev) ? visibleIds[0] : prev))
@@ -852,7 +881,7 @@ export default function AdminPanel() {
     } | null> => {
       try {
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 6000)
+        const timeoutId = setTimeout(() => controller.abort(), 3000) // Reduced from 6s to 3s - server has 60s cache
         const res = await fetch('/api/admin/overview-stats', { credentials: 'include', signal: controller.signal })
         clearTimeout(timeoutId)
         if (res.status === 403) return { stats: { total: 0, pending: 0, approved: 0, rejected: 0, waitlisted: 0, suspended: 0 }, activeToday: null, activeSessions: null, overviewCounts: null, permissionDenied: true }
@@ -1127,13 +1156,12 @@ export default function AdminPanel() {
       setRefreshing(false)
       setLastRefreshed(new Date())
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appSort, appAssignmentFilter, applicationsPage, activeTab, handle403])
+  }, [appSort, appAssignmentFilter, appFilter, applicationsPage, activeTab, handle403])
 
   // When role changes, if current tab is no longer visible, switch to first visible tab (Phase 11)
   useEffect(() => {
     if (!authorized || !adminRoles.length) return
-    const visibleIds = (['overview', 'dashboard', 'applications', 'users', 'verifications', 'inbox', 'reports', 'data-requests', 'risk', 'approvals', 'audit', 'compliance', 'settings'] as const).filter(
+    const visibleIds = (['overview', 'dashboard', 'applications', 'users', 'verifications', 'inbox', 'reports', 'data-requests', 'risk', 'approvals', 'audit', 'compliance', 'analytics', 'settings'] as const).filter(
       (id) => hasPermission(adminRoles as Array<'viewer' | 'moderator' | 'supervisor' | 'compliance' | 'super_admin'>, TAB_PERMISSION[id])
     )
     if (visibleIds.length && !visibleIds.includes(activeTab)) setActiveTab(visibleIds[0])
@@ -1399,8 +1427,7 @@ export default function AdminPanel() {
     if (activeTab === 'approvals') loadApprovals()
     if (activeTab === 'compliance') loadCompliance()
     if (activeTab === 'inbox' && currentUserId) loadInbox()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authorized, activeTab, currentUserId, loadInbox])
+  }, [authorized, activeTab, currentUserId, loadInbox]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch governance score for sidebar badge after a delay (keeps initial load fast)
   useEffect(() => {
@@ -2151,6 +2178,7 @@ export default function AdminPanel() {
     { id: 'approvals', label: 'Approvals', icon: <NavIconApproval />, badge: approvalsPending.length > 0 ? approvalsPending.length : undefined },
     { id: 'audit', label: 'Audit Log', icon: <NavIconAudit /> },
     { id: 'compliance', label: 'Compliance', icon: <NavIconCompliance /> },
+    { id: 'analytics', label: 'Product Analytics', icon: <NavIconAnalytics /> },
     { id: 'settings', label: 'Settings', icon: <NavIconSettings /> },
   ].filter((item) => hasPermission(adminRoles as Array<'viewer' | 'moderator' | 'supervisor' | 'compliance' | 'super_admin'>, TAB_PERMISSION[item.id as Tab])) as { id: Tab; label: string; icon: React.ReactNode; badge?: number }[]
 
@@ -2292,6 +2320,7 @@ export default function AdminPanel() {
               {activeTab === 'approvals' && 'Approvals'}
               {activeTab === 'audit' && 'Audit Log'}
               {activeTab === 'compliance' && 'Compliance'}
+              {activeTab === 'analytics' && 'Product Analytics'}
               {activeTab === 'settings' && 'Settings'}
             </span>
           </nav>
@@ -2807,6 +2836,9 @@ export default function AdminPanel() {
             }}
             canExportAudit={adminRoles.includes('super_admin') || adminRoles.includes('compliance')}
           />
+        )}
+        {activeTab === 'analytics' && (
+          <AdminProductAnalyticsTab />
         )}
         {activeTab === 'settings' && (
           <SettingsTab

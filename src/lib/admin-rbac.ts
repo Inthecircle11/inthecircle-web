@@ -27,6 +27,7 @@ export const ADMIN_PERMISSIONS = {
   resolve_escalations: 'resolve_escalations',
   request_approval: 'request_approval',
   approve_approval: 'approve_approval',
+  read_analytics: 'read_analytics',
 } as const
 
 export type AdminPermission = (typeof ADMIN_PERMISSIONS)[keyof typeof ADMIN_PERMISSIONS]
@@ -50,6 +51,7 @@ const viewerPerms: readonly AdminPermission[] = [
   ADMIN_PERMISSIONS.read_blocked_users,
   ADMIN_PERMISSIONS.read_config,
   ADMIN_PERMISSIONS.read_risk,
+  ADMIN_PERMISSIONS.read_analytics,
 ]
 
 /** Permission matrix: each role gets the union of permissions listed. */
@@ -62,6 +64,7 @@ const ROLE_PERMISSIONS: Record<AdminRoleName, readonly AdminPermission[]> = {
     ADMIN_PERMISSIONS.read_users,
     ADMIN_PERMISSIONS.read_blocked_users,
     ADMIN_PERMISSIONS.read_config,
+    ADMIN_PERMISSIONS.read_analytics,
   ],
   moderator: [
     ...viewerPerms,
@@ -87,6 +90,7 @@ const ROLE_PERMISSIONS: Record<AdminRoleName, readonly AdminPermission[]> = {
     ADMIN_PERMISSIONS.read_reports,
     ADMIN_PERMISSIONS.read_risk,
     ADMIN_PERMISSIONS.active_sessions,
+    ADMIN_PERMISSIONS.read_analytics,
   ],
   super_admin: Object.values(ADMIN_PERMISSIONS),
 }
