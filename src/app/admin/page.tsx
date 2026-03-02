@@ -881,6 +881,7 @@ export default function AdminPanel() {
         totalUsers: number
         verifiedCount: number
         newUsersLast24h: number
+        newUsersLast7d: number
         newUsersLast30d: number
         totalThreadCount: number
         totalMessageCount: number
