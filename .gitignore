@@ -4,3 +4,4 @@ node_modules
 .env*.local
 *client_secret*.json
 *client_secret*
+tsconfig.tsbuildinfo
