@@ -5,6 +5,7 @@ import "./globals.css";
 import AppShell from "@/components/AppShell";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { StructuredData } from "@/components/StructuredData";
+import { SuppressExtensionConsoleError } from "@/components/SuppressExtensionConsoleError";
 import { SITE_URL } from "@/lib/constants";
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -65,8 +66,8 @@ export const metadata: Metadata = {
   alternates: { canonical: SITE_URL },
   manifest: "/manifest.json",
   icons: {
-    icon: [{ url: "/favicon.ico", type: "image/x-icon" }, { url: "/logo.png", type: "image/png", sizes: "512x512" }],
-    shortcut: "/favicon.ico",
+    icon: [{ url: "/api/favicon", type: "image/png" }, { url: "/favicon.ico", type: "image/x-icon" }, { url: "/logo.png", type: "image/png", sizes: "512x512" }],
+    shortcut: "/api/favicon",
     apple: "/logo.png",
   },
   appleWebApp: {
@@ -93,6 +94,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className={plusJakarta.variable}>
       <body className="antialiased bg-[var(--bg)] text-[var(--text)]">
+        <SuppressExtensionConsoleError />
         <StructuredData />
         <ErrorBoundary>
           <AppShell adminBasePath={adminBasePath}>{children}</AppShell>
