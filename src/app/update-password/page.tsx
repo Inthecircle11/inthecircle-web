@@ -81,6 +81,18 @@ function UpdatePasswordForm() {
     }
   }
 
+  // Show loading while processing token from hash
+  if (processingToken) {
+    return (
+      <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-[var(--bg)]">
+        <div className="max-w-md w-full text-center">
+          <div className="w-10 h-10 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[var(--text-muted)] text-sm">Verifying reset link...</p>
+        </div>
+      </main>
+    )
+  }
+
   if (hasSession === false) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-[var(--bg)]">

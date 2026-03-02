@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
@@ -98,7 +98,21 @@ export default function SignUp() {
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<Step>('basic')
   const [isPasswordVisible, setIsPasswordVisible] = useState(false)
-  
+
+  // Redirect recovery tokens to update-password page
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hash = window.location.hash.substring(1)
+      const params = new URLSearchParams(hash)
+      const type = params.get('type')
+      
+      if (type === 'recovery') {
+        // This is a password reset link - redirect to update-password with the hash
+        window.location.href = `/update-password${window.location.hash}`
+      }
+    }
+  }, [])
+
   // Basic Info
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
