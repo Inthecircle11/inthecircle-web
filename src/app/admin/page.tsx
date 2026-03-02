@@ -6008,18 +6008,11 @@ function ApplicationDetailModal({
 
   // Lock body scroll when modal is open
   useEffect(() => {
-    const scrollY = window.scrollY
-    document.body.style.position = 'fixed'
-    document.body.style.top = `-${scrollY}px`
-    document.body.style.width = '100%'
+    const originalOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     
     return () => {
-      document.body.style.position = ''
-      document.body.style.top = ''
-      document.body.style.width = ''
-      document.body.style.overflow = ''
-      window.scrollTo(0, scrollY)
+      document.body.style.overflow = originalOverflow
     }
   }, [])
 
@@ -6040,13 +6033,13 @@ function ApplicationDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm overflow-hidden flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-black/80 overflow-hidden flex items-center justify-center p-4"
       onClick={e => e.target === e.currentTarget && handleClose()}
       role="presentation"
     >
       <div
         ref={dialogRef}
-        className="bg-[var(--background)] rounded-3xl max-w-xl w-full flex flex-col shadow-2xl border border-[var(--separator)] overflow-hidden"
+        className="bg-[var(--background)] rounded-3xl max-w-xl w-full flex flex-col shadow-2xl border border-[var(--separator)] overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         style={{ maxHeight: 'min(85vh, 800px)' }}
         role="dialog"
         aria-modal="true"
