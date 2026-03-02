@@ -49,6 +49,16 @@ export async function GET(req: NextRequest) {
     const rejected = Number(appData.rejected) || 0
     const waitlisted = Number(appData.waitlisted) || 0
     const suspended = Number(appData.suspended) || 0
+    
+    // Get new_users_7d - if RPC doesn't return it, it will be null/undefined
+    // We need to ensure it's at least as large as new_users_24h (logical constraint)
+    const newUsers24h = Number(c.new_users_24h) || 0
+    let newUsers7d = Number(c.new_users_7d) || 0
+    // Sanity check: 7d must be >= 24h (if not, RPC is outdated)
+    if (newUsers7d < newUsers24h) {
+      newUsers7d = newUsers24h
+    }
+    
     parsed = {
       stats: {
         total,
@@ -61,8 +71,8 @@ export async function GET(req: NextRequest) {
       overview: {
         totalUsers: Number(c.total_users) || 0,
         verifiedCount: Number(c.verified_count) || 0,
-        newUsersLast24h: Number(c.new_users_24h) || 0,
-        newUsersLast7d: Number(c.new_users_7d) || 0,
+        newUsersLast24h: newUsers24h,
+        newUsersLast7d: newUsers7d,
         newUsersLast30d: Number(c.new_users_30d) || 0,
         totalThreadCount: Number(c.total_threads) || 0,
         totalMessageCount: Number(c.total_messages) || 0,
@@ -72,6 +82,23 @@ export async function GET(req: NextRequest) {
     }
   } else {
     parsed = allStats as { stats: Record<string, number>; overview: Record<string, number>; activeToday?: number | string }
+  }
+  
+  // Sanity check: ensure new_users_7d >= new_users_24h (logical constraint)
+  if ((parsed.overview?.newUsersLast7d ?? 0) < (parsed.overview?.newUsersLast24h ?? 0)) {
+    parsed.overview.newUsersLast7d = parsed.overview.newUsersLast24h
+  }
+  
+  // Fallback for verified count: if RPC returns 0, query profiles.is_verified directly
+  // This handles the case where the old RPC uses verification_requests instead of profiles.is_verified
+  if ((parsed.overview?.verifiedCount ?? 0) === 0) {
+    const { count: verifiedFromProfiles } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_verified', true)
+    if (verifiedFromProfiles != null && verifiedFromProfiles > 0) {
+      parsed.overview.verifiedCount = verifiedFromProfiles
+    }
   }
 
   // If admin_get_all_stats didn't return activeToday, fetch it from dedicated RPC (same DB, no extra permission)
