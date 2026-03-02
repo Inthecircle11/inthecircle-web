@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
   if (cached && Date.now() - cached.at < APPS_CACHE_TTL_MS) {
     list = cached.data
   } else {
-    // Build query: applications joined with profiles
+    // Build query: applications joined with profiles via user_id FK
     let query = supabase
       .from('applications')
       .select(`
@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
         assigned_to,
         assigned_at,
         assignment_expires_at,
-        profiles!inner (
+        profiles:user_id (
           name,
           username,
           email,
