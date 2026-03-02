@@ -17,7 +17,7 @@
     "complete-applications": "node scripts/complete-missing-applications.mjs",
     "verify-domain": "node scripts/verify-domain-ownership.mjs",
     "check:migrations": "node scripts/check-migrations.mjs",
-    "preview": "vercel",
+    "preview": "npx vercel",
     "deploy": "node scripts/deploy.mjs",
     "one-time-fix": "node scripts/one-time-fix-domain-and-deploy.mjs"
   },
@@ -43,8 +43,7 @@
     "eslint": "^8.57.0",
     "eslint-config-next": "15.2.8",
     "tailwindcss": "^4",
-    "typescript": "5.9.3",
-    "vercel": "^50.25.4"
+    "typescript": "5.9.3"
   },
   "overrides": {
     "glob": "^11.0.0"
