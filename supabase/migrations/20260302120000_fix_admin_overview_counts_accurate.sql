@@ -3,6 +3,9 @@
 -- 2. new_users_7d: Ensure this column is returned (was missing in some DB versions)
 -- 3. All counts use profiles table for consistency
 
+-- Drop first because return type changed (added new_users_7d)
+DROP FUNCTION IF EXISTS public.admin_get_overview_counts();
+
 CREATE OR REPLACE FUNCTION public.admin_get_overview_counts()
 RETURNS TABLE (
   total_users bigint,
