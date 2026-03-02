@@ -65,7 +65,8 @@ export const metadata: Metadata = {
   alternates: { canonical: SITE_URL },
   manifest: "/manifest.json",
   icons: {
-    icon: "/logo.png",
+    icon: [{ url: "/favicon.ico", type: "image/x-icon" }, { url: "/logo.png", type: "image/png", sizes: "512x512" }],
+    shortcut: "/favicon.ico",
     apple: "/logo.png",
   },
   appleWebApp: {
