@@ -39,3 +39,10 @@ jobs:
           # Placeholders so next build runs without real secrets (CI only).
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+
+      # On push to main: verify app.inthecircle.co is only on inthecircle-web (set VERCEL_TOKEN in repo secrets for this step).
+      - name: Verify Vercel domain (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: npm run verify-domain
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
