@@ -833,7 +833,7 @@ export default function AdminPanel() {
     if (data?.authorized && roles.length) {
       setAdminRoles(roles)
       const visibleIds = (['overview', 'dashboard', 'applications', 'users', 'verifications', 'inbox', 'reports', 'data-requests', 'risk', 'approvals', 'audit', 'compliance', 'analytics', 'settings'] as const).filter(
-        (id) => hasPermission(roles as Array<'viewer' | 'moderator' | 'supervisor' | 'compliance' | 'super_admin'>, TAB_PERMISSION[id])
+        (id) => id === 'analytics' ? roles.length > 0 : hasPermission(roles as Array<'viewer' | 'moderator' | 'supervisor' | 'compliance' | 'super_admin'>, TAB_PERMISSION[id])
       )
       setActiveTab((prev) => (visibleIds.length && !visibleIds.includes(prev) ? visibleIds[0] : prev))
     }
@@ -1162,7 +1162,7 @@ export default function AdminPanel() {
   useEffect(() => {
     if (!authorized || !adminRoles.length) return
     const visibleIds = (['overview', 'dashboard', 'applications', 'users', 'verifications', 'inbox', 'reports', 'data-requests', 'risk', 'approvals', 'audit', 'compliance', 'analytics', 'settings'] as const).filter(
-      (id) => hasPermission(adminRoles as Array<'viewer' | 'moderator' | 'supervisor' | 'compliance' | 'super_admin'>, TAB_PERMISSION[id])
+      (id) => id === 'analytics' ? adminRoles.length > 0 : hasPermission(adminRoles as Array<'viewer' | 'moderator' | 'supervisor' | 'compliance' | 'super_admin'>, TAB_PERMISSION[id])
     )
     if (visibleIds.length && !visibleIds.includes(activeTab)) setActiveTab(visibleIds[0])
   }, [authorized, adminRoles, activeTab])
@@ -2180,7 +2180,10 @@ export default function AdminPanel() {
     { id: 'compliance', label: 'Compliance', icon: <NavIconCompliance /> },
     { id: 'analytics', label: 'Product Analytics', icon: <NavIconAnalytics /> },
     { id: 'settings', label: 'Settings', icon: <NavIconSettings /> },
-  ].filter((item) => hasPermission(adminRoles as Array<'viewer' | 'moderator' | 'supervisor' | 'compliance' | 'super_admin'>, TAB_PERMISSION[item.id as Tab])) as { id: Tab; label: string; icon: React.ReactNode; badge?: number }[]
+  ].filter((item) => {
+    if (item.id === 'analytics') return adminRoles.length > 0
+    return hasPermission(adminRoles as Array<'viewer' | 'moderator' | 'supervisor' | 'compliance' | 'super_admin'>, TAB_PERMISSION[item.id as Tab])
+  }) as { id: Tab; label: string; icon: React.ReactNode; badge?: number }[]
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] flex">
