@@ -33,8 +33,11 @@ export async function POST(
     .select('id, assigned_to, assignment_expires_at')
     .single()
   if (error) {
-    console.error('[admin 500]', error)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    console.error('[admin 500] applications claim', error)
+    const msg = (error as { code?: string }).code === '42703'
+      ? 'Database column missing. Run Supabase migrations (applications.assigned_to).'
+      : 'Operation failed. Please try again.'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
   if (!data || (data as { assigned_to: string }).assigned_to !== result.user.id) {
     return NextResponse.json(

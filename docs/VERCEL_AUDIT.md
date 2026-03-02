@@ -75,3 +75,15 @@ vercel deploy --prod   # Emergency production deploy
 - **scripts/verify-domain-ownership.mjs** — Domain check script.
 - **.github/workflows/ci.yml** — Lint, typecheck, build; verify-domain on push to main when VERCEL_TOKEN set.
 - **tsconfig.json** — `compilerOptions.types` set to `["node", "react", "react-dom"]` so duplicate `@types` folders (e.g. from npm) don't break the build.
+
+---
+
+## 8. Keeping an eye on Vercel
+
+**Check production vs main:**
+- **Vercel Dashboard:** [Deployments](https://vercel.com/ahmed-khalifas-projects-9cca8f38/inthecircle-web) — latest production deployment shows the commit SHA and message. Compare to `git log -1 --oneline main`.
+- **CLI:** `vercel ls` (or use the Vercel MCP / API) to list recent deployments; the one with `target: production` and `state: READY` is what app.inthecircle.co serves.
+
+**If production is behind main:** Push to main should trigger a new build. If it didn’t, in Vercel → Settings → Git confirm the repo and “Production Branch” (main), then trigger a redeploy from the latest commit or run `vercel deploy --prod` from the repo.
+
+**As of last check:** Production was on commit `73f1651` (Product Analytics sidebar). If you pushed the Product Analytics UI commit (`f282ca0`), wait 2–3 minutes for the build to finish, then hard-refresh app.inthecircle.co.

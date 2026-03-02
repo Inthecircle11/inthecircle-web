@@ -10,6 +10,14 @@ export const dynamic = 'force-dynamic'
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 200
 
+/** AGGRESSIVE CACHING: 60s for counts, 30s for application lists */
+let countsCache: { at: number; counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number; total: number } } | null = null
+const COUNTS_CACHE_TTL_MS = 60_000
+
+/** Cache for application lists by status+page */
+const appsCache = new Map<string, { at: number; data: Array<Record<string, unknown>> }>()
+const APPS_CACHE_TTL_MS = 30_000
+
 function normalizeApplicationStatus(raw: unknown): string {
   const s = String(raw ?? '').trim().toUpperCase()
   if (['ACTIVE', 'APPROVED'].includes(s)) return 'ACTIVE'
@@ -50,146 +58,77 @@ export async function GET(req: NextRequest) {
   const usePagination = pageParam != null && pageParam !== ''
   const page = usePagination ? Math.max(1, parseInt(pageParam!, 10) || 1) : 1
   const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(limitParam || String(DEFAULT_LIMIT), 10) || DEFAULT_LIMIT))
-  const currentUserId = result.user.id
   const now = new Date()
+  const offset = (page - 1) * limit
 
-  /** DB status values for filtering by UI status (status tab). */
-  const statusValuesFor = (uiStatus: string): string[] => {
-    switch (uiStatus) {
-      case 'approved':
-        return ['ACTIVE', 'APPROVED', 'active', 'approved']
-      case 'pending':
-        return ['PENDING', 'PENDING_REVIEW', 'SUBMITTED', 'DRAFT', 'pending', 'pending_review', 'submitted', 'draft']
-      case 'rejected':
-        return ['REJECTED', 'rejected']
-      case 'waitlisted':
-        return ['WAITLISTED', 'waitlisted']
-      case 'suspended':
-        return ['SUSPENDED', 'suspended']
-      default:
-        return []
-    }
-  }
-
-  const selectColsWithAssignment = 'id, user_id, status, submitted_at, review_notes, why_join, what_to_offer, collaboration_goals, updated_at, assigned_to, assigned_at, assignment_expires_at'
-  const selectColsLegacy = 'id, user_id, status, submitted_at, review_notes, why_join, what_to_offer, collaboration_goals'
-  let useAssignment = true
-  const from = (page - 1) * limit
-  const statusFilterValues = statusParam !== 'all' ? statusValuesFor(statusParam) : []
-
-  // Run counts and list query in parallel to minimize latency (was: counts then list = 2 waves)
-  let total = 0
-  /** Global counts by normalized status for filter tabs and sidebar badge */
-  let counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number } = {
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-    waitlisted: 0,
-    suspended: 0,
-  }
-  let rawData: Array<Record<string, unknown>> | null = null
-  let listQueryError: unknown = null
-
-  if (usePagination) {
-    const countByStatus = async (statusValues: string[]): Promise<number> => {
-      if (statusValues.length === 0) return 0
-      const { count, error } = await supabase
-        .from('applications')
-        .select('*', { count: 'exact', head: true })
-        .in('status', statusValues)
-      if (error) return 0
-      return count ?? 0
-    }
-    let listQuery = supabase
-      .from('applications')
-      .select(useAssignment ? selectColsWithAssignment : selectColsLegacy)
-    if (statusFilterValues.length > 0) {
-      listQuery = listQuery.in('status', statusFilterValues)
-    }
-    const listPromise = listQuery
-      .order('submitted_at', { ascending: false })
-      .range(from, from + limit - 1)
-      .then((res) => {
-        if (res.error) {
-          listQueryError = res.error
-          return [] as Array<Record<string, unknown>>
-        }
-        return ((res.data ?? []) as unknown) as Array<Record<string, unknown>>
-      })
-
-    const [totalResult, approvedCount, pendingCount, rejectedCount, waitlistedCount, suspendedCount, listData] = await Promise.all([
-      (async (): Promise<number> => {
-        const r = await supabase.from('applications').select('*', { count: 'exact', head: true })
-        if (r.error && (r.error as { code?: string }).code === '42703') {
-          const r2 = await supabase.from('applications').select('*', { count: 'exact', head: true })
-          return r2.count ?? 0
-        }
-        return r.count ?? 0
-      })(),
-      countByStatus(['ACTIVE', 'APPROVED', 'active', 'approved']),
-      countByStatus(['PENDING', 'PENDING_REVIEW', 'SUBMITTED', 'DRAFT', 'pending', 'pending_review', 'submitted', 'draft']),
-      countByStatus(['REJECTED', 'rejected']),
-      countByStatus(['WAITLISTED', 'waitlisted']),
-      countByStatus(['SUSPENDED', 'suspended']),
-      listPromise,
-    ])
-
-    total = typeof totalResult === 'number' ? totalResult : 0
-    counts = {
-      pending: pendingCount,
-      approved: approvedCount,
-      rejected: rejectedCount,
-      waitlisted: waitlistedCount,
-      suspended: suspendedCount,
-    }
-    if (statusParam !== 'all') {
-      const key = statusParam as keyof typeof counts
-      if (key in counts) total = counts[key]
-    }
-    rawData = listData
-
-    if (listQueryError && (listQueryError as { code?: string }).code === '42703' && useAssignment) {
-      useAssignment = false
-      let retryQuery = supabase.from('applications').select(selectColsLegacy)
-      if (statusFilterValues.length > 0) retryQuery = retryQuery.in('status', statusFilterValues)
-      const retry = await retryQuery.order('submitted_at', { ascending: false }).range(from, from + limit - 1)
-      if (retry.error) return jsonError500(req, retry.error)
-      rawData = (retry.data ?? []) as unknown as Array<Record<string, unknown>>
-    } else if (listQueryError) {
-      return jsonError500(req, listQueryError as Error)
-    }
+  // OPTIMIZED: Use single RPC for counts (with 30s cache) instead of 6 separate queries
+  let counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number; total: number }
+  
+  if (countsCache && Date.now() - countsCache.at < COUNTS_CACHE_TTL_MS) {
+    counts = countsCache.counts
   } else {
-    // Legacy: no page param — fetch list only (no counts)
-    let legacyQuery = supabase
-      .from('applications')
-      .select(useAssignment ? selectColsWithAssignment : selectColsLegacy)
-    if (statusFilterValues.length > 0) legacyQuery = legacyQuery.in('status', statusFilterValues)
-    const { data: legacyData, error: legacyError } = await legacyQuery
-      .order('submitted_at', { ascending: false })
-      .limit(limit)
-    if (legacyError) {
-      if ((legacyError as { code?: string }).code === '42703' && useAssignment) {
-        useAssignment = false
-        let retryQ = supabase.from('applications').select(selectColsLegacy)
-        if (statusFilterValues.length > 0) retryQ = retryQ.in('status', statusFilterValues)
-        const retry = await retryQ.order('submitted_at', { ascending: false }).limit(limit)
-        if (retry.error) return jsonError500(req, retry.error)
-        rawData = (retry.data ?? []) as unknown as Array<Record<string, unknown>>
-      } else {
-        return jsonError500(req, legacyError)
-      }
+    const { data: countsData, error: countsError } = await supabase.rpc('admin_get_application_counts').single()
+    if (countsError || !countsData) {
+      counts = { pending: 0, approved: 0, rejected: 0, waitlisted: 0, suspended: 0, total: 0 }
     } else {
-      rawData = (legacyData ?? []) as unknown as Array<Record<string, unknown>>
+      const cd = countsData as { pending?: number; approved?: number; rejected?: number; waitlisted?: number; suspended?: number; total?: number }
+      counts = {
+        pending: Number(cd.pending) || 0,
+        approved: Number(cd.approved) || 0,
+        rejected: Number(cd.rejected) || 0,
+        waitlisted: Number(cd.waitlisted) || 0,
+        suspended: Number(cd.suspended) || 0,
+        total: Number(cd.total) || 0,
+      }
+    }
+    countsCache = { at: Date.now(), counts }
+  }
+
+  // OPTIMIZED: Use single RPC that JOINs applications + profiles (1 query instead of 2)
+  // With 30s cache per status+page combination
+  const statusForRpc = statusParam !== 'all' ? statusParam : null
+  const cacheKey = `${statusForRpc || 'all'}-${page}-${limit}`
+  const cached = appsCache.get(cacheKey)
+  
+  let list: Array<Record<string, unknown>>
+  
+  if (cached && Date.now() - cached.at < APPS_CACHE_TTL_MS) {
+    list = cached.data
+  } else {
+    const { data: appsData, error: appsError } = await supabase.rpc('admin_get_applications_fast', {
+      p_status: statusForRpc,
+      p_limit: limit,
+      p_offset: offset,
+    })
+
+    if (appsError) {
+      console.error('[admin 500] applications list', appsError)
+      const code = (appsError as { code?: string }).code
+      const msg = code === '42883'
+        ? 'Database function missing. Run Supabase migrations (admin_get_applications_fast).'
+        : 'Operation failed. Please try again.'
+      return jsonError(req, { error: msg }, 500)
+    }
+    
+    list = (appsData ?? []) as Array<Record<string, unknown>>
+    appsCache.set(cacheKey, { at: Date.now(), data: list })
+    
+    // Clean old cache entries (keep max 20)
+    if (appsCache.size > 20) {
+      const oldest = [...appsCache.entries()].sort((a, b) => a[1].at - b[1].at)[0]
+      if (oldest) appsCache.delete(oldest[0])
     }
   }
 
-  let list = (rawData ?? []) as Array<Record<string, unknown>>
+  // Client-side filtering for assignment (not in DB)
   if (filter === 'unassigned') {
     list = list.filter((a) => a.assigned_to == null || (a.assignment_expires_at && new Date(a.assignment_expires_at as string) < now))
   } else if (filter === 'assigned_to_me') {
+    const currentUserId = result.user.id
     list = list.filter((a) => a.assigned_to === currentUserId && a.assignment_expires_at && new Date(a.assignment_expires_at as string) >= now)
   }
 
+  // Priority sorting for overdue items
   const priority = (submittedAt: string | null) => {
     if (!submittedAt) return 3
     const age = now.getTime() - new Date(submittedAt).getTime()
@@ -197,42 +136,29 @@ export async function GET(req: NextRequest) {
     if (age >= 6 * 60 * 60 * 1000) return 2
     return 3
   }
+
   if (sort === 'oldest') {
     list = [...list].sort((a, b) => new Date((a.submitted_at as string) ?? 0).getTime() - new Date((b.submitted_at as string) ?? 0).getTime())
   } else if (sort === 'assigned_to_me') {
+    const currentUserId = result.user.id
     list = list.filter((a) => a.assigned_to === currentUserId && a.assignment_expires_at && new Date(a.assignment_expires_at as string) >= now)
     list = [...list].sort((a, b) => priority(a.submitted_at as string) - priority(b.submitted_at as string) || new Date((a.submitted_at as string) ?? 0).getTime() - new Date((b.submitted_at as string) ?? 0).getTime())
   } else {
     list = [...list].sort((a, b) => priority(a.submitted_at as string) - priority(b.submitted_at as string) || new Date((a.submitted_at as string) ?? 0).getTime() - new Date((b.submitted_at as string) ?? 0).getTime())
   }
 
-  const userIds = [...new Set(list.map((r) => r.user_id as string))]
-  const profileById = new Map<string, Record<string, unknown>>()
-  const BATCH_SIZE = 100
-  for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
-    const batch = userIds.slice(i, i + BATCH_SIZE)
-    const { data: profiles, error: profError } = await supabase
-      .from('profiles')
-      .select('id, name, username, email, profile_image_url, about, niche, phone')
-      .in('id', batch)
-    if (profError) return jsonError500(req, profError)
-    for (const p of profiles || []) {
-      profileById.set(p.id as string, p as Record<string, unknown>)
-    }
-  }
-
+  // Map to response format (profile data already included from RPC)
   const applications = list.map((a) => {
-    const p = profileById.get(a.user_id as string) as Record<string, unknown> | undefined
-    const rawStatus = a.status ?? (a as Record<string, unknown>).application_status
+    const rawStatus = a.status
     return {
       id: a.id,
       user_id: a.user_id,
-      name: p?.name ?? '',
-      username: p?.username ?? '',
-      email: p?.email ?? '',
-      profile_image_url: p?.profile_image_url ?? null,
-      bio: p?.about ?? '',
-      niche: p?.niche ?? '',
+      name: a.name ?? '',
+      username: a.username ?? '',
+      email: a.email ?? '',
+      profile_image_url: a.profile_image_url ?? null,
+      bio: a.bio ?? '',
+      niche: a.niche ?? '',
       application_date: a.submitted_at ?? '',
       status: normalizeApplicationStatus(rawStatus),
       review_notes: a.review_notes ?? null,
@@ -240,15 +166,22 @@ export async function GET(req: NextRequest) {
       why_join: a.why_join ?? null,
       what_to_offer: a.what_to_offer ?? null,
       collaboration_goals: a.collaboration_goals ?? null,
-      phone: p?.phone ?? null,
+      phone: a.phone ?? null,
       instagram_username: null,
       follower_count: null,
       updated_at: a.updated_at ?? null,
-      assigned_to: a.assigned_to ?? null,
-      assigned_at: a.assigned_at ?? null,
-      assignment_expires_at: a.assignment_expires_at ?? null,
+      assigned_to: null,
+      assigned_at: null,
+      assignment_expires_at: null,
     }
   })
+
+  // Determine total for current filter
+  let total = counts.total
+  if (statusParam !== 'all') {
+    const key = statusParam as keyof typeof counts
+    if (key in counts) total = counts[key]
+  }
 
   // Legacy: when page not provided, return array only for backward compatibility (temporary).
   if (!usePagination) {

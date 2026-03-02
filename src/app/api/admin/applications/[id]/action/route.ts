@@ -43,8 +43,11 @@ export async function POST(
       p_action: action,
     })
     if (error) {
-      console.error('[admin 500]', error)
-      return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+      console.error('[admin 500] applications action', error)
+      const msg = (error as { code?: string }).code === '42883'
+        ? 'Database function missing. Run Supabase migrations (admin_application_action_v2).'
+        : 'Operation failed. Please try again.'
+      return NextResponse.json({ error: msg }, { status: 500 })
     }
     if (row == null) {
       return NextResponse.json(
@@ -62,8 +65,11 @@ export async function POST(
     return supabase.from('applications').update(payload).eq('id', applicationId)
   })()
   if (error) {
-    console.error('[admin 500]', error)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    console.error('[admin 500] applications action fallback update', error)
+    const msg = (error as { code?: string }).code === '42703'
+      ? 'Database column missing. Run Supabase migrations (applications.updated_at).'
+      : 'Operation failed. Please try again.'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
   return NextResponse.json({ ok: true })
 }
