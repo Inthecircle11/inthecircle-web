@@ -390,7 +390,7 @@ export default function AdminPanel() {
   const [profilesWithDemographics, setProfilesWithDemographics] = useState<{ id: string; location: string | null; niche: string | null }[]>([])
   const [pendingVerifications, setPendingVerifications] = useState<VerificationRequest[]>([])
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
-  const [activeUsersToday, setActiveUsersToday] = useState<number | null>(null)
+  const [activeUsersToday, setActiveUsersToday] = useState<number>(0)
   const [activeSessions, setActiveSessions] = useState<{
     count: number
     users: Array<{ user_id: string; email: string | null; username: string | null; name: string | null; last_active_at: string }>
@@ -1074,7 +1074,7 @@ export default function AdminPanel() {
         setApplicationsPage(1)
         setStats({ total: 0, pending: 0, approved: 0, rejected: 0, waitlisted: 0, suspended: 0 })
         setActiveSessions(null)
-        setActiveUsersToday(null)
+        setActiveUsersToday(0)
         setOverviewCounts(null)
       } else if (overview) {
         setStats(overview.stats)
@@ -3008,7 +3008,7 @@ function OverviewTab({
   newUsersThisWeek: number
   newUsersLast30d: number
   growthRateWoW: number
-  activeUsersToday: number | null
+  activeUsersToday: number
   activeSessions: {
     count: number
     users: Array<{ user_id: string; email: string | null; username: string | null; name: string | null; last_active_at: string }>
@@ -3099,9 +3099,9 @@ function OverviewTab({
       {/* Executive KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard title="Total users" value={totalUsers} icon="👥" color="#A855F7" trend={`+${newUsersLast30d} last 30d`} />
-        <StatCard title="Active today" value={activeUsersToday ?? 0} icon="📈" color="#3B82F6" trend="Logged in last 24h" />
+        <StatCard title="Active today" value={activeUsersToday} icon="📈" color="#3B82F6" trend="Logged in last 24h" />
         <StatCard title="Conversations" value={totalThreads} icon="💬" color="#8B5CF6" trend={`${totalMessages} messages · ${avgMessagesPerUser} avg/user`} />
-        <StatCard title="Verified" value={verifiedUsersCount} icon="✓" color="#10B981" trend={`${verificationRate}% of users`} />
+        <StatCard title="Verified" value={verifiedUsersCount ?? 0} icon="✓" color="#10B981" trend={`${verificationRate}% of users`} />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -3250,7 +3250,7 @@ function DashboardTab({
   newUsersThisWeek: number
   newUsersLast24h: number
   newUsersLast30d: number
-  activeUsersToday: number | null
+  activeUsersToday: number
   pendingVerifications: number
   recentActivity: RecentActivity[]
   bannedUsersCount: number
@@ -3310,10 +3310,10 @@ function DashboardTab({
         />
         <StatCard 
           title="Active Today" 
-          value={activeUsersToday ?? 0} 
+          value={activeUsersToday} 
           icon="📈" 
           color="#3B82F6"
-          trend={activeUsersToday !== null ? "Last 24h" : "Loading..."}
+          trend="Last 24h"
         />
       </div>
 
@@ -5615,6 +5615,7 @@ function AdminSkeletonTable({ rows = 5 }: { rows?: number }) {
 function StatCard({ title, value, icon, color, trend }: { 
   title: string; value: number | string; icon: string; color: string; trend: string 
 }) {
+  const display = value != null && value !== '' ? value : 0
   return (
     <div className="bg-[var(--surface)] border border-[var(--separator)] p-5 rounded-2xl shadow-[var(--shadow-card)]">
       <div 
@@ -5623,7 +5624,7 @@ function StatCard({ title, value, icon, color, trend }: {
       >
         {icon}
       </div>
-      <p className="text-3xl font-bold" style={{ color }}>{value}</p>
+      <p className="text-3xl font-bold" style={{ color }}>{display}</p>
       <p className="text-sm text-[var(--text-secondary)] mt-1">{title}</p>
       <p className="text-xs mt-2" style={{ color }}>{trend}</p>
     </div>

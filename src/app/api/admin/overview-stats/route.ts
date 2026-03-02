@@ -29,14 +29,46 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
   }
 
-  // SINGLE RPC CALL - returns all stats in one database round-trip
+  // Try single RPC first; if missing (e.g. admin_get_all_stats not in DB), fall back to separate RPCs
   const { data: allStats, error } = await supabase.rpc('admin_get_all_stats').single()
-  
-  if (error || !allStats) {
-    return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 })
-  }
 
-  const parsed = allStats as { stats: Record<string, number>; overview: Record<string, number>; activeToday?: number | string }
+  let parsed: { stats: Record<string, number>; overview: Record<string, number>; activeToday?: number | string }
+  if (error || !allStats) {
+    // Fallback: admin_get_all_stats missing or failed — call admin_get_overview_app_stats + admin_get_overview_counts
+    const [appRes, countsRes] = await Promise.all([
+      supabase.rpc('admin_get_overview_app_stats').single(),
+      supabase.rpc('admin_get_overview_counts').single(),
+    ])
+    const app = (appRes.data ?? {}) as { total?: number; approved?: number; rejected?: number; waitlisted?: number; suspended?: number }
+    const c = (countsRes.data ?? {}) as { total_users?: number; verified_count?: number; new_users_24h?: number; new_users_7d?: number; new_users_30d?: number; total_threads?: number; total_messages?: number; applications_7d?: number; applications_approved_7d?: number }
+    const total = Number(app.total) || 0
+    const approved = Number(app.approved) || 0
+    const rejected = Number(app.rejected) || 0
+    const waitlisted = Number(app.waitlisted) || 0
+    const suspended = Number(app.suspended) || 0
+    parsed = {
+      stats: {
+        total,
+        pending: Math.max(0, total - approved - rejected - waitlisted - suspended),
+        approved,
+        rejected,
+        waitlisted,
+        suspended,
+      },
+      overview: {
+        totalUsers: Number(c.total_users) || 0,
+        verifiedCount: Number(c.verified_count) || 0,
+        newUsersLast24h: Number(c.new_users_24h) || 0,
+        newUsersLast30d: Number(c.new_users_30d) || 0,
+        totalThreadCount: Number(c.total_threads) || 0,
+        totalMessageCount: Number(c.total_messages) || 0,
+        applicationsSubmittedLast7d: Number(c.applications_7d) || 0,
+        applicationsApprovedLast7d: Number(c.applications_approved_7d) || 0,
+      },
+    }
+  } else {
+    parsed = allStats as { stats: Record<string, number>; overview: Record<string, number>; activeToday?: number | string }
+  }
 
   // If admin_get_all_stats didn't return activeToday, fetch it from dedicated RPC (same DB, no extra permission)
   let activeToday: number | null =
