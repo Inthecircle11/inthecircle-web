@@ -958,7 +958,14 @@ export default function AdminPanel() {
     }
 
     const fetchActiveToday = async (): Promise<number | null> => {
-      return null
+      try {
+        const res = await fetch('/api/admin/active-today', { credentials: 'include' })
+        if (!res.ok) return null
+        const data = await res.json()
+        return typeof data?.count === 'number' ? data.count : null
+      } catch {
+        return null
+      }
     }
 
     const fetchActiveSessions = async () => {

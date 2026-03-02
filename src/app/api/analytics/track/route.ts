@@ -126,7 +126,9 @@ export async function POST(req: NextRequest) {
 
   let body: ReturnType<typeof parseBody>
   try {
-    body = parseBody(await req.json())
+    const raw = await req.text()
+    const parsed = raw ? JSON.parse(raw) : null
+    body = parseBody(parsed)
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }

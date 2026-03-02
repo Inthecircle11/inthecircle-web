@@ -78,7 +78,7 @@ const TEST_MATRIX = {
 // Route coverage enforcement (tests/guards/route-coverage.test.ts): every admin route must appear below.
 // When adding a new route, add its path here and add at least one real test that uses it. Do not remove paths.
 const _COVERED_ADMIN_ROUTES =
-  'api/admin/active-sessions api/admin/admin-users api/admin/admin-users/[id]/assign-role api/admin/admin-users/[id]/remove-role ' +
+  'api/admin/active-sessions api/admin/active-today api/admin/admin-users api/admin/admin-users/[id]/assign-role api/admin/admin-users/[id]/remove-role ' +
   'api/admin/analytics/overview api/admin/anonymize-user api/admin/announce api/admin/applications api/admin/applications/[id]/action ' +
   'api/admin/applications/[id]/claim api/admin/applications/[id]/release api/admin/approvals api/admin/approvals/[id]/approve api/admin/approvals/[id]/reject ' +
   'api/admin/audit api/admin/audit/repair-chain api/admin/audit/snapshot api/admin/audit/verify api/admin/blocked-users api/admin/bulk-applications ' +
