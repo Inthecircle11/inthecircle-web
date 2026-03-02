@@ -122,7 +122,9 @@ function normalizeEvent(e: unknown): {
 
 /** POST /api/analytics/track — batch events, optional end_session. Auth required except app_open/session_start (strict limit). */
 export async function POST(req: NextRequest) {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
+  if (!url || !anonKey) {
     return NextResponse.json({ error: 'Analytics unavailable' }, { status: 503 })
   }
 
@@ -148,7 +150,12 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const supabase = await createServerSupabaseClient()
+  let supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>
+  try {
+    supabase = await createServerSupabaseClient()
+  } catch {
+    return NextResponse.json({ error: 'Analytics unavailable' }, { status: 503 })
+  }
   const { data: { user } } = await supabase.auth.getUser()
 
   const events = body.events.map(normalizeEvent).filter(Boolean) as Array<{
