@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "lint:ci": "eslint src next.config.ts postcss.config.mjs eslint.config.mjs --max-warnings=0",
@@ -13,7 +13,7 @@
     "complete-applications": "node scripts/complete-missing-applications.mjs",
     "verify-domain": "node scripts/verify-domain-ownership.mjs",
     "preview": "vercel",
-    "deploy": "node scripts/verify-domain-ownership.mjs",
+    "deploy": "node scripts/deploy.mjs",
     "one-time-fix": "node scripts/one-time-fix-domain-and-deploy.mjs"
   },
   "dependencies": {
@@ -34,6 +34,10 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vercel": "^50.25.4"
+  },
+  "overrides": {
+    "glob": "^11.0.0"
   }
 }
