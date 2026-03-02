@@ -2,9 +2,11 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals.js";
 import nextTs from "eslint-config-next/typescript.js";
 
+const spread = (x) => (Array.isArray(x) ? x : [x]);
+
 const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
+  ...spread(nextVitals),
+  ...spread(nextTs),
   {
     rules: {
       "@typescript-eslint/no-unused-vars": [
