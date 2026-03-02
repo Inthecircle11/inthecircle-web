@@ -745,16 +745,24 @@ export default function AdminPanel() {
   // Gate: check if password screen is needed (optional ADMIN_GATE_PASSWORD)
   useEffect(() => {
     let cancelled = false
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) setGateUnlocked(true)
+    }, 10000)
     fetch('/api/admin/gate', { credentials: 'include' })
       .then((res) => res.json())
       .then((data) => {
-        if (!cancelled) setGateUnlocked(data.unlocked === true)
+        if (!cancelled) {
+          clearTimeout(timeoutId)
+          setGateUnlocked(data.unlocked === true)
+        }
       })
       .catch(() => {
-        // On network/API failure, fail open so admin check can run (don't show gate form)
-        if (!cancelled) setGateUnlocked(true)
+        if (!cancelled) {
+          clearTimeout(timeoutId)
+          setGateUnlocked(true)
+        }
       })
-    return () => { cancelled = true }
+    return () => { cancelled = true; clearTimeout(timeoutId) }
   }, [])
 
   async function submitGatePassword(e: React.FormEvent) {
@@ -782,40 +790,43 @@ export default function AdminPanel() {
   }
 
   async function checkAdminAccess() {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) {
-      setAuthorized(false)
-      setLoading(false)
-      setError('Please log in with your admin account to access this panel.')
-      return
-    }
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
 
-    const res = await fetch('/api/admin/check', { credentials: 'include' })
-    const data = await res.json().catch(() => ({}))
-    if (res.status === 401) {
-      setAuthorized(false)
-      setError('Session expired. Please log in again.')
-      setLoading(false)
-      return
-    }
-    const authorized = !!data?.authorized
-    const roles = Array.isArray(data?.roles) ? data.roles : []
-    
-    if (!authorized) {
-      setAuthorized(false)
-      setLoading(false)
-      setLoginError('This account is not authorized to access the admin panel. Add your email or user ID to ADMIN_EMAILS or ADMIN_USER_IDS in the server environment.')
-      return
-    }
+      if (!user) {
+        setAuthorized(false)
+        setError('Please log in with your admin account to access this panel.')
+        return
+      }
 
-    setAuthorized(true)
-    setAdminRoles(roles)
-    setCurrentUserId(user.id)
-    setLoading(false)
-    void loadData()
-    // Inbox loaded only when user opens Inbox tab (see activeTab useEffect)
+      const res = await fetch('/api/admin/check', { credentials: 'include' })
+      const data = await res.json().catch(() => ({}))
+      if (res.status === 401) {
+        setAuthorized(false)
+        setError('Session expired. Please log in again.')
+        return
+      }
+      const authorized = !!data?.authorized
+      const roles = Array.isArray(data?.roles) ? data.roles : []
+
+      if (!authorized) {
+        setAuthorized(false)
+        setLoginError('This account is not authorized to access the admin panel. Add your email or user ID to ADMIN_EMAILS or ADMIN_USER_IDS in the server environment.')
+        return
+      }
+
+      setAuthorized(true)
+      setAdminRoles(roles)
+      setCurrentUserId(user.id)
+      void loadData()
+    } catch (e) {
+      console.error('[admin] checkAdminAccess failed', e)
+      setAuthorized(false)
+      setError('Failed to load admin. Check your connection and try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   // ============================================
@@ -856,7 +867,7 @@ export default function AdminPanel() {
     if (overrides?.appAssignmentFilter != null) setAppAssignmentFilter(overrides.appAssignmentFilter)
     if (overrides?.appFilter != null) setAppFilter(overrides.appFilter)
 
-    // Run all overview requests in parallel (was 4–6s sequential)
+    try {
     // 1) Fast overview stats (one request, server runs counts + active today + sessions in parallel)
     const fetchOverviewStats = async (): Promise<{
       stats: Stats
@@ -1175,6 +1186,14 @@ export default function AdminPanel() {
     if (!options?.skipOverview) {
       setRefreshing(false)
       setLastRefreshed(new Date())
+    }
+    } catch (e) {
+      console.error('[admin] loadData failed', e)
+      if (!options?.skipOverview) {
+        setRefreshing(false)
+        setError('Some data failed to load. Use Refresh to try again.')
+      }
+      if (options?.skipOverview && activeTab === 'applications') setApplicationsLoading(false)
     }
   }, [appSort, appAssignmentFilter, appFilter, applicationsPage, activeTab, handle403])
 
@@ -2292,7 +2311,7 @@ export default function AdminPanel() {
                   className={`
                     w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium transition-smooth
                     ${activeTab === id
-                      ? 'bg-[var(--accent-purple)]/15 text-[var(--accent-purple)] border border-[var(--accent-purple)]/30'
+                      ? 'bg-[var(--accent-purple)]/15 text-[var(--text)] border border-[var(--accent-purple)]/30'
                       : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] border border-transparent'
                     }
                   `}
@@ -3099,9 +3118,15 @@ function OverviewTab({
       {/* Executive KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard title="Total users" value={totalUsers} icon="👥" color="#A855F7" trend={`+${newUsersLast30d} last 30d`} />
-        <ActiveTodayCard activeUsersToday={activeUsersToday} />
+        {/* Active today - inline to guarantee number display */}
+        <div className="bg-[var(--surface)] border border-[var(--separator)] p-5 rounded-2xl shadow-[var(--shadow-card)]">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg mb-3 bg-[#3B82F6]/20 text-[#2563EB]">📈</div>
+          <p className="text-3xl font-bold min-h-[1.25em] tabular-nums text-[#3B82F6]">{typeof activeUsersToday === 'number' ? activeUsersToday : 0}</p>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">Active today</p>
+          <p className="text-xs mt-2 text-[var(--text-muted)]">Logged in last 24h</p>
+        </div>
         <StatCard title="Conversations" value={totalThreads} icon="💬" color="#8B5CF6" trend={`${totalMessages} messages · ${avgMessagesPerUser} avg/user`} />
-        <StatCard title="Verified" value={Number(verifiedUsersCount ?? 0)} icon="✓" color="#10B981" trend={`${verificationRate}% of users`} />
+        <StatCard title="Verified" value={typeof verifiedUsersCount === 'number' ? verifiedUsersCount : 0} icon="✓" color="#10B981" trend={`${verificationRate}% of users`} />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -3303,18 +3328,18 @@ function DashboardTab({
         />
         <StatCard 
           title="Verified Users" 
-          value={verifiedUsersCount} 
+          value={typeof verifiedUsersCount === 'number' ? verifiedUsersCount : 0} 
           icon="✓" 
           color="#10B981"
           trend={`${verificationRate}% of total · ${pendingVerifications} pending`}
         />
-        <StatCard 
-          title="Active Today" 
-          value={activeUsersToday} 
-          icon="📈" 
-          color="#3B82F6"
-          trend="Last 24h"
-        />
+        {/* Active Today - inline to guarantee number display */}
+        <div className="bg-[var(--surface)] border border-[var(--separator)] p-5 rounded-2xl shadow-[var(--shadow-card)]">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg mb-3 bg-[#3B82F6]/20 text-[#2563EB]">📈</div>
+          <p className="text-3xl font-bold min-h-[1.25em] tabular-nums text-[#3B82F6]">{typeof activeUsersToday === 'number' ? activeUsersToday : 0}</p>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">Active Today</p>
+          <p className="text-xs mt-2 text-[var(--text-muted)]">Last 24h</p>
+        </div>
       </div>
 
       {/* Secondary metrics row */}
@@ -5613,23 +5638,22 @@ function AdminSkeletonTable({ rows = 5 }: { rows?: number }) {
 // ============================================
 
 /** Active today card: always render the number inline so it never appears blank (avoids any StatCard/value edge case). */
-function ActiveTodayCard({ activeUsersToday }: { activeUsersToday: number }) {
+function _ActiveTodayCard({ activeUsersToday }: { activeUsersToday: number }) {
   const n = Number.isFinite(Number(activeUsersToday)) ? Number(activeUsersToday) : 0
   const display = String(n)
-  const color = '#3B82F6'
   return (
     <div className="bg-[var(--surface)] border border-[var(--separator)] p-5 rounded-2xl shadow-[var(--shadow-card)]">
       <div
-        className="w-10 h-10 rounded-full flex items-center justify-center text-lg mb-3"
-        style={{ backgroundColor: `${color}20`, color }}
+        className="w-10 h-10 rounded-full flex items-center justify-center text-lg mb-3 bg-[#3B82F6]/20 text-[#2563EB]"
+        aria-hidden
       >
         📈
       </div>
-      <p className="text-3xl font-bold min-h-[1.25em] tabular-nums" style={{ color }} aria-label={`Active today: ${display}`}>
+      <p className="text-3xl font-bold min-h-[1.25em] tabular-nums text-[var(--text)]" aria-label={`Active today: ${display}`}>
         {display}
       </p>
       <p className="text-sm text-[var(--text-secondary)] mt-1">Active today</p>
-      <p className="text-xs mt-2" style={{ color }}>Logged in last 24h</p>
+      <p className="text-xs mt-2 text-[var(--text-muted)]">Logged in last 24h</p>
     </div>
   )
 }
@@ -5651,11 +5675,11 @@ function StatCard({ title, value, icon, color, trend }: {
       >
         {icon}
       </div>
-      <p className="text-3xl font-bold min-h-[1.25em] tabular-nums" style={{ color }} aria-label={`${title}: ${visibleText}`} data-stat-value={visibleText}>
+      <p className="text-3xl font-bold min-h-[1.25em] tabular-nums text-[var(--text)]" style={{ color }} aria-label={`${title}: ${visibleText}`} data-stat-value={visibleText}>
         {visibleText}
       </p>
       <p className="text-sm text-[var(--text-secondary)] mt-1">{title}</p>
-      <p className="text-xs mt-2" style={{ color }}>{trend}</p>
+      <p className="text-xs mt-2 text-[var(--text-muted)]">{trend}</p>
     </div>
   )
 }
