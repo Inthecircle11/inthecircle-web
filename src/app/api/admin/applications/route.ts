@@ -52,7 +52,9 @@ export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams
   const sort = params.get('sort') || 'overdue'
   const filter = params.get('filter') || 'all'
-  const statusParam = (params.get('status') || 'all').toLowerCase()
+  const rawStatusParam = (params.get('status') || 'all').toLowerCase()
+  // Normalize status: UI uses 'waitlisted' but DB stores 'waitlist'
+  const statusParam = rawStatusParam === 'waitlisted' ? 'waitlist' : rawStatusParam
   const pageParam = params.get('page')
   const limitParam = params.get('limit')
   const usePagination = pageParam != null && pageParam !== ''
@@ -84,10 +86,9 @@ export async function GET(req: NextRequest) {
     countsCache = { at: Date.now(), counts }
   }
 
-  // OPTIMIZED: Use single RPC that JOINs applications + profiles (1 query instead of 2)
-  // With 30s cache per status+page combination
-  const statusForRpc = statusParam !== 'all' ? statusParam : null
-  const cacheKey = `${statusForRpc || 'all'}-${page}-${limit}`
+  // Direct query with JOIN instead of RPC (RPC had status filtering issues)
+  const statusForQuery = statusParam !== 'all' ? statusParam : null
+  const cacheKey = `${statusForQuery || 'all'}-${page}-${limit}`
   const cached = appsCache.get(cacheKey)
   
   let list: Array<Record<string, unknown>>
@@ -95,22 +96,73 @@ export async function GET(req: NextRequest) {
   if (cached && Date.now() - cached.at < APPS_CACHE_TTL_MS) {
     list = cached.data
   } else {
-    const { data: appsData, error: appsError } = await supabase.rpc('admin_get_applications_fast', {
-      p_status: statusForRpc,
-      p_limit: limit,
-      p_offset: offset,
-    })
+    // Build query: applications joined with profiles
+    let query = supabase
+      .from('applications')
+      .select(`
+        id,
+        user_id,
+        status,
+        submitted_at,
+        updated_at,
+        review_notes,
+        why_join,
+        what_to_offer,
+        collaboration_goals,
+        phone,
+        assigned_to,
+        assigned_at,
+        assignment_expires_at,
+        profiles!inner (
+          name,
+          username,
+          email,
+          profile_image_url,
+          bio,
+          niche
+        )
+      `)
+      .order('submitted_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    // Apply status filter if specified
+    if (statusForQuery) {
+      query = query.eq('status', statusForQuery)
+    }
+
+    const { data: appsData, error: appsError } = await query
 
     if (appsError) {
       console.error('[admin 500] applications list', appsError)
-      const code = (appsError as { code?: string }).code
-      const msg = code === '42883'
-        ? 'Database function missing. Run Supabase migrations (admin_get_applications_fast).'
-        : 'Operation failed. Please try again.'
-      return jsonError(req, { error: msg }, 500)
+      return jsonError(req, { error: 'Failed to fetch applications. Please try again.' }, 500)
     }
     
-    list = (appsData ?? []) as Array<Record<string, unknown>>
+    // Flatten the joined data
+    list = (appsData ?? []).map((a: Record<string, unknown>) => {
+      const profile = a.profiles as Record<string, unknown> | null
+      return {
+        id: a.id,
+        user_id: a.user_id,
+        status: a.status,
+        submitted_at: a.submitted_at,
+        updated_at: a.updated_at,
+        review_notes: a.review_notes,
+        why_join: a.why_join,
+        what_to_offer: a.what_to_offer,
+        collaboration_goals: a.collaboration_goals,
+        phone: a.phone,
+        assigned_to: a.assigned_to,
+        assigned_at: a.assigned_at,
+        assignment_expires_at: a.assignment_expires_at,
+        name: profile?.name ?? '',
+        username: profile?.username ?? '',
+        email: profile?.email ?? '',
+        profile_image_url: profile?.profile_image_url ?? null,
+        bio: profile?.bio ?? '',
+        niche: profile?.niche ?? '',
+      }
+    })
+    
     appsCache.set(cacheKey, { at: Date.now(), data: list })
     
     // Clean old cache entries (keep max 20)
@@ -177,9 +229,11 @@ export async function GET(req: NextRequest) {
   })
 
   // Determine total for current filter
+  // Note: statusParam is normalized ('waitlist' in DB), but counts uses 'waitlisted'
   let total = counts.total
   if (statusParam !== 'all') {
-    const key = statusParam as keyof typeof counts
+    const countsKey = statusParam === 'waitlist' ? 'waitlisted' : statusParam
+    const key = countsKey as keyof typeof counts
     if (key in counts) total = counts[key]
   }
 
