@@ -2,7 +2,12 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 // Fail production build on Vercel if ADMIN_BASE_PATH is not set (required for header rules and security).
-if (process.env.VERCEL === "1" && !process.env.ADMIN_BASE_PATH?.trim()) {
+// Only enforce for Production env; Preview builds may not have the var.
+if (
+  process.env.VERCEL === "1" &&
+  process.env.VERCEL_ENV === "production" &&
+  !process.env.ADMIN_BASE_PATH?.trim()
+) {
   throw new Error(
     "Build failed: ADMIN_BASE_PATH must be set for production. Set it in Vercel → Project → Settings → Environment Variables (Production)."
   );
@@ -43,6 +48,16 @@ const nextConfig: NextConfig = {
       )
     }
     return rules
+  },
+  // Rewrite obscure admin path to /admin at build time (proxy cannot read ADMIN_BASE_PATH at runtime on Vercel).
+  async rewrites() {
+    const adminBase = process.env.ADMIN_BASE_PATH?.trim()
+    if (!adminBase) return []
+    const base = adminBase.startsWith('/') ? adminBase.slice(1) : adminBase
+    return [
+      { source: `/${base}`, destination: '/admin' },
+      { source: `/${base}/:path*`, destination: '/admin/:path*' },
+    ]
   },
   // Performance optimizations
   experimental: {
