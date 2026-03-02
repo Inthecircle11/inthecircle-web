@@ -86,10 +86,8 @@ export async function GET(req: NextRequest) {
     countsCache = { at: Date.now(), counts }
   }
 
-  // OPTIMIZED: Use single RPC that JOINs applications + profiles (1 query instead of 2)
-  // With 30s cache per status+page combination
-  const statusForRpc = statusParam !== 'all' ? statusParam : null
-  const cacheKey = `${statusForRpc || 'all'}-${page}-${limit}`
+  // Direct query to applications table with profile join
+  const cacheKey = `${statusParam}-${page}-${limit}`
   const cached = appsCache.get(cacheKey)
   
   let list: Array<Record<string, unknown>>
@@ -97,22 +95,64 @@ export async function GET(req: NextRequest) {
   if (cached && Date.now() - cached.at < APPS_CACHE_TTL_MS) {
     list = cached.data
   } else {
-    const { data: appsData, error: appsError } = await supabase.rpc('admin_get_applications_fast', {
-      p_status: statusForRpc,
-      p_limit: limit,
-      p_offset: offset,
-    })
+    // Build query
+    let query = supabase
+      .from('applications')
+      .select(`
+        id,
+        user_id,
+        status,
+        submitted_at,
+        review_notes,
+        why_join,
+        what_to_offer,
+        collaboration_goals,
+        updated_at,
+        assigned_to,
+        assigned_at,
+        assignment_expires_at,
+        profiles:user_id (
+          name,
+          username,
+          email,
+          profile_image_url,
+          bio,
+          niche,
+          phone
+        )
+      `)
+      .order('submitted_at', { ascending: true })
+      .range(offset, offset + limit - 1)
+
+    // Apply status filter
+    if (statusParam !== 'all') {
+      // Map common status variations
+      const dbStatus = statusParam === 'pending' ? 'submitted' : statusParam
+      query = query.ilike('status', dbStatus)
+    }
+
+    const { data: appsData, error: appsError } = await query
 
     if (appsError) {
       console.error('[admin 500] applications list', appsError)
-      const code = (appsError as { code?: string }).code
-      const msg = code === '42883'
-        ? 'Database function missing. Run Supabase migrations (admin_get_applications_fast).'
-        : 'Operation failed. Please try again.'
-      return jsonError(req, { error: msg }, 500)
+      return jsonError(req, { error: 'Failed to fetch applications' }, 500)
     }
     
-    list = (appsData ?? []) as Array<Record<string, unknown>>
+    // Flatten the profile data
+    list = (appsData ?? []).map((a: Record<string, unknown>) => {
+      const profile = a.profiles as Record<string, unknown> | null
+      return {
+        ...a,
+        name: profile?.name ?? '',
+        username: profile?.username ?? '',
+        email: profile?.email ?? '',
+        profile_image_url: profile?.profile_image_url ?? null,
+        bio: profile?.bio ?? '',
+        niche: profile?.niche ?? '',
+        phone: profile?.phone ?? null,
+      }
+    })
+    
     appsCache.set(cacheKey, { at: Date.now(), data: list })
     
     // Clean old cache entries (keep max 20)
