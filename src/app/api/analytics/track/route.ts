@@ -122,6 +122,10 @@ function normalizeEvent(e: unknown): {
 
 /** POST /api/analytics/track — batch events, optional end_session. Auth required except app_open/session_start (strict limit). */
 export async function POST(req: NextRequest) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return NextResponse.json({ error: 'Analytics unavailable' }, { status: 503 })
+  }
+
   const ip = getClientIp(req)
 
   let body: ReturnType<typeof parseBody>
