@@ -3696,11 +3696,25 @@ function ApplicationsTab({
     else setSelectedAppIds(new Set(paginatedApps.map(a => a.id)))
   }
 
+  const statusFilterColors: Record<AppFilter, { active: string; inactive: string; count: string }> = {
+    all: { active: 'bg-[var(--accent-purple)] text-white', inactive: 'bg-[var(--surface)] text-[var(--text)]', count: 'bg-white/20' },
+    pending: { active: 'bg-amber-500 text-white', inactive: 'bg-amber-500/10 text-amber-400 border-amber-500/30', count: 'bg-amber-600' },
+    approved: { active: 'bg-emerald-500 text-white', inactive: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30', count: 'bg-emerald-600' },
+    rejected: { active: 'bg-red-500 text-white', inactive: 'bg-red-500/10 text-red-400 border-red-500/30', count: 'bg-red-600' },
+    waitlisted: { active: 'bg-purple-500 text-white', inactive: 'bg-purple-500/10 text-purple-400 border-purple-500/30', count: 'bg-purple-600' },
+    suspended: { active: 'bg-slate-500 text-white', inactive: 'bg-slate-500/10 text-slate-400 border-slate-500/30', count: 'bg-slate-600' },
+  }
+
   return (
-    <div className="space-y-4">
-      {/* Search + Export on one line; filters only (counts in tabs = single source of truth) */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex-1 min-w-[200px] max-w-md">
+    <div className="space-y-5">
+      {/* Header: Search + Export */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <div className="flex-1 w-full sm:max-w-lg relative">
+          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+            <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
           <input
             id="admin-applications-search"
             name="applications-search"
@@ -3708,124 +3722,204 @@ function ApplicationsTab({
             placeholder="Search by name, username, email, niche, referrer..."
             value={appSearch}
             onChange={e => setAppSearch(e.target.value)}
-            className="input-field w-full"
+            className="input-field w-full pl-10"
             aria-label="Search applications"
           />
-          <p className="text-xs text-[var(--text-muted)] mt-1">Search applies to current page only.</p>
+          <p className="text-xs text-[var(--text-muted)] mt-1.5 ml-1">Search applies to current page only.</p>
         </div>
         <button
           type="button"
           onClick={onExportCsv}
-          className="px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-[var(--text)] text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-[var(--text)] text-sm font-medium hover:bg-[var(--surface-hover)] hover:border-[var(--text-muted)] transition-all shadow-sm"
           title="Exports current page only. Use pagination to export other pages."
         >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
           Export CSV
         </button>
       </div>
 
-      {/* Filter tabs only — counts here, no duplicate stat row */}
+      {/* Status Filter Tabs - Color-coded pills */}
       <div className="flex flex-wrap gap-2">
-        {(['all', 'pending', 'approved', 'rejected', 'waitlisted', 'suspended'] as AppFilter[]).map(f => (
-          <button
-            type="button"
-            key={f}
-            onClick={() => (onStatusFilterChange ?? setFilter)(f)}
-            className={`px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-              filter === f 
-                ? 'bg-[var(--accent-purple)] text-white shadow-[var(--shadow-soft)]' 
-                : 'bg-[var(--surface)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] border border-[var(--separator)]'
-            }`}
-          >
-            {f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)} ({getFilterCount(f)})
-          </button>
-        ))}
+        {(['all', 'pending', 'approved', 'rejected', 'waitlisted', 'suspended'] as AppFilter[]).map(f => {
+          const colors = statusFilterColors[f]
+          const count = getFilterCount(f)
+          const isActive = filter === f
+          return (
+            <button
+              type="button"
+              key={f}
+              onClick={() => (onStatusFilterChange ?? setFilter)(f)}
+              className={`group flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all border ${
+                isActive 
+                  ? `${colors.active} border-transparent shadow-md` 
+                  : `${colors.inactive} border hover:scale-[1.02]`
+              }`}
+            >
+              <span>{f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)}</span>
+              <span className={`text-xs px-1.5 py-0.5 rounded-md font-semibold ${
+                isActive ? colors.count : 'bg-black/10 dark:bg-white/10'
+              }`}>
+                {count}
+              </span>
+            </button>
+          )
+        })}
       </div>
-      {/* Assignment + Sort for moderation queue */}
-      <div className="flex flex-wrap gap-2 items-center">
-        <span className="text-xs text-[var(--text-muted)]">Assignment:</span>
-        {['all', 'unassigned', 'assigned_to_me'].map(f => (
-          <button key={f} type="button" onClick={() => onSortFilterChange(appSort, f)} className={`px-3 py-1.5 rounded-lg text-sm ${appAssignmentFilter === f ? 'bg-[var(--accent-purple)] text-white' : 'bg-[var(--surface)] border border-[var(--separator)]'}`}>{f === 'assigned_to_me' ? 'Assigned to me' : f}</button>
-        ))}
-        <span className="text-xs text-[var(--text-muted)] ml-2">Sort:</span>
-        {['overdue', 'oldest', 'assigned_to_me'].map(s => (
-          <button key={s} type="button" onClick={() => onSortFilterChange(s, appAssignmentFilter)} className={`px-3 py-1.5 rounded-lg text-sm ${appSort === s ? 'bg-[var(--accent-purple)] text-white' : 'bg-[var(--surface)] border border-[var(--separator)]'}`}>{s === 'assigned_to_me' ? 'My items first' : s}</button>
-        ))}
+
+      {/* Assignment + Sort Controls - Grouped in a card */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 p-3 rounded-xl bg-[var(--surface)]/50 border border-[var(--separator)]">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">Assignment:</span>
+          <div className="flex gap-1.5">
+            {['all', 'unassigned', 'assigned_to_me'].map(f => (
+              <button 
+                key={f} 
+                type="button" 
+                onClick={() => onSortFilterChange(appSort, f)} 
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  appAssignmentFilter === f 
+                    ? 'bg-[var(--accent-purple)] text-white shadow-sm' 
+                    : 'bg-[var(--surface)] border border-[var(--separator)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--text-muted)]'
+                }`}
+              >
+                {f === 'assigned_to_me' ? 'Assigned to me' : f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">Sort:</span>
+          <div className="flex gap-1.5">
+            {['overdue', 'oldest', 'assigned_to_me'].map(s => (
+              <button 
+                key={s} 
+                type="button" 
+                onClick={() => onSortFilterChange(s, appAssignmentFilter)} 
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  appSort === s 
+                    ? 'bg-[var(--accent-purple)] text-white shadow-sm' 
+                    : 'bg-[var(--surface)] border border-[var(--separator)] text-[var(--text-secondary)] hover:text-[var(--text)] hover:border-[var(--text-muted)]'
+                }`}
+              >
+                {s === 'assigned_to_me' ? 'My items first' : s.charAt(0).toUpperCase() + s.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Bulk action bar */}
       {pendingInSelection.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-[var(--accent-purple)]/10 border border-[var(--accent-purple)]/30">
-          <span className="text-sm font-medium text-[var(--text)]">{pendingInSelection.length} selected (pending)</span>
-          <button type="button" onClick={() => onBulkAction(pendingInSelection, 'approve')} disabled={actionLoading === 'bulk'} className="px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-sm font-medium hover:bg-green-500/30 disabled:opacity-50">Approve all</button>
-          <button type="button" onClick={() => onBulkAction(pendingInSelection, 'reject')} disabled={actionLoading === 'bulk'} className="px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/30 disabled:opacity-50">Reject all</button>
-          <button type="button" onClick={() => onBulkAction(pendingInSelection, 'waitlist')} disabled={actionLoading === 'bulk'} className="px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-400 text-sm font-medium hover:bg-purple-500/30 disabled:opacity-50">Waitlist all</button>
-          <button type="button" onClick={() => setSelectedAppIds(new Set())} className="text-sm text-[var(--text-muted)] hover:text-[var(--text)]">Clear</button>
+        <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-[var(--accent-purple)]/10 to-[var(--accent-purple)]/5 border border-[var(--accent-purple)]/30 shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-[var(--accent-purple)] flex items-center justify-center text-white font-bold text-sm">
+              {pendingInSelection.length}
+            </div>
+            <span className="text-sm font-medium text-[var(--text)]">pending selected</span>
+          </div>
+          <div className="flex gap-2 ml-auto">
+            <button type="button" onClick={() => onBulkAction(pendingInSelection, 'approve')} disabled={actionLoading === 'bulk'} className="px-4 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-50 shadow-sm transition-all">
+              Approve all
+            </button>
+            <button type="button" onClick={() => onBulkAction(pendingInSelection, 'reject')} disabled={actionLoading === 'bulk'} className="px-4 py-2 rounded-lg bg-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/30 disabled:opacity-50 transition-all">
+              Reject all
+            </button>
+            <button type="button" onClick={() => onBulkAction(pendingInSelection, 'waitlist')} disabled={actionLoading === 'bulk'} className="px-4 py-2 rounded-lg bg-purple-500/20 text-purple-400 text-sm font-medium hover:bg-purple-500/30 disabled:opacity-50 transition-all">
+              Waitlist all
+            </button>
+            <button type="button" onClick={() => setSelectedAppIds(new Set())} className="px-3 py-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
+              Clear
+            </button>
+          </div>
         </div>
       )}
 
-      {/* List header: count + select all + pagination in one compact row */}
-      <div className="flex flex-wrap items-center justify-between gap-3 py-1 border-b border-[var(--separator)]">
-        <div className="text-sm text-[var(--text-secondary)] flex items-center gap-2">
-          <span className="font-medium text-[var(--text)]">{applicationsTotal} applications</span>
+      {/* List header: count + select all + pagination */}
+      <div className="flex flex-wrap items-center justify-between gap-3 py-3 px-1">
+        <div className="flex items-center gap-3">
+          <span className="text-base font-semibold text-[var(--text)]">{applicationsTotal.toLocaleString()} applications</span>
           {applications.length > 0 && (
-            <>
-              <span className="text-[var(--text-muted)]">·</span>
-              <button type="button" onClick={toggleSelectAll} className="text-[var(--accent-purple)] hover:underline">
-                {selectedAppIds.size >= paginatedApps.length ? 'Deselect all (this page)' : 'Select all (this page)'}
-              </button>
-            </>
+            <button 
+              type="button" 
+              onClick={toggleSelectAll} 
+              className="text-sm text-[var(--accent-purple)] hover:text-[var(--accent-purple)]/80 font-medium transition-colors"
+            >
+              {selectedAppIds.size >= paginatedApps.length ? 'Deselect all (this page)' : 'Select all (this page)'}
+            </button>
           )}
         </div>
         {applicationsTotal > applicationsPageSize && (
-          <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-            <span>Showing {(applicationsPage - 1) * applicationsPageSize + 1}–{Math.min(applicationsPage * applicationsPageSize, applicationsTotal)} of {applicationsTotal}</span>
-            <span className="text-[var(--separator)]">|</span>
-            <button type="button" onClick={() => onApplicationsPageChange(applicationsPage - 1)} disabled={applicationsPage <= 1} className="px-2 py-1 rounded bg-[var(--surface)] border border-[var(--separator)] hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed">
-              Prev
-            </button>
-            <span>Page {applicationsPage} of {totalPages}</span>
-            <button type="button" onClick={() => onApplicationsPageChange(applicationsPage + 1)} disabled={applicationsPage >= totalPages} className="px-2 py-1 rounded bg-[var(--surface)] border border-[var(--separator)] hover:bg-[var(--surface-hover)] disabled:opacity-50 disabled:cursor-not-allowed">
-              Next
-            </button>
+          <div className="flex items-center gap-3 text-sm">
+            <span className="text-[var(--text-muted)]">
+              Showing {(applicationsPage - 1) * applicationsPageSize + 1}–{Math.min(applicationsPage * applicationsPageSize, applicationsTotal)} of {applicationsTotal}
+            </span>
+            <div className="flex items-center gap-1.5 bg-[var(--surface)] rounded-lg p-1 border border-[var(--separator)]">
+              <button 
+                type="button" 
+                onClick={() => onApplicationsPageChange(applicationsPage - 1)} 
+                disabled={applicationsPage <= 1} 
+                className="px-3 py-1.5 rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                Prev
+              </button>
+              <span className="px-3 py-1.5 text-[var(--text)] font-medium">
+                Page {applicationsPage} of {totalPages}
+              </span>
+              <button 
+                type="button" 
+                onClick={() => onApplicationsPageChange(applicationsPage + 1)} 
+                disabled={applicationsPage >= totalPages} 
+                className="px-3 py-1.5 rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>
 
       {applicationsLoading && (
-        <div className="flex items-center justify-center gap-2 py-8 text-[var(--text-secondary)] text-sm">
-          <svg className="w-5 h-5 animate-spin text-[var(--accent-purple)]" fill="none" viewBox="0 0 24 24" aria-hidden>
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          <span>Loading applications…</span>
+        <div className="flex flex-col items-center justify-center gap-3 py-16">
+          <div className="relative">
+            <div className="w-12 h-12 rounded-full border-4 border-[var(--separator)] border-t-[var(--accent-purple)] animate-spin" />
+          </div>
+          <span className="text-[var(--text-secondary)] text-sm font-medium">Loading applications…</span>
         </div>
       )}
       
       {!applicationsLoading && applications.length === 0 ? (
-        <div className="text-center py-16 rounded-2xl bg-[var(--surface)] border border-[var(--separator)]">
-          <div className="text-4xl mb-3 opacity-60">📄</div>
-          <p className="text-[var(--text-secondary)] font-medium">
+        <div className="text-center py-20 rounded-2xl bg-gradient-to-b from-[var(--surface)] to-transparent border border-[var(--separator)]">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--surface-hover)] flex items-center justify-center">
+            <svg className="w-8 h-8 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <p className="text-[var(--text)] font-semibold text-lg">
             {applicationsTotal === 0
-              ? 'No applications'
-              : `No ${filter === 'all' ? 'applications' : filter} on this page`}
+              ? 'No applications yet'
+              : `No ${filter === 'all' ? 'applications' : filter} applications`}
           </p>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
+          <p className="text-sm text-[var(--text-muted)] mt-2 max-w-sm mx-auto">
             {applicationsTotal === 0
-              ? 'New applications will appear here.'
+              ? 'New applications will appear here when users sign up.'
               : 'Try another page or change the status filter above.'}
           </p>
         </div>
       ) : !applicationsLoading ? (
         <div className="space-y-3">
           {paginatedApps.map(app => (
-            <div key={app.id} className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={selectedAppIds.has(app.id)}
-                onChange={() => toggleSelect(app.id)}
-                aria-label={`Select ${app.name || app.username}`}
-                className="rounded border-[var(--separator)] text-[var(--accent-purple)] focus:ring-[var(--accent-purple)] flex-shrink-0 mt-0"
-              />
+            <div key={app.id} className="flex items-start gap-3">
+              <div className="pt-4">
+                <input
+                  type="checkbox"
+                  checked={selectedAppIds.has(app.id)}
+                  onChange={() => toggleSelect(app.id)}
+                  aria-label={`Select ${app.name || app.username}`}
+                  className="w-4 h-4 rounded border-[var(--separator)] text-[var(--accent-purple)] focus:ring-[var(--accent-purple)] focus:ring-offset-0 cursor-pointer"
+                />
+              </div>
               <div className="flex-1 min-w-0">
                 <ApplicationCard
                   app={app}
@@ -5783,57 +5877,112 @@ function ApplicationCard({
   claiming?: boolean
 }) {
   const isPending = ['SUBMITTED', 'PENDING_REVIEW', 'DRAFT', 'PENDING'].includes(app.status.toUpperCase())
+  
+  const statusStyles: Record<string, string> = {
+    APPROVED: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
+    ACTIVE: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
+    REJECTED: 'bg-red-500/15 text-red-400 border border-red-500/30',
+    WAITLISTED: 'bg-purple-500/15 text-purple-400 border border-purple-500/30',
+    SUSPENDED: 'bg-slate-500/15 text-slate-400 border border-slate-500/30',
+    PENDING: 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
+    SUBMITTED: 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
+    PENDING_REVIEW: 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
+    DRAFT: 'bg-slate-500/15 text-slate-400 border border-slate-500/30',
+  }
+  const statusStyle = statusStyles[app.status?.toUpperCase()] || 'bg-slate-500/15 text-slate-400 border border-slate-500/30'
 
   return (
     <div
-      className="bg-[var(--surface)] border border-[var(--separator)] p-4 rounded-xl shadow-[var(--shadow-soft)] hover:border-[var(--accent-purple)]/30 transition-colors cursor-pointer"
+      className="group bg-[var(--surface)] border border-[var(--separator)] p-4 rounded-2xl shadow-sm hover:shadow-md hover:border-[var(--accent-purple)]/40 transition-all cursor-pointer"
       onClick={onViewDetails}
     >
-      <div className="flex justify-between items-center gap-4">
-        <div className="flex gap-3 min-w-0 flex-1">
-          <Avatar url={app.profile_image_url} name={app.name} size={48} />
-          <div className="min-w-0 flex-1">
-            {/* Primary: name + status + date */}
-            <div className="flex flex-wrap items-center gap-2 gap-y-1">
-              <p className="font-semibold text-[var(--text)] truncate">{app.name || 'No name'}</p>
-              <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${getStatusColor(app.status)}`}>
+      <div className="flex justify-between items-start gap-4">
+        <div className="flex gap-4 min-w-0 flex-1">
+          {/* Avatar with initial fallback */}
+          <div className="relative flex-shrink-0">
+            <Avatar url={app.profile_image_url} name={app.name} size={52} />
+          </div>
+          
+          <div className="min-w-0 flex-1 space-y-1.5">
+            {/* Primary row: Name + Status badge */}
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-semibold text-[var(--text)] text-base truncate max-w-[200px]">
+                {app.name || 'No name'}
+              </h3>
+              <span className={`text-xs px-2.5 py-1 rounded-lg font-medium flex-shrink-0 ${statusStyle}`}>
                 {getStatusLabel(app.status)}
               </span>
-              {(claimedByMe || claimedByOther) && (
-                <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0 bg-blue-500/20 text-blue-400">
-                  {claimedByMe ? 'Claimed by you' : 'Claimed by another moderator'}
+              {claimedByMe && (
+                <span className="text-xs px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-400 font-medium">
+                  Claimed by you
                 </span>
               )}
-              <span className="text-xs text-[var(--text-muted)] flex-shrink-0">
-                {app.application_date ? new Date(app.application_date).toLocaleDateString() : 'N/A'}
-              </span>
-            </div>
-            {/* Secondary: @username · email */}
-            <p className="text-sm text-[var(--text-secondary)] truncate mt-0.5">@{app.username} · {app.email}</p>
-            {/* Tertiary: niche, referrer, followers as compact tags */}
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-xs text-[var(--text-muted)]">
-              {app.niche && <span className="text-[var(--accent-purple)]">{app.niche}</span>}
-              {app.referrer_username && <span>Referred by {app.referrer_username}</span>}
-              {app.follower_count != null && app.follower_count > 0 && (
-                <span>{app.follower_count.toLocaleString()} followers</span>
+              {claimedByOther && (
+                <span className="text-xs px-2 py-0.5 rounded-md bg-orange-500/20 text-orange-400 font-medium">
+                  Claimed
+                </span>
               )}
+            </div>
+            
+            {/* Secondary row: Username + Email */}
+            <p className="text-sm text-[var(--text-secondary)] truncate">
+              <span className="font-medium">@{app.username}</span>
+              <span className="mx-1.5 text-[var(--separator)]">·</span>
+              <span>{app.email}</span>
+            </p>
+            
+            {/* Tertiary row: Metadata tags */}
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              {app.niche && (
+                <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md bg-[var(--accent-purple)]/10 text-[var(--accent-purple)] font-medium">
+                  {app.niche}
+                </span>
+              )}
+              {app.referrer_username && (
+                <span className="text-xs text-[var(--text-muted)]">
+                  Referred by <span className="text-[var(--text-secondary)]">{app.referrer_username}</span>
+                </span>
+              )}
+              {app.follower_count != null && app.follower_count > 0 && (
+                <span className="text-xs text-[var(--text-muted)]">
+                  {app.follower_count.toLocaleString()} followers
+                </span>
+              )}
+              <span className="text-xs text-[var(--text-muted)]">
+                {app.application_date ? new Date(app.application_date).toLocaleDateString() : ''}
+              </span>
             </div>
           </div>
         </div>
 
+        {/* Action buttons - only for pending */}
         {isPending && (
-          <div className="flex gap-2 flex-shrink-0 flex-wrap" onClick={e => e.stopPropagation()}>
+          <div className="flex gap-2 flex-shrink-0 items-center" onClick={e => e.stopPropagation()}>
             {!claimedByMe && !claimedByOther && onClaim && (
-              <button type="button" onClick={onClaim} disabled={claiming} className="px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-400 text-sm">Claim</button>
+              <button 
+                type="button" 
+                onClick={onClaim} 
+                disabled={claiming} 
+                className="px-3 py-2 rounded-lg bg-blue-500/15 text-blue-400 text-sm font-medium hover:bg-blue-500/25 disabled:opacity-50 transition-all"
+              >
+                Claim
+              </button>
             )}
             {claimedByMe && onRelease && (
-              <button type="button" onClick={onRelease} disabled={claiming} className="px-3 py-1.5 rounded-lg bg-[var(--surface-hover)] text-sm">Release</button>
+              <button 
+                type="button" 
+                onClick={onRelease} 
+                disabled={claiming} 
+                className="px-3 py-2 rounded-lg bg-[var(--surface-hover)] text-[var(--text-secondary)] text-sm font-medium hover:text-[var(--text)] transition-all"
+              >
+                Release
+              </button>
             )}
             <button
               type="button"
               onClick={onWaitlist}
               disabled={!canAct || isLoading}
-              className="px-3 py-1.5 bg-purple-500/20 text-purple-400 rounded-lg hover:bg-purple-500/30 text-sm font-medium disabled:opacity-50"
+              className="px-3 py-2 bg-purple-500/15 text-purple-400 rounded-lg hover:bg-purple-500/25 text-sm font-medium disabled:opacity-50 transition-all"
             >
               Waitlist
             </button>
@@ -5841,7 +5990,7 @@ function ApplicationCard({
               type="button"
               onClick={onReject}
               disabled={!canAct || isLoading}
-              className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 text-sm font-medium disabled:opacity-50"
+              className="px-3 py-2 bg-red-500/15 text-red-400 rounded-lg hover:bg-red-500/25 text-sm font-medium disabled:opacity-50 transition-all"
             >
               Reject
             </button>
@@ -5849,7 +5998,7 @@ function ApplicationCard({
               type="button"
               onClick={onApprove}
               disabled={!canAct || isLoading}
-              className="px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium disabled:opacity-50"
+              className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 text-sm font-medium disabled:opacity-50 shadow-sm hover:shadow transition-all"
             >
               Approve
             </button>
