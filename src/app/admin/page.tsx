@@ -888,7 +888,12 @@ export default function AdminPanel() {
         const data = await res.json()
         return {
           stats: data.stats ?? { total: 0, pending: 0, approved: 0, rejected: 0, waitlisted: 0, suspended: 0 },
-          activeToday: data.activeToday ?? null,
+          activeToday: (() => {
+            const v = data.activeToday
+            if (typeof v === 'number' && !Number.isNaN(v)) return Math.max(0, v)
+            if (typeof v === 'string') { const n = parseInt(v, 10); if (!Number.isNaN(n)) return Math.max(0, n) }
+            return v != null ? Math.max(0, Number(v)) : null
+          })(),
           activeSessions: data.activeSessions ?? null,
           overviewCounts: data.overviewCounts ?? null,
         }
@@ -961,10 +966,16 @@ export default function AdminPanel() {
 
     const fetchActiveToday = async (): Promise<number | null> => {
       try {
-        const res = await fetch('/api/admin/active-today', { credentials: 'include' })
+        const res = await fetch('/api/admin/active-today', { credentials: 'include', cache: 'no-store' })
         if (!res.ok) return null
-        const data = await res.json()
-        return typeof data?.count === 'number' ? data.count : null
+        const data = await res.json().catch(() => ({}))
+        const raw = data?.count
+        if (typeof raw === 'number' && !Number.isNaN(raw)) return Math.max(0, Math.floor(raw))
+        if (typeof raw === 'string') {
+          const n = parseInt(raw, 10)
+          if (!Number.isNaN(n)) return Math.max(0, n)
+        }
+        return null
       } catch {
         return null
       }
@@ -1073,13 +1084,18 @@ export default function AdminPanel() {
           setTotalThreadCount(overview.overviewCounts.totalThreadCount)
           setTotalMessageCount(overview.overviewCounts.totalMessageCount)
         }
-        // Active today: prefer dedicated endpoint (always called above), then overview
-        setActiveUsersToday(activeTodayFromApi ?? overview.activeToday ?? null)
+        // Active today: dedicated endpoint first, then overview, then concurrent active count (15m) as fallback
+        const activeTodayValue =
+          activeTodayFromApi ??
+          (overview.activeToday != null ? overview.activeToday : null) ??
+          (overview.activeSessions?.count != null ? overview.activeSessions.count : null) ??
+          0
+        setActiveUsersToday(activeTodayValue)
       } else {
         // Overview failed or timed out; we still have activeTodayFromApi from parallel fetch
         const activeSessionsData = await fetchActiveSessions()
         setActiveSessions(activeSessionsData)
-        setActiveUsersToday(activeTodayFromApi ?? null)
+        setActiveUsersToday(activeTodayFromApi ?? (activeSessionsData?.count ?? 0))
       }
     }
 
