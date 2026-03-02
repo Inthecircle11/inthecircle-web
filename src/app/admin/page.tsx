@@ -1869,8 +1869,9 @@ export default function AdminPanel() {
     : filteredAppsByStatus
 
   const getFilterCount = (filter: AppFilter) => {
-    if (filter === 'all') return applicationsTotal > 0 ? applicationsTotal : applications.length
-    // Use global counts from API (stats) when available
+    // Use stats from API (global counts from admin_get_application_counts RPC) for all filters
+    // stats.total is the true total, applicationsTotal is just for the current page
+    if (filter === 'all') return stats.total > 0 ? stats.total : applicationsTotal
     if (filter === 'pending') return stats.pending
     if (filter === 'approved') return stats.approved
     if (filter === 'rejected') return stats.rejected

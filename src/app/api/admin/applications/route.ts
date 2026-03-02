@@ -10,13 +10,13 @@ export const dynamic = 'force-dynamic'
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 200
 
-/** AGGRESSIVE CACHING: 60s for counts, 30s for application lists */
+/** Cache TTL: 30s for counts, 15s for application lists (balance freshness and performance) */
 let countsCache: { at: number; counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number; total: number } } | null = null
-const COUNTS_CACHE_TTL_MS = 60_000
+const COUNTS_CACHE_TTL_MS = 30_000
 
 /** Cache for application lists by status+page */
 const appsCache = new Map<string, { at: number; data: Array<Record<string, unknown>> }>()
-const APPS_CACHE_TTL_MS = 30_000
+const APPS_CACHE_TTL_MS = 15_000
 
 function normalizeApplicationStatus(raw: unknown): string {
   const s = String(raw ?? '').trim().toUpperCase()
@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams
   const sort = params.get('sort') || 'overdue'
   const filter = params.get('filter') || 'all'
+  // Pass status directly to RPC - the RPC handles mapping (e.g., 'waitlisted' -> 'waitlist')
   const statusParam = (params.get('status') || 'all').toLowerCase()
   const pageParam = params.get('page')
   const limitParam = params.get('limit')

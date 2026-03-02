@@ -6,8 +6,8 @@ import type { AdminRoleName } from '@/lib/admin-rbac'
 
 export const dynamic = 'force-dynamic'
 
-/** CACHING DISABLED: Was causing stale data issues. Re-enable after metrics are stable. */
-const CACHE_TTL_MS = 0  // Disabled - was 60_000
+/** Cache TTL: 30 seconds for overview stats (balance between freshness and performance) */
+const CACHE_TTL_MS = 30_000
 let overviewCache: { at: number; body: Record<string, unknown> } | null = null
 
 /** GET - Ultra-fast overview stats using single RPC call. */
