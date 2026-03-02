@@ -426,6 +426,7 @@ export default function AdminPanel() {
   const [appSearch, setAppSearch] = useState('')
   const [selectedAppIds, setSelectedAppIds] = useState<Set<string>>(new Set())
   const [refreshing, setRefreshing] = useState(false)
+  const [applicationsLoading, setApplicationsLoading] = useState(false)
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
@@ -1150,8 +1151,12 @@ export default function AdminPanel() {
       }
     }
 
-    if (options?.skipOverview) await loadTabData(activeTab, thisLoadId)
+    if (options?.skipOverview) {
+      if (activeTab === 'applications') setApplicationsLoading(true)
+      await loadTabData(activeTab, thisLoadId)
+    }
     if (thisLoadId !== loadIdRef.current) return
+    if (options?.skipOverview) setApplicationsLoading(false)
     if (!options?.skipOverview) {
       setRefreshing(false)
       setLastRefreshed(new Date())
@@ -2352,7 +2357,11 @@ export default function AdminPanel() {
           <div className="flex-shrink-0 px-4 md:px-6 pt-4">
             <div className="p-4 rounded-xl bg-[var(--error)]/10 border border-[var(--error)]/30 text-[var(--error)] text-sm flex items-center justify-between gap-4">
               <span>{error}</span>
-              <button type="button" onClick={() => setError(null)} className="font-medium underline hover:no-underline">Dismiss</button>
+              <span className="flex items-center gap-2">
+                <button type="button" onClick={() => { setError(null); loadData() }} className="font-medium underline hover:no-underline">Retry</button>
+                <span className="text-[var(--text-muted)]">|</span>
+                <button type="button" onClick={() => setError(null)} className="font-medium underline hover:no-underline">Dismiss</button>
+              </span>
             </div>
           </div>
         )}
@@ -2467,6 +2476,7 @@ export default function AdminPanel() {
               setApplicationsPage(page)
               loadData(undefined, { skipOverview: true, applicationsPage: page })
             }}
+            applicationsLoading={applicationsLoading}
             currentUserId={currentUserId}
             onClaim={async (id: string) => {
               const res = await fetch(`/api/admin/applications/${id}/claim`, { method: 'POST', credentials: 'include' })
@@ -3539,6 +3549,7 @@ function ApplicationsTab({
   onStatusFilterChange,
   appSearch, setAppSearch, appSort, appAssignmentFilter, onSortFilterChange,
   applicationsTotal, applicationsPage, applicationsPageSize, onApplicationsPageChange,
+  applicationsLoading = false,
   selectedAppIds, setSelectedAppIds,
   onApprove, onReject, onWaitlist, onSuspend, onBulkAction, onExportCsv,
   actionLoading, selectedApp, setSelectedApp,
@@ -3562,6 +3573,7 @@ function ApplicationsTab({
   applicationsPage: number
   applicationsPageSize: number
   onApplicationsPageChange: (page: number) => void
+  applicationsLoading?: boolean
   selectedAppIds: Set<string>
   setSelectedAppIds: Dispatch<SetStateAction<Set<string>>>
   onApprove: (id: string, updated_at?: string) => void
@@ -3703,8 +3715,18 @@ function ApplicationsTab({
           </div>
         )}
       </div>
+
+      {applicationsLoading && (
+        <div className="flex items-center justify-center gap-2 py-8 text-[var(--text-secondary)] text-sm">
+          <svg className="w-5 h-5 animate-spin text-[var(--accent-purple)]" fill="none" viewBox="0 0 24 24" aria-hidden>
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span>Loading applications…</span>
+        </div>
+      )}
       
-      {applications.length === 0 ? (
+      {!applicationsLoading && applications.length === 0 ? (
         <div className="text-center py-16 rounded-2xl bg-[var(--surface)] border border-[var(--separator)]">
           <div className="text-4xl mb-3 opacity-60">📄</div>
           <p className="text-[var(--text-secondary)] font-medium">
@@ -3718,7 +3740,7 @@ function ApplicationsTab({
               : 'Try another page or change the status filter above.'}
           </p>
         </div>
-      ) : (
+      ) : !applicationsLoading ? (
         <div className="space-y-3">
           {paginatedApps.map(app => (
             <div key={app.id} className="flex items-center gap-3">
@@ -3749,7 +3771,7 @@ function ApplicationsTab({
             </div>
           ))}
         </div>
-      )}
+      ) : null}
 
       {selectedApp && (
         <ApplicationDetailModal

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
-import { getRequestId, jsonError, jsonError500 } from '@/lib/request-id'
+import { getRequestId, jsonError } from '@/lib/request-id'
 
 export const dynamic = 'force-dynamic'
 

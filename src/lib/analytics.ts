@@ -28,7 +28,7 @@ export interface AnalyticsEventPayload {
   metadata?: Record<string, unknown> | null
 }
 
-let queue: AnalyticsEventPayload[] = []
+const queue: AnalyticsEventPayload[] = []
 let flushTimer: ReturnType<typeof setTimeout> | null = null
 
 function getSessionId(): string {

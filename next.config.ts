@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import { withSentryConfig } from "@sentry/nextjs";
 
 // Fail production build on Vercel if ADMIN_BASE_PATH is not set (required for header rules and security).
 // Only enforce for Production env; Preview builds may not have the var.
@@ -26,8 +25,6 @@ const nextConfig: NextConfig = {
     ],
   },
   // Prevent admin panel from being cached (always load latest).
-  // Apply to both /admin and the obscure path (ADMIN_BASE_PATH) so Cache-Control is sent
-  // even when users access admin via the secret URL (next.config headers match original request path).
   async headers() {
     const adminBase = process.env.ADMIN_BASE_PATH?.trim()
     const rules: { source: string; headers: { key: string; value: string }[] }[] = [
@@ -49,39 +46,34 @@ const nextConfig: NextConfig = {
     }
     return rules
   },
-  // Rewrite obscure admin path to /admin at build time (proxy cannot read ADMIN_BASE_PATH at runtime on Vercel).
+  // Rewrite obscure admin path to /admin at build time.
   async rewrites() {
     const adminBase = process.env.ADMIN_BASE_PATH?.trim()
-    if (!adminBase) return []
-    const base = adminBase.startsWith('/') ? adminBase.slice(1) : adminBase
+    const base = adminBase?.startsWith('/') ? adminBase.slice(1) : adminBase ?? ''
+    const adminRewrites =
+      base && base.length > 0
+        ? [
+            { source: `/${base}`, destination: '/admin' },
+            { source: `/${base}/:path*`, destination: '/admin/:path*' },
+          ]
+        : []
     return [
-      { source: `/${base}`, destination: '/admin' },
-      { source: `/${base}/:path*`, destination: '/admin/:path*' },
+      // Serve logo as favicon so GET /favicon.ico does not 404
+      { source: '/favicon.ico', destination: '/logo.png' },
+      ...adminRewrites,
     ]
   },
   // Performance optimizations
   experimental: {
     optimizePackageImports: ['@supabase/supabase-js', '@supabase/ssr'],
   },
-  // Compression
   compress: true,
-  // Optimize production builds
   productionBrowserSourceMaps: false,
-  // Faster page loads - reduce bundle size
   poweredByHeader: false,
-  // Build fingerprint for admin observability (commit SHA or timestamp).
   env: {
     BUILD_TIMESTAMP: new Date().toISOString(),
-    // Expose DSN to client only at build time (SENTRY_DSN set in Vercel env; do not commit).
-    NEXT_PUBLIC_SENTRY_DSN: process.env.SENTRY_DSN ?? "",
   },
 };
 
-const sentryOptions = {
-  org: "inthecircle",
-  project: "inthecircle-web",
-  silent: !process.env.CI,
-};
-
-export default withSentryConfig(nextConfig, sentryOptions);
+export default nextConfig;
 
