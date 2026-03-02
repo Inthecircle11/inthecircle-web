@@ -102,13 +102,15 @@ export default function SignUp() {
   // Redirect recovery tokens to update-password page
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.hash) {
-      const hash = window.location.hash.substring(1)
+      const fullHash = window.location.hash
+      const hash = fullHash.substring(1)
       const params = new URLSearchParams(hash)
       const type = params.get('type')
       
       if (type === 'recovery') {
         // This is a password reset link - redirect to update-password with the hash
-        window.location.href = `/update-password${window.location.hash}`
+        // Use replace to ensure the hash is preserved
+        window.location.replace(`${window.location.origin}/update-password${fullHash}`)
       }
     }
   }, [])
