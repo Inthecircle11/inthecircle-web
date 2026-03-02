@@ -65,6 +65,7 @@ This ensures the domain is only on inthecircle-web and deploys the correct code 
 
 2. **Admin panel returns 404**
    - If **ADMIN_BASE_PATH** is set in Vercel (Environment Variables), then **/admin** is disabled and only the secret URL works (e.g. `https://app.inthecircle.co/YourSecretPath`).
+   - **Wrong URL (404):** Using a **slash** in the path (e.g. `.../K7x2mN9pQ4/T1vW6yB0cD3eF8gH2jL5n`) often causes 404. Use the **exact** path with **no slash** and with the letter **r** (e.g. `.../K7x2mN9pQ4rT1vW6yB0cD3eF8gH2jL5n`). The app now redirects the common “slash instead of r” typo to the correct URL.
    - **To use /admin again:** In Vercel → inthecircle-web → Settings → Environment Variables, **delete** `ADMIN_BASE_PATH` (or leave it empty), then redeploy. After that, https://app.inthecircle.co/admin will work again.
    - Optional: set **ADMIN_ALLOW_DIRECT_ACCESS=true** in Vercel so that **/admin** works even when ADMIN_BASE_PATH is set (lets you use both the secret URL and /admin until you remove ADMIN_BASE_PATH).
 

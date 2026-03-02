@@ -283,7 +283,7 @@ export default function IdeasPage() {
                   </div>
                   {selectedIdea.ai_suggestion && (
                     <p className="mt-4 text-[13px] text-[var(--text-secondary)] italic">
-                      &quot;{selectedIdea.ai_suggestion}&quot;
+                      {'"'}{selectedIdea.ai_suggestion}{'"'}
                     </p>
                   )}
                 </div>
