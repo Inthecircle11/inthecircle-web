@@ -124,11 +124,19 @@ export async function GET(req: NextRequest) {
       .order('submitted_at', { ascending: true })
       .range(offset, offset + limit - 1)
 
-    // Apply status filter
+    // Apply status filter - map UI status names to actual DB values
     if (statusParam !== 'all') {
-      // Map common status variations
-      const dbStatus = statusParam === 'pending' ? 'submitted' : statusParam
-      query = query.ilike('status', dbStatus)
+      // DB stores: ACTIVE, REJECTED, WAITLISTED, SUSPENDED, SUBMITTED, PENDING_REVIEW, DRAFT
+      const statusMap: Record<string, string[]> = {
+        'pending': ['SUBMITTED', 'PENDING_REVIEW', 'DRAFT', 'PENDING'],
+        'approved': ['ACTIVE', 'APPROVED'],
+        'rejected': ['REJECTED'],
+        'waitlist': ['WAITLISTED', 'WAITLIST'],
+        'waitlisted': ['WAITLISTED', 'WAITLIST'],
+        'suspended': ['SUSPENDED'],
+      }
+      const dbStatuses = statusMap[statusParam] || [statusParam.toUpperCase()]
+      query = query.in('status', dbStatuses)
     }
 
     const { data: appsData, error: appsError } = await query
