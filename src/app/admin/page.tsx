@@ -352,6 +352,7 @@ export default function AdminPanel() {
   const [selectedAppIds, setSelectedAppIds] = useState<Set<string>>(new Set())
   const [refreshing, setRefreshing] = useState(false)
   const [applicationsLoading, setApplicationsLoading] = useState(false)
+  const [applicationsCountsError, setApplicationsCountsError] = useState(false)
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
@@ -1084,6 +1085,7 @@ export default function AdminPanel() {
               suspended: appResult.counts.suspended,
             })
           }
+          setApplicationsCountsError(!!appResult.countsError)
         }
         setUsers(usersAndProfiles.users)
         setProfilesWithDemographics(usersAndProfiles.profiles)
@@ -1106,6 +1108,7 @@ export default function AdminPanel() {
               suspended: appResult.counts.suspended,
             })
           }
+          setApplicationsCountsError(!!appResult.countsError)
         }
       } else if (tab === 'users') {
         const usersAndProfiles = await fetchUsersAndProfiles()
@@ -2508,7 +2511,10 @@ export default function AdminPanel() {
             getFilterCount={getFilterCount}
             onStatusFilterChange={(f) => {
               setApplicationsPage(1)
-              loadData({ appFilter: f }, { applicationsPage: 1 })
+              setAppFilter(f)
+              requestAnimationFrame(() => {
+                loadData({ appFilter: f }, { applicationsPage: 1 })
+              })
             }}
             appSearch={appSearch}
             setAppSearch={setAppSearch}
@@ -2516,16 +2522,23 @@ export default function AdminPanel() {
             appAssignmentFilter={appAssignmentFilter}
             onSortFilterChange={(sort, filter) => {
               setApplicationsPage(1)
-              loadData({ appSort: sort, appAssignmentFilter: filter }, { applicationsPage: 1 })
+              setAppSort(sort)
+              setAppAssignmentFilter(filter)
+              requestAnimationFrame(() => {
+                loadData({ appSort: sort, appAssignmentFilter: filter }, { applicationsPage: 1 })
+              })
             }}
             applicationsTotal={applicationsTotal}
             applicationsPage={applicationsPage}
             applicationsPageSize={APPLICATIONS_PAGE_SIZE}
             onApplicationsPageChange={(page) => {
               setApplicationsPage(page)
-              loadData(undefined, { skipOverview: true, applicationsPage: page })
+              requestAnimationFrame(() => {
+                loadData(undefined, { skipOverview: true, applicationsPage: page })
+              })
             }}
             applicationsLoading={applicationsLoading}
+            applicationsCountsError={applicationsCountsError}
             currentUserId={currentUserId}
             onClaim={async (id: string) => {
               const res = await fetch(`/api/admin/applications/${id}/claim`, { method: 'POST', credentials: 'include' })
