@@ -13,8 +13,10 @@ import { parseAdminResponse } from '@/lib/admin-client'
 import { ConfirmModal } from './components/ConfirmModal'
 import { AdminErrorBoundary } from './AdminErrorBoundary'
 import { OverviewTab } from './tabs/OverviewTab'
+import { VerificationsTab } from './tabs/VerificationsTab'
 import { StatCard } from './components/StatCard'
-import { downloadCSV } from './utils'
+import { Avatar } from './components/Avatar'
+import { downloadCSV, formatTimeAgo } from './utils'
 import type {
   Stats,
   Application,
@@ -3799,68 +3801,6 @@ function UsersTab({
 }
 
 // ============================================
-// VERIFICATIONS TAB - Matching iOS
-// ============================================
-
-function VerificationsTab({
-  pendingVerifications, onApprove, onReject, actionLoading
-}: {
-  pendingVerifications: VerificationRequest[]
-  onApprove: (userId: string) => void
-  onReject: (userId: string) => void
-  actionLoading: string | null
-}) {
-  return (
-    <div className="space-y-4">
-      <div className="text-sm text-[var(--text-muted)]">
-        Pending Verifications ({pendingVerifications.length})
-      </div>
-
-      {pendingVerifications.length === 0 ? (
-        <div className="text-center py-12 text-[var(--text-muted)]">
-          <div className="text-5xl mb-4">✓</div>
-          <p>No pending verification requests</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {pendingVerifications.map(v => (
-            <div key={v.id} className="bg-[var(--surface)] p-4 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Avatar url={v.profile_image_url} name={v.username} size={48} />
-                  <div>
-                    <p className="font-semibold">@{v.username}</p>
-                    <p className="text-sm text-[var(--text-secondary)]">
-                      Requested {formatTimeAgo(new Date(v.requested_at))}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => onReject(v.user_id)}
-                    disabled={actionLoading === v.user_id}
-                    className="px-4 py-2 bg-red-500/20 text-red-400 rounded-xl hover:bg-red-500/30 disabled:opacity-50"
-                  >
-                    Reject
-                  </button>
-                  <button
-                    onClick={() => onApprove(v.user_id)}
-                    disabled={actionLoading === v.user_id}
-                    className="px-4 py-2 bg-green-500 text-[var(--text)] rounded-xl hover:bg-green-600 disabled:opacity-50"
-                  >
-                    Approve
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ============================================
 // REPORTS TAB
 // ============================================
 
@@ -5524,28 +5464,6 @@ function QuickAction({ icon, label, onClick }: { icon: string; label: string; on
   )
 }
 
-function Avatar({ url, name, size }: { url: string | null; name: string; size: number }) {
-  if (url) {
-    return (
-      /* eslint-disable-next-line @next/next/no-img-element */
-      <img 
-        src={url} 
-        alt={name}
-        className="rounded-full object-cover"
-        style={{ width: size, height: size }}
-      />
-    )
-  }
-  return (
-    <div 
-      className="rounded-full bg-[var(--surface)] flex items-center justify-center text-lg"
-      style={{ width: size, height: size }}
-    >
-      {name?.[0]?.toUpperCase() || '?'}
-    </div>
-  )
-}
-
 function _ApplicationCard({
   app,
   onApprove,
@@ -5878,13 +5796,4 @@ function getStatusLabel(status: string): string {
     case 'SUSPENDED': return 'Suspended'
     default: return status ? (status.charAt(0) + status.slice(1).toLowerCase()) : 'Pending'
   }
-}
-
-function formatTimeAgo(date: Date): string {
-  const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)
-  if (seconds < 60) return 'just now'
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`
-  return `${Math.floor(seconds / 604800)}w ago`
 }
