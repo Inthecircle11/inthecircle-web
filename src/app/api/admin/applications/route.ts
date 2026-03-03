@@ -144,7 +144,8 @@ export async function GET(req: NextRequest) {
     const profilesMap: Record<string, Record<string, unknown>> = {}
     
     if (userIds.length > 0) {
-      const cols = 'id, name, username, email, profile_image_url, bio, niche, phone'
+      // Omit bio from profiles select — column may not exist in all projects; we fall back to applications.bio in merge
+      const cols = 'id, name, username, email, profile_image_url, niche, phone'
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select(cols)
