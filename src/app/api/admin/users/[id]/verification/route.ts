@@ -29,14 +29,23 @@ export async function POST(
     return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
   }
 
-  const { error } = await supabase
+  const { error: profileError } = await supabase
     .from('profiles')
     .update({ is_verified: isVerified, updated_at: new Date().toISOString() })
     .eq('id', userId)
 
-  if (error) {
-    console.error('[admin verification]', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (profileError) {
+    console.error('[admin verification]', profileError)
+    return NextResponse.json({ error: profileError.message }, { status: 500 })
+  }
+
+  if (isVerified) {
+    const now = new Date().toISOString()
+    await supabase
+      .from('verification_requests')
+      .update({ status: 'approved', reviewed_at: now })
+      .eq('user_id', userId)
+      .eq('status', 'pending')
   }
 
   await writeAuditLog(supabase, req, result.user, {

@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   const [listResult, countResult] = await Promise.all([
     supabase
       .from('profiles')
-      .select('id, name, username, profile_image_url, is_verified, is_banned, created_at, location, niche')
+      .select('id, name, username, email, profile_image_url, is_verified, is_banned, created_at, location, niche')
       .order('created_at', { ascending: false })
       .limit(MAX_USERS),
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     id: p.id,
     name: p.name ?? null,
     username: p.username ?? null,
-    email: null as string | null,
+    email: (p.email != null && p.email !== '') ? String(p.email) : null,
     profile_image_url: p.profile_image_url ?? null,
     is_verified: Boolean(p.is_verified),
     is_banned: Boolean(p.is_banned),

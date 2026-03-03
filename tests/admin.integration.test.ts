@@ -192,12 +192,22 @@ describe('Admin API — Runtime Validation', () => {
 
     test('POST /api/admin/bulk-applications — bulk reject', async () => {
       const { POST } = await import('@/app/api/admin/bulk-applications/route')
+      let updated_at_by_id: Record<string, string> = {}
+      if (supabase) {
+        const { data: row } = await supabase.from('applications').select('updated_at').eq('id', SEED_APP_ID).maybeSingle()
+        if (row?.updated_at) {
+          updated_at_by_id[SEED_APP_ID] = typeof row.updated_at === 'string' ? row.updated_at : (row.updated_at as Date).toISOString()
+        }
+      }
+      if (!updated_at_by_id[SEED_APP_ID]) {
+        updated_at_by_id[SEED_APP_ID] = new Date().toISOString()
+      }
       const req = buildRequest('/api/admin/bulk-applications', {
         method: 'POST',
-        body: { application_ids: [SEED_APP_ID], action: 'reject', reason: 'Integration test reason for reject' },
+        body: { application_ids: [SEED_APP_ID], action: 'reject', reason: 'Integration test reason for reject', updated_at_by_id },
       })
       const res = await POST(req)
-      expect([200, 202, 207, 500]).toContain(res.status)
+      expect([200, 202, 207, 409, 500]).toContain(res.status)
       const data = await res.json()
       if (res.status === 200) expect(data).toHaveProperty('ok')
       if (res.status === 200 && supabase) {

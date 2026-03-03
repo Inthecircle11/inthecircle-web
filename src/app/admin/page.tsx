@@ -428,6 +428,7 @@ export default function AdminPanel() {
   const [selectedAppIds, setSelectedAppIds] = useState<Set<string>>(new Set())
   const [refreshing, setRefreshing] = useState(false)
   const [applicationsLoading, setApplicationsLoading] = useState(false)
+  const [applicationsCountsError, setApplicationsCountsError] = useState(false)
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
@@ -920,7 +921,7 @@ export default function AdminPanel() {
       page: number = 1,
       limit: number = 50,
       appStatus?: AppFilter
-    ): Promise<{ apps: Application[]; total: number; counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number } | null; permissionDenied?: boolean }> => {
+    ): Promise<{ apps: Application[]; total: number; counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number } | null; countsError?: boolean; permissionDenied?: boolean }> => {
       try {
         const params = new URLSearchParams()
         params.set('page', String(page))
@@ -939,7 +940,7 @@ export default function AdminPanel() {
           const apps = (data?.applications ?? []) as Application[]
           const total = typeof data?.total === 'number' ? data.total : apps.length
           const counts = data?.counts && typeof data.counts.pending === 'number' ? data.counts as { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number } : null
-          return { apps, total, counts, permissionDenied: false }
+          return { apps, total, counts, countsError: !!data?.countsError, permissionDenied: false }
         }
         return { apps: [], total: 0, counts: null, permissionDenied: false }
       } catch (e) {
@@ -1132,6 +1133,7 @@ export default function AdminPanel() {
               suspended: appResult.counts.suspended,
             })
           }
+          setApplicationsCountsError(!!appResult.countsError)
         }
         setUsers(usersAndProfiles.users)
         setProfilesWithDemographics(usersAndProfiles.profiles)
@@ -1154,6 +1156,7 @@ export default function AdminPanel() {
               suspended: appResult.counts.suspended,
             })
           }
+          setApplicationsCountsError(!!appResult.countsError)
         }
       } else if (tab === 'users') {
         const usersAndProfiles = await fetchUsersAndProfiles()
@@ -2565,6 +2568,7 @@ export default function AdminPanel() {
               loadData(undefined, { skipOverview: true, applicationsPage: page })
             }}
             applicationsLoading={applicationsLoading}
+            applicationsCountsError={applicationsCountsError}
             currentUserId={currentUserId}
             onClaim={async (id: string) => {
               const res = await fetch(`/api/admin/applications/${id}/claim`, { method: 'POST', credentials: 'include' })
@@ -3651,6 +3655,7 @@ function ApplicationsTab({
   applicationsPageSize,
   onApplicationsPageChange,
   applicationsLoading = false,
+  applicationsCountsError = false,
   onApprove,
   onReject,
   onWaitlist,
@@ -3680,6 +3685,7 @@ function ApplicationsTab({
   applicationsPageSize: number
   onApplicationsPageChange: (page: number) => void
   applicationsLoading?: boolean
+  applicationsCountsError?: boolean
   selectedAppIds: Set<string>
   setSelectedAppIds: Dispatch<SetStateAction<Set<string>>>
   onApprove: (id: string, updated_at?: string) => void
@@ -3734,6 +3740,12 @@ function ApplicationsTab({
         onChange={e => setAppSearch(e.target.value)}
         className="w-full max-w-md px-4 py-2 text-sm bg-[var(--surface)] border border-[var(--separator)] rounded-lg text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-purple)]"
       />
+
+      {applicationsCountsError && (
+        <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          <strong>Application counts could not be loaded.</strong> The database function <code className="rounded bg-black/20 px-1">admin_get_application_counts</code> may be missing or the Supabase project may be wrong. In Vercel, check that <strong>NEXT_PUBLIC_SUPABASE_URL</strong> and <strong>SUPABASE_SERVICE_ROLE_KEY</strong> point to the project that has your applications. Run the migration that creates <code className="rounded bg-black/20 px-1">admin_get_application_counts</code> in Supabase (e.g. <code className="rounded bg-black/20 px-1">supabase/migrations/20260303000001_fix_application_counts.sql</code>).
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {filters.map(({ key, label }) => (

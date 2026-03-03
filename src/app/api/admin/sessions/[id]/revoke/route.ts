@@ -6,14 +6,14 @@ import { writeAuditLog } from '@/lib/audit-server'
 
 export const dynamic = 'force-dynamic'
 
-/** POST - Revoke an admin session. Permission: manage_roles (or super_admin). Sets is_active=false, revoked_at=now(). Audit: session_revoked. */
+/** POST - Revoke an admin session. Permission: active_sessions (session-level action; matches GET /api/admin/sessions). Sets is_active=false, revoked_at=now(). Audit: session_revoked. */
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const result = await requireAdmin(req)
   if ('response' in result) return result.response
-  const forbidden = requirePermission(result, ADMIN_PERMISSIONS.manage_roles)
+  const forbidden = requirePermission(result, ADMIN_PERMISSIONS.active_sessions)
   if (forbidden) return forbidden
 
   const { id } = await params

@@ -11,6 +11,7 @@ import { requiresApproval, createApprovalRequest } from '@/lib/admin-approval'
 import { checkBulkRateLimit } from '@/lib/admin-bulk-rate-limit'
 import { getRequestId, jsonError } from '@/lib/request-id'
 import { triggerWelcomeEmailForApplication } from '@/lib/trigger-welcome-email'
+import { clearApplicationsCache } from '@/lib/admin-applications-cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,11 +37,19 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}))
-  const { application_ids, action, reason } = body
+  const { application_ids, action, reason, updated_at_by_id } = body
   const ids = Array.isArray(application_ids) ? application_ids : []
   if (ids.length === 0 || !['approve', 'reject', 'waitlist', 'suspend'].includes(action)) {
     return addHeader(NextResponse.json(
       { error: 'application_ids (array) and action (approve|reject|waitlist|suspend) required' },
+      { status: 400 }
+    ))
+  }
+  const updatedAtById = updated_at_by_id != null && typeof updated_at_by_id === 'object' ? updated_at_by_id as Record<string, unknown> : {}
+  const missingUpdatedAt = ids.filter((id) => !updatedAtById[id] || typeof updatedAtById[id] !== 'string')
+  if (missingUpdatedAt.length > 0) {
+    return addHeader(NextResponse.json(
+      { error: 'updated_at_by_id required for each application id (for conflict checking)', missing_ids: missingUpdatedAt.slice(0, 10) },
       { status: 400 }
     ))
   }
@@ -110,13 +119,36 @@ export async function POST(req: NextRequest) {
           ? 'WAITLISTED'
           : 'SUSPENDED'
 
+  const nowIso = new Date().toISOString()
+  let conflictCount = 0
   const errors: string[] = []
   for (const id of ids) {
-    const { error } = await serviceSupabase
+    const updatedAt = String(updatedAtById[id]).trim()
+    const { data, error } = await serviceSupabase
       .from('applications')
-      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .update({ status: newStatus, updated_at: nowIso })
       .eq('id', id)
-    if (error) errors.push(`${id}: ${error.message}`)
+      .eq('updated_at', updatedAt)
+      .select('id')
+      .single()
+    if (error) {
+      if ((error as { code?: string }).code === 'PGRST116') {
+        conflictCount += 1
+      } else {
+        errors.push(`${id}: ${error.message}`)
+      }
+      continue
+    }
+    if (!data) conflictCount += 1
+  }
+
+  if (conflictCount > 0) {
+    const resBody = JSON.stringify({ error: 'Some applications were modified by another admin' })
+    if (idempotencyKey && serviceSupabase) await setIdempotencyResponse(serviceSupabase, idempotencyKey, user.id, actionKey, 409, resBody)
+    return addHeader(NextResponse.json(
+      { error: 'Some applications were modified by another admin' },
+      { status: 409 }
+    ))
   }
 
   if (errors.length > 0) {
@@ -141,6 +173,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  clearApplicationsCache()
   const resBody = JSON.stringify({ ok: true, count: ids.length })
   if (idempotencyKey && serviceSupabase) await setIdempotencyResponse(serviceSupabase, idempotencyKey, user.id, actionKey, 200, resBody)
   return addHeader(NextResponse.json({ ok: true, count: ids.length }))

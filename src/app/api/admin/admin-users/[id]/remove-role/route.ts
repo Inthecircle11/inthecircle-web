@@ -73,14 +73,7 @@ export async function DELETE(
     action: 'role_remove',
     target_type: 'admin_user',
     target_id: targetUserId,
-    details: { role_name: roleNameResolved },
-    reason: null,
-  })
-  await writeAuditLog(supabase, req, result.user, {
-    action: 'control_drift_detected',
-    target_type: 'rbac',
-    target_id: targetUserId,
-    details: { drift: 'role_removed', role_name: roleNameResolved },
+    details: { role_name: roleNameResolved, drift: 'role_removed' },
     reason: null,
   })
   return NextResponse.json({ ok: true })

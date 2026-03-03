@@ -65,12 +65,17 @@ export async function GET(req: NextRequest) {
 
   // OPTIMIZED: Use single RPC for counts (with 30s cache) instead of 6 separate queries
   let counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number; total: number }
+  let countsErrorFlag = false
   const countsCache = getCountsCache()
   if (countsCache && Date.now() - countsCache.at < COUNTS_CACHE_TTL_MS) {
     counts = countsCache.counts
   } else {
     const { data: countsData, error: countsError } = await supabase.rpc('admin_get_application_counts').single()
     if (countsError || !countsData) {
+      if (countsError) {
+        console.error('[admin applications] admin_get_application_counts error:', countsError.message)
+        countsErrorFlag = true
+      }
       counts = { pending: 0, approved: 0, rejected: 0, waitlisted: 0, suspended: 0, total: 0 }
     } else {
       const cd = countsData as { pending?: number; approved?: number; rejected?: number; waitlisted?: number; suspended?: number; total?: number }
@@ -267,5 +272,5 @@ export async function GET(req: NextRequest) {
   if (!usePagination) {
     return addHeader(NextResponse.json(applications))
   }
-  return addHeader(NextResponse.json({ applications, total, page, limit, counts }))
+  return addHeader(NextResponse.json({ applications, total, page, limit, counts, countsError: countsErrorFlag }))
 }

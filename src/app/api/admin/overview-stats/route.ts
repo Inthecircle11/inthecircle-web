@@ -6,9 +6,9 @@ import type { AdminRoleName } from '@/lib/admin-rbac'
 
 export const dynamic = 'force-dynamic'
 
-/** Cache TTL: 30 seconds for overview stats (balance between freshness and performance) */
+/** Cache TTL: 30 seconds for overview stats (balance between freshness and performance). Keyed by active_sessions permission so cache is not shared across permission boundaries. */
 const CACHE_TTL_MS = 30_000
-let overviewCache: { at: number; body: Record<string, unknown> } | null = null
+const overviewCacheMap = new Map<string, { at: number; body: Record<string, unknown> }>()
 
 /** GET - Ultra-fast overview stats using single RPC call. */
 export async function GET(req: NextRequest) {
@@ -17,9 +17,13 @@ export async function GET(req: NextRequest) {
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.read_applications)
   if (forbidden) return forbidden
 
-  // Return cached data if fresh (60s TTL)
-  if (overviewCache && Date.now() - overviewCache.at < CACHE_TTL_MS) {
-    const res = NextResponse.json(overviewCache.body)
+  const canViewActiveSessions = hasPermission(result.roles as AdminRoleName[], ADMIN_PERMISSIONS.active_sessions)
+  const cacheKey = `overview:${canViewActiveSessions}`
+  const cached = overviewCacheMap.get(cacheKey)
+
+  // Return cached data if fresh (30s TTL); cache is keyed by permission so activeSessions is never leaked
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+    const res = NextResponse.json(cached.body)
     res.headers.set('X-Cache', 'HIT')
     return res
   }
@@ -171,7 +175,7 @@ export async function GET(req: NextRequest) {
     },
   }
 
-  overviewCache = { at: Date.now(), body }
+  overviewCacheMap.set(cacheKey, { at: Date.now(), body })
   const res = NextResponse.json(body)
   res.headers.set('X-Cache', 'MISS')
   return res

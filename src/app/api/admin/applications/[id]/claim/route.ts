@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
+import { clearApplicationsCache } from '@/lib/admin-applications-cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,6 +46,7 @@ export async function POST(
       { status: 409 }
     )
   }
+  clearApplicationsCache()
   return NextResponse.json({
     ok: true,
     assigned_to: (data as { assigned_to: string }).assigned_to,

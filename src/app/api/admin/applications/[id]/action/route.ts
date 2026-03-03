@@ -3,6 +3,7 @@ import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import { triggerWelcomeEmailForApplication } from '@/lib/trigger-welcome-email'
+import { clearApplicationsCache } from '@/lib/admin-applications-cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,6 +60,7 @@ export async function POST(
     if (action === 'approve') {
       void triggerWelcomeEmailForApplication(supabase, applicationId)
     }
+    clearApplicationsCache()
     return NextResponse.json({ ok: true })
   }
 
@@ -78,6 +80,7 @@ export async function POST(
   if (action === 'approve') {
     void triggerWelcomeEmailForApplication(supabase, applicationId)
   }
+  clearApplicationsCache()
   return NextResponse.json({ ok: true })
 }
 
