@@ -1,7 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
+import { clearApplicationsCache } from '@/lib/admin-applications-cache'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,13 +14,14 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.mutate_applications)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
   const { id: applicationId } = await params
   const supabase = getServiceRoleClient()
-  if (!supabase) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
+  if (!supabase) return adminError('Service unavailable', 500, requestId)
   const expiresAt = new Date(Date.now() + ASSIGNMENT_TTL_MINUTES * 60 * 1000).toISOString()
   const now = new Date().toISOString()
   const { data, error } = await supabase
@@ -37,17 +40,15 @@ export async function POST(
     const msg = (error as { code?: string }).code === '42703'
       ? 'Database column missing. Run Supabase migrations (applications.assigned_to).'
       : 'Operation failed. Please try again.'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return adminError(msg, 500, requestId)
   }
   if (!data || (data as { assigned_to: string }).assigned_to !== result.user.id) {
-    return NextResponse.json(
-      { error: 'Application already claimed by another moderator or record not found' },
-      { status: 409 }
-    )
+    return adminError('Application already claimed by another moderator or record not found', 409, requestId)
   }
-  return NextResponse.json({
+  clearApplicationsCache()
+  return adminSuccess({
     ok: true,
     assigned_to: (data as { assigned_to: string }).assigned_to,
     assignment_expires_at: (data as { assignment_expires_at: string }).assignment_expires_at,
-  })
+  }, requestId)
 }

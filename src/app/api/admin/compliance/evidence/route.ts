@@ -1,21 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import { getReproduceInstruction } from '@/lib/compliance-evidence'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
 /** GET - List evidence records for a control (optional ?control_code=). Returns how to reproduce. Requires read_audit. */
 export async function GET(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.read_audit)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
   const supabase = getServiceRoleClient()
   if (!supabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
   }
 
   const controlCode = req.nextUrl.searchParams.get('control_code')?.trim() || null
@@ -34,7 +36,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error('[admin 500]', error)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    return adminError('Operation failed. Please try again.', 500, requestId)
   }
 
   const evidence = (rows ?? []).map((r: Record<string, unknown>) => ({
@@ -47,8 +49,8 @@ export async function GET(req: NextRequest) {
     reproduce: getReproduceInstruction(String(r.control_code ?? '')),
   }))
 
-  return NextResponse.json({
+  return adminSuccess({
     evidence,
     reproduce_instruction: controlCode ? getReproduceInstruction(controlCode) : null,
-  })
+  }, requestId)
 }

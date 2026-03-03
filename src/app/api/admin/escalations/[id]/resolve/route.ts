@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import { writeAuditLog } from '@/lib/audit-server'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,19 +12,20 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.resolve_escalations)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
   const { id } = await params
   if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
-    return NextResponse.json({ error: 'Invalid escalation id' }, { status: 400 })
+    return adminError('Invalid escalation id', 400, requestId)
   }
 
   const supabase = getServiceRoleClient()
   if (!supabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
   }
 
   const body = await req.json().catch(() => ({}))
@@ -40,13 +42,10 @@ export async function POST(
 
   if (updateError) {
     console.error('[admin 500]', updateError)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    return adminError('Operation failed. Please try again.', 500, requestId)
   }
   if (!row) {
-    return NextResponse.json(
-      { error: 'Escalation not found or already resolved' },
-      { status: 404 }
-    )
+    return adminError('Escalation not found or already resolved', 404, requestId)
   }
 
   await writeAuditLog(supabase, req, result.user, {
@@ -60,5 +59,5 @@ export async function POST(
     },
   })
 
-  return NextResponse.json({ ok: true, id })
+  return adminSuccess({ ok: true, id }, requestId)
 }

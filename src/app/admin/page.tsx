@@ -9,6 +9,9 @@ import { hasPermission, ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import type { AdminPermission } from '@/lib/admin-rbac'
 import AdminProductAnalyticsTab from './ProductAnalyticsTab'
 import { trackAdminEvent, startSession, endSessionWithBeacon, ADMIN_EVENTS } from '@/lib/analytics'
+import { parseAdminResponse } from '@/lib/admin-client'
+import { ConfirmModal } from './components/ConfirmModal'
+import { AdminErrorBoundary } from './AdminErrorBoundary'
 
 // ============================================
 // TYPES - Matching iOS Admin exactly
@@ -431,6 +434,8 @@ export default function AdminPanel() {
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
+  // Confirm modal for bulk reject/suspend (replaces confirm/prompt)
+  const [confirmBulk, setConfirmBulk] = useState<{ open: boolean; action?: 'reject' | 'suspend'; applicationIds?: string[] }>({ open: false })
   // Inline admin login (avoids dependency on /admin/login which can 404 in production)
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
@@ -622,7 +627,11 @@ export default function AdminPanel() {
   useEffect(() => {
     let cancelled = false
     fetch('/api/admin/identity', { credentials: 'include' })
-      .then((res) => res.ok ? res.json() : null)
+      .then(async (res) => {
+        const json = await res.json().catch(() => null)
+        const { data } = parseAdminResponse<{ app?: string }>(res, json)
+        return data
+      })
       .then((data) => {
         if (!cancelled) setWrongDeployment(!data || data.app !== 'inthecircle-web')
       })
@@ -749,11 +758,15 @@ export default function AdminPanel() {
       if (!cancelled) setGateUnlocked(true)
     }, 10000)
     fetch('/api/admin/gate', { credentials: 'include' })
-      .then((res) => res.json())
-      .then((data) => {
+      .then(async (res) => {
+        const json = await res.json()
+        return { res, json }
+      })
+      .then(({ res, json }) => {
         if (!cancelled) {
           clearTimeout(timeoutId)
-          setGateUnlocked(data.unlocked === true)
+          const { data } = parseAdminResponse<{ unlocked?: boolean }>(res, json)
+          setGateUnlocked(data?.unlocked === true)
         }
       })
       .catch(() => {
@@ -776,12 +789,13 @@ export default function AdminPanel() {
         credentials: 'include',
         body: JSON.stringify({ password: gatePassword }),
       })
-      const data = await res.json()
-      if (data.ok) {
+      const json = await res.json()
+      const { data, error } = parseAdminResponse<{ ok?: boolean }>(res, json)
+      if (error) {
+        setGateError(error)
+      } else if (data) {
         setGateUnlocked(true)
         setGatePassword('')
-      } else {
-        setGateError(data.error || 'Incorrect password')
       }
     } catch {
       setGateError('Something went wrong')
@@ -801,18 +815,19 @@ export default function AdminPanel() {
       }
 
       const res = await fetch('/api/admin/check', { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
+      const json = await res.json().catch(() => ({}))
       if (res.status === 401) {
         setAuthorized(false)
         setError('Session expired. Please log in again.')
         return
       }
+      const { data } = parseAdminResponse<{ authorized?: boolean; roles?: string[]; sessionId?: string }>(res, json)
       const authorized = !!data?.authorized
       const roles = Array.isArray(data?.roles) ? data.roles : []
 
       if (!authorized) {
         setAuthorized(false)
-        setLoginError('This account is not authorized to access the admin panel. Add your email or user ID to ADMIN_EMAILS or ADMIN_USER_IDS in the server environment.')
+        setLoginError('This account is not authorized to access the admin panel.')
         return
       }
 
@@ -897,17 +912,34 @@ export default function AdminPanel() {
         clearTimeout(timeoutId)
         if (res.status === 403) return { stats: { total: 0, pending: 0, approved: 0, rejected: 0, waitlisted: 0, suspended: 0 }, activeToday: null, activeSessions: null, overviewCounts: null, permissionDenied: true }
         if (!res.ok) return null
-        const data = await res.json()
+        const json = await res.json()
+        const { data } = parseAdminResponse(res, json)
+        if (!data) return null
+        const d = data as { stats?: Stats; activeToday?: number; activeSessions?: unknown; overviewCounts?: unknown }
         return {
-          stats: data.stats ?? { total: 0, pending: 0, approved: 0, rejected: 0, waitlisted: 0, suspended: 0 },
+          stats: d.stats ?? { total: 0, pending: 0, approved: 0, rejected: 0, waitlisted: 0, suspended: 0 },
           activeToday: (() => {
-            const v = data.activeToday
+            const v = d.activeToday
             if (typeof v === 'number' && !Number.isNaN(v)) return Math.max(0, v)
             if (typeof v === 'string') { const n = parseInt(v, 10); if (!Number.isNaN(n)) return Math.max(0, n) }
             return v != null ? Math.max(0, Number(v)) : null
           })(),
-          activeSessions: data.activeSessions ?? null,
-          overviewCounts: data.overviewCounts ?? null,
+          activeSessions: (d.activeSessions ?? null) as {
+            count: number
+            users: Array<{ user_id: string; email: string | null; username: string | null; name: string | null; last_active_at: string }>
+            minutes: number
+          } | null,
+          overviewCounts: (d.overviewCounts ?? null) as {
+            totalUsers: number
+            verifiedCount: number
+            newUsersLast24h: number
+            newUsersLast7d: number
+            newUsersLast30d: number
+            totalThreadCount: number
+            totalMessageCount: number
+            applicationsSubmittedLast7d: number
+            applicationsApprovedLast7d: number
+          } | null,
         }
       } catch {
         return null
@@ -920,7 +952,7 @@ export default function AdminPanel() {
       page: number = 1,
       limit: number = 50,
       appStatus?: AppFilter
-    ): Promise<{ apps: Application[]; total: number; counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number } | null; permissionDenied?: boolean }> => {
+    ): Promise<{ apps: Application[]; total: number; counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number } | null; countsError?: boolean; permissionDenied?: boolean }> => {
       try {
         const params = new URLSearchParams()
         params.set('page', String(page))
@@ -931,17 +963,13 @@ export default function AdminPanel() {
         const q = params.toString()
         const res = await fetch(`/api/admin/applications?${q}`, { credentials: 'include' })
         if (res.status === 403) return { apps: [], total: 0, counts: null, permissionDenied: true }
-        if (res.ok) {
-          const data = await res.json()
-          if (Array.isArray(data)) {
-            return { apps: data, total: data.length, counts: null, permissionDenied: false }
-          }
-          const apps = (data?.applications ?? []) as Application[]
-          const total = typeof data?.total === 'number' ? data.total : apps.length
-          const counts = data?.counts && typeof data.counts.pending === 'number' ? data.counts as { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number } : null
-          return { apps, total, counts, permissionDenied: false }
-        }
-        return { apps: [], total: 0, counts: null, permissionDenied: false }
+        const json = await res.json().catch(() => ({}))
+        const { data } = parseAdminResponse<{ applications?: Application[]; total?: number; counts?: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number } }>(res, json)
+        if (!res.ok || !data) return { apps: [], total: 0, counts: null, permissionDenied: false }
+        const apps = (data.applications ?? []) as Application[]
+        const total = typeof data.total === 'number' ? data.total : apps.length
+        const counts = data.counts && typeof data.counts.pending === 'number' ? data.counts : null
+        return { apps, total, counts, countsError: false, permissionDenied: false }
       } catch (e) {
         console.error('Applications error:', e)
         return { apps: [], total: 0, counts: null, permissionDenied: false }
@@ -952,7 +980,9 @@ export default function AdminPanel() {
       try {
         const res = await fetch('/api/admin/users', { credentials: 'include' })
         if (!res.ok) return { users: [], profiles: [], total: 0 }
-        const data = await res.json()
+        const json = await res.json()
+        const { data } = parseAdminResponse<{ users?: User[]; total?: number }>(res, json)
+        if (!data?.users) return { users: [], profiles: [], total: 0 }
         const users = (data.users || []).map((u: User & { location?: string | null; niche?: string | null }) => ({
           id: u.id,
           name: u.name,
@@ -980,7 +1010,8 @@ export default function AdminPanel() {
       try {
         const res = await fetch('/api/admin/active-today', { credentials: 'include', cache: 'no-store' })
         if (!res.ok) return null
-        const data = await res.json().catch(() => ({}))
+        const json = await res.json().catch(() => ({}))
+        const { data } = parseAdminResponse<{ count?: number }>(res, json)
         const raw = data?.count
         if (typeof raw === 'number' && !Number.isNaN(raw)) return Math.max(0, Math.floor(raw))
         if (typeof raw === 'string') {
@@ -1262,12 +1293,13 @@ export default function AdminPanel() {
       if (filters?.date_from) params.set('date_from', filters.date_from)
       if (filters?.date_to) params.set('date_to', filters.date_to)
       const res = await fetch(`/api/admin/audit?${params.toString()}`, { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.entries) setAuditLog(data.entries)
+      const json = await res.json().catch(() => ({}))
+      const { data, error: err } = parseAdminResponse<{ entries?: typeof auditLog }>(res, json)
+      if (res.ok && data?.entries) setAuditLog(data.entries)
       else setAuditLog([])
       if (!res.ok) {
         if (res.status === 403) void handle403()
-        else setError(data.error || 'Failed to load audit log.')
+        else setError(err || 'Failed to load audit log.')
       }
     } catch {
       setAuditLog([])
@@ -1312,12 +1344,13 @@ export default function AdminPanel() {
       if (opts?.filter) params.set('filter', opts.filter)
       if (opts?.status) params.set('status', opts.status || 'pending')
       const res = await fetch(`/api/admin/reports?${params.toString()}`, { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.reports) setReports(data.reports)
+      const json = await res.json().catch(() => ({}))
+      const { data, error: err } = parseAdminResponse<{ reports?: unknown[] }>(res, json)
+      if (res.ok && data?.reports) setReports((data.reports ?? []) as Array<Record<string, unknown>>)
       else setReports([])
       if (!res.ok) {
         if (res.status === 403) void handle403()
-        else setError(data.error || 'Failed to load reports.')
+        else setError(err || 'Failed to load reports.')
       }
     } catch {
       setReports([])
@@ -1330,12 +1363,13 @@ export default function AdminPanel() {
     setError(null)
     try {
       const res = await fetch('/api/admin/data-requests', { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.requests) setDataRequests(data.requests)
+      const json = await res.json().catch(() => ({}))
+      const { data, error: err } = parseAdminResponse<{ requests?: unknown[] }>(res, json)
+      if (res.ok && data?.requests) setDataRequests((data.requests ?? []) as Array<Record<string, unknown>>)
       else setDataRequests([])
       if (!res.ok) {
         if (res.status === 403) void handle403()
-        else setError(data.error || 'Failed to load data requests.')
+        else setError(err || 'Failed to load data requests.')
       }
     } catch {
       setDataRequests([])
@@ -1348,12 +1382,13 @@ export default function AdminPanel() {
     setError(null)
     try {
       const res = await fetch('/api/admin/config', { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
+      const json = await res.json().catch(() => ({}))
+      const { data, error: err } = parseAdminResponse<Record<string, string>>(res, json)
       if (res.ok && data && typeof data === 'object') setAppConfig(data)
       else setAppConfig({})
       if (!res.ok) {
         if (res.status === 403) void handle403()
-        else setError(data?.error || 'Failed to load config.')
+        else setError(err || 'Failed to load config.')
       }
     } catch {
       setAppConfig({})
@@ -1366,12 +1401,13 @@ export default function AdminPanel() {
     setError(null)
     try {
       const res = await fetch('/api/admin/risk', { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data) setRiskData(data)
+      const json = await res.json().catch(() => ({}))
+      const { data, error: err } = parseAdminResponse(res, json)
+      if (res.ok && data) setRiskData(data as typeof riskData)
       else setRiskData(null)
       if (!res.ok) {
         if (res.status === 403) void handle403()
-        else setError(data?.error || 'Failed to load risk dashboard.')
+        else setError(err || 'Failed to load risk dashboard.')
       }
     } catch {
       setRiskData(null)
@@ -1384,12 +1420,13 @@ export default function AdminPanel() {
     setError(null)
     try {
       const res = await fetch('/api/admin/approvals?status=pending', { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && Array.isArray(data.requests)) setApprovalsPending(data.requests)
+      const json = await res.json().catch(() => ({}))
+      const { data, error: err } = parseAdminResponse<{ requests?: unknown[] }>(res, json)
+      if (res.ok && Array.isArray(data?.requests)) setApprovalsPending((data.requests ?? []) as Array<Record<string, unknown>>)
       else setApprovalsPending([])
       if (!res.ok) {
         if (res.status === 403) void handle403()
-        else setError(data?.error || 'Failed to load approvals')
+        else setError(err || 'Failed to load approvals')
       }
     } catch {
       setApprovalsPending([])
@@ -1402,17 +1439,15 @@ export default function AdminPanel() {
     setError(null)
     try {
       const res = await fetch('/api/admin/blocked-users', { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.blocked) {
-        setBlockedUsers(data.blocked)
-      } else {
-        setBlockedUsers([])
+      const json = await res.json().catch(() => ({}))
+      const { data, error: err } = parseAdminResponse<{ blocked?: unknown[] }>(res, json)
+      if (res.ok && data?.blocked) setBlockedUsers((data.blocked ?? []) as Array<Record<string, unknown>>)
+      else setBlockedUsers([])
+      if (!res.ok) {
         if (res.status === 403) {
           setError(PERMISSION_DENIED_MESSAGE)
           void handle403()
-        } else {
-          setError(data?.error || 'Failed to load blocked users.')
-        }
+        } else setError(err || 'Failed to load blocked users.')
       }
     } catch {
       setBlockedUsers([])
@@ -1431,21 +1466,25 @@ export default function AdminPanel() {
         fetch('/api/admin/compliance/governance-reviews', { credentials: 'include' }),
         fetch('/api/admin/compliance/health', { credentials: 'include' }),
       ])
-      const cData = await cRes.json().catch(() => ({}))
-      const eData = await eRes.json().catch(() => ({}))
-      const gData = await gRes.json().catch(() => ({}))
-      const hData = await hRes.json().catch(() => ({}))
-      if (cRes.ok && Array.isArray(cData.controls)) setComplianceControls(cData.controls)
+      const cJson = await cRes.json().catch(() => ({}))
+      const eJson = await eRes.json().catch(() => ({}))
+      const gJson = await gRes.json().catch(() => ({}))
+      const hJson = await hRes.json().catch(() => ({}))
+      const cData = parseAdminResponse<{ controls?: unknown[] }>(cRes, cJson).data
+      const eData = parseAdminResponse<{ evidence?: unknown[] }>(eRes, eJson).data
+      const gData = parseAdminResponse<{ reviews?: unknown[] }>(gRes, gJson).data
+      const hData = parseAdminResponse<{ overall_score?: number; controls?: unknown[]; last_checked_at?: string | null }>(hRes, hJson).data
+      if (cRes.ok && Array.isArray(cData?.controls)) setComplianceControls((cData.controls ?? []) as Array<Record<string, unknown>>)
       else setComplianceControls([])
-      if (eRes.ok && Array.isArray(eData.evidence)) setComplianceEvidence(eData.evidence)
+      if (eRes.ok && Array.isArray(eData?.evidence)) setComplianceEvidence((eData.evidence ?? []) as Array<Record<string, unknown>>)
       else setComplianceEvidence([])
-      if (gRes.ok && Array.isArray(gData.reviews)) setComplianceReviews(gData.reviews)
+      if (gRes.ok && Array.isArray(gData?.reviews)) setComplianceReviews((gData.reviews ?? []) as Array<Record<string, unknown>>)
       else setComplianceReviews([])
-      if (hRes.ok && hData.overall_score !== undefined) setComplianceHealth({ overall_score: hData.overall_score, controls: hData.controls ?? [], last_checked_at: hData.last_checked_at ?? null })
+      if (hRes.ok && hData && hData.overall_score !== undefined) setComplianceHealth({ overall_score: hData.overall_score, controls: (hData.controls ?? []) as { control_code: string; status: string; score: number; last_checked_at: string; notes: string | null; }[], last_checked_at: hData.last_checked_at ?? null })
       else setComplianceHealth(null)
       const any403 = cRes.status === 403 || eRes.status === 403 || gRes.status === 403 || hRes.status === 403
       if (any403) void handle403()
-      else if (!cRes.ok || !eRes.ok || !gRes.ok || !hRes.ok) setError(cData?.error || eData?.error || gData?.error || hData?.error || 'Failed to load compliance data')
+      else if (!cRes.ok || !eRes.ok || !gRes.ok || !hRes.ok) setError(parseAdminResponse(cRes, cJson).error || parseAdminResponse(eRes, eJson).error || parseAdminResponse(gRes, gJson).error || parseAdminResponse(hRes, hJson).error || 'Failed to load compliance data')
     } catch {
       setComplianceControls([])
       setComplianceEvidence([])
@@ -1628,20 +1667,15 @@ export default function AdminPanel() {
     }
   }
 
-  async function bulkApplicationAction(applicationIds: string[], action: 'approve' | 'reject' | 'waitlist' | 'suspend') {
+  async function bulkApplicationAction(applicationIds: string[], action: 'approve' | 'reject' | 'waitlist' | 'suspend', reasonFromModal?: string) {
     if (applicationIds.length === 0) return
     const isDestructive = action === 'reject' || action === 'suspend'
-    let reason: string | null = null
-    if (isDestructive) {
-      const actionLabel = action === 'reject' ? 'Reject' : 'Suspend'
-      if (!confirm(`${actionLabel} ${applicationIds.length} application(s)? This cannot be undone. You must provide a reason.`)) return
-      reason = window.prompt('Reason (required, min 5 characters):')
-      if (!reason || reason.trim().length < 5) {
-        setError('Reason required (min 5 characters) for reject/suspend')
-        return
-      }
-      reason = reason.trim()
+    let reason: string | null = reasonFromModal ?? null
+    if (isDestructive && reason == null) {
+      setConfirmBulk({ open: true, action, applicationIds })
+      return
     }
+    if (isDestructive && reason != null) reason = reason.trim()
     setActionLoading('bulk')
     try {
       const updated_at_by_id: Record<string, string> = {}
@@ -1667,43 +1701,45 @@ export default function AdminPanel() {
           ...(reason ? { reason } : {}),
         }),
       })
-      const data = await res.json().catch(() => ({}))
+      const json = await res.json().catch(() => ({}))
+      const { data: payload, error: err } = parseAdminResponse<{ approval_required?: boolean; errors?: string[]; ok?: boolean; count?: number }>(res, json)
       if (res.status === 401) {
         setAuthorized(false)
         setError('Session expired. Please log in again.')
         return
       }
-      if (!data || typeof data !== 'object') {
-        setError('Invalid response from server. Please try again.')
+      if (!payload && err) {
+        setError(err)
         return
       }
-      if (res.status === 202 && data.approval_required) {
+      if (res.status === 202 && payload?.approval_required) {
         showToast('Approval required. Request submitted.', 'success')
         setSelectedAppIds(new Set())
         loadApprovals()
         return
       }
       if (res.status === 429) {
-        setError(data.error || 'Rate limit exceeded. Try again later.')
+        setError(err || 'Rate limit exceeded. Try again later.')
         return
       }
       if (res.status === 409) {
-        setError(data.error || 'Some applications were modified by another admin. Refresh and try again.')
+        setError(err || 'Some applications were modified by another admin. Refresh and try again.')
         await loadData()
         return
       }
-      if (res.status === 207 && data.errors && Array.isArray(data.errors)) {
-        const failed = data.errors.length
+      if (res.status === 207 && payload?.errors && Array.isArray(payload.errors)) {
+        const failed = payload.errors.length
         const succeeded = Math.max(0, applicationIds.length - failed)
-        setError(`Some items failed. ${succeeded} succeeded, ${failed} failed. ${data.errors.slice(0, 3).join('; ')}${data.errors.length > 3 ? '…' : ''}`)
+        setError(`Some items failed. ${succeeded} succeeded, ${failed} failed. ${payload.errors.slice(0, 3).join('; ')}${payload.errors.length > 3 ? '…' : ''}`)
         if (succeeded > 0) {
           await loadData()
           showToast(`${succeeded} application(s) ${action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : action === 'waitlist' ? 'waitlisted' : 'suspended'}`)
         }
         return
       }
-      if (!data.ok) setError(data.errors?.join(', ') || data.error || 'Bulk action failed')
-      else {
+      if (!payload?.ok && payload !== null) {
+        setError(err || 'Bulk action failed')
+      } else {
         setSelectedAppIds(new Set())
         await loadData()
         const actionLabel = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : action === 'waitlist' ? 'waitlisted' : 'suspended'
@@ -1730,9 +1766,10 @@ export default function AdminPanel() {
         credentials: 'include',
         body: JSON.stringify({ is_verified: !currentStatus }),
       })
-      const data = await res.json().catch(() => ({}))
+      const json = await res.json().catch(() => ({}))
+      const { error: err } = parseAdminResponse(res, json)
       if (!res.ok) {
-        setError(data?.error || `Failed to update verification`)
+        setError(err || 'Failed to update verification')
         return
       }
       await loadData()
@@ -2279,6 +2316,8 @@ export default function AdminPanel() {
   }) as { id: Tab; label: string; icon: React.ReactNode; badge?: number }[]
 
   return (
+    <AdminErrorBoundary>
+    <>
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] flex">
       {wrongDeployment === true && (
         <div className="fixed top-0 left-0 right-0 z-[100] bg-red-600 text-white px-4 py-2 text-center text-sm font-medium">
@@ -2992,6 +3031,27 @@ export default function AdminPanel() {
         </main>
       </div>
     </div>
+    <ConfirmModal
+      open={confirmBulk.open}
+      title={confirmBulk.action === 'reject' ? 'Reject applications' : 'Suspend applications'}
+      description={
+        confirmBulk.action === 'reject'
+          ? `Reject ${confirmBulk.applicationIds?.length ?? 0} application(s)? This cannot be undone. You must provide a reason.`
+          : `Suspend ${confirmBulk.applicationIds?.length ?? 0} application(s)? This cannot be undone. You must provide a reason.`
+      }
+      requiredInput={{ placeholder: 'Reason (min 5 characters)', minLength: 5, label: 'Reason' }}
+      confirmLabel={confirmBulk.action === 'reject' ? 'Reject all' : 'Suspend all'}
+      variant="danger"
+      onConfirm={(value) => {
+        if (confirmBulk.applicationIds && confirmBulk.action && value) {
+          bulkApplicationAction(confirmBulk.applicationIds, confirmBulk.action, value)
+          setConfirmBulk({ open: false })
+        }
+      }}
+      onCancel={() => setConfirmBulk({ open: false })}
+    />
+    </>
+    </AdminErrorBoundary>
   )
 }
 

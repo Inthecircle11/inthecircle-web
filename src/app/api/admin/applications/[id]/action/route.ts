@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import { triggerWelcomeEmailForApplication } from '@/lib/trigger-welcome-email'
+import { clearApplicationsCache } from '@/lib/admin-applications-cache'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,18 +13,19 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const perm = requirePermission(result, ADMIN_PERMISSIONS.mutate_applications)
-  if (perm) return perm
+  if (perm) return adminErrorFromResponse(perm, requestId)
   const { id: applicationId } = await params
   const body = await req.json().catch(() => ({}))
   const { action, updated_at } = body
   if (!action || !['approve', 'reject', 'waitlist', 'suspend'].includes(action)) {
-    return NextResponse.json({ error: 'action must be approve|reject|waitlist|suspend' }, { status: 400 })
+    return adminError('action must be approve|reject|waitlist|suspend', 400, requestId)
   }
   const supabase = getServiceRoleClient()
-  if (!supabase) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
+  if (!supabase) return adminError('Service unavailable', 500, requestId)
 
   const newStatus = action === 'approve' ? 'ACTIVE' : action === 'reject' ? 'REJECTED' : action === 'waitlist' ? 'WAITLISTED' : 'SUSPENDED'
 
@@ -48,18 +51,16 @@ export async function POST(
       const msg = (error as { code?: string }).code === '42883'
         ? 'Database function missing. Run Supabase migrations (admin_application_action_v2).'
         : 'Operation failed. Please try again.'
-      return NextResponse.json({ error: msg }, { status: 500 })
+      return adminError(msg, 500, requestId)
     }
     if (row == null) {
-      return NextResponse.json(
-        { error: 'Record changed by another moderator', code: 'CONFLICT' },
-        { status: 409 }
-      )
+      return adminError('Record changed by another moderator', 409, requestId)
     }
     if (action === 'approve') {
       void triggerWelcomeEmailForApplication(supabase, applicationId)
     }
-    return NextResponse.json({ ok: true })
+    clearApplicationsCache()
+    return adminSuccess({ ok: true }, requestId)
   }
 
   const { error } = await (async () => {
@@ -73,12 +74,13 @@ export async function POST(
     const msg = (error as { code?: string }).code === '42703'
       ? 'Database column missing. Run Supabase migrations (applications.updated_at).'
       : 'Operation failed. Please try again.'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return adminError(msg, 500, requestId)
   }
   if (action === 'approve') {
     void triggerWelcomeEmailForApplication(supabase, applicationId)
   }
-  return NextResponse.json({ ok: true })
+  clearApplicationsCache()
+  return adminSuccess({ ok: true }, requestId)
 }
 
 async function hasUpdatedAtColumn(supabase: Awaited<ReturnType<typeof getServiceRoleClient>>): Promise<boolean> {

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 
 export const dynamic = 'force-dynamic'
@@ -43,10 +44,11 @@ async function getRecipientEmails(
 
 /** POST - Send announcement. Requires announce. Sends email when RESEND_API_KEY and RESEND_FROM_EMAIL are set. */
 export async function POST(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.announce)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
   const body = await req.json().catch(() => ({})) as { title?: string; body?: string; segment?: string; to?: string[] }
   const title = typeof body.title === 'string' ? body.title : 'Announcement'
@@ -59,7 +61,7 @@ export async function POST(req: NextRequest) {
   if (apiKey && fromEmail) {
     const { emails, error: recipientError } = await getRecipientEmails(body)
     if (recipientError && emails.length === 0) {
-      return NextResponse.json({ ok: false, message: recipientError }, { status: 400 })
+      return adminError(recipientError, 400, requestId)
     }
     if (emails.length > 0) {
       const resend = new Resend(apiKey)
@@ -72,22 +74,22 @@ export async function POST(req: NextRequest) {
       })
       if (error) {
         console.error('[Admin Announce] Resend error:', error)
-        return NextResponse.json({ ok: false, message: (error as { message?: string }).message ?? 'Email send failed' }, { status: 500 })
+        return adminError((error as { message?: string }).message ?? 'Email send failed', 500, requestId)
       }
       console.log('[Admin Announce]', { title, segment, sent: toList.length, id: data?.id })
-      return NextResponse.json({
+      return adminSuccess({
         ok: true,
         message: `Announcement sent to ${toList.length} recipient(s).`,
         id: data?.id,
-      })
+      }, requestId)
     }
   }
 
   console.log('[Admin Announce]', { title, message, segment })
-  return NextResponse.json({
+  return adminSuccess({
     ok: true,
     message: apiKey && fromEmail
       ? 'Announcement logged. Add body.to, RESEND_ANNOUNCE_TO, or use segment "all" to send email.'
       : 'Announcement queued. Set RESEND_API_KEY and RESEND_FROM_EMAIL to send email. Push (OneSignal/Firebase) can be added when needed.',
-  })
+  }, requestId)
 }

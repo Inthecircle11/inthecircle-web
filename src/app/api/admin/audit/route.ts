@@ -7,6 +7,7 @@ import {
   checkDestructiveRateLimit,
   DESTRUCTIVE_ACTIONS,
 } from '@/lib/audit-server'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,13 +31,14 @@ function escapeCsvCell(val: unknown): string {
 
 /** GET - List audit log. Requires read_audit; export requires export_audit. */
 export async function GET(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const params = req.nextUrl.searchParams
   const format = (params.get('format') ?? 'json').toLowerCase() === 'csv' ? 'csv' : 'json'
   const perm = format === 'csv' ? ADMIN_PERMISSIONS.export_audit : ADMIN_PERMISSIONS.read_audit
   const forbidden = requirePermission(result, perm)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
   const { supabase } = result
   const adminUserId = params.get('admin_user_id')?.trim() || null
   const actionParam = params.get('action')?.trim() || null
@@ -51,7 +53,7 @@ export async function GET(req: NextRequest) {
   const offset = Math.max(0, Number(params.get('offset')) || 0)
 
   if (adminUserId && !/^[0-9a-f-]{36}$/i.test(adminUserId)) {
-    return NextResponse.json({ error: 'invalid admin_user_id' }, { status: 400 })
+    return adminError('invalid admin_user_id', 400, requestId)
   }
 
   let query = supabase
@@ -75,7 +77,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error('[admin 500]', error)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    return adminError('Operation failed. Please try again.', 500, requestId)
   }
   const entries = data ?? []
 
@@ -98,29 +100,32 @@ export async function GET(req: NextRequest) {
     )
     const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n')
     const filename = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`
-    return new NextResponse(csv, {
+    const res = new NextResponse(csv, {
       status: 200,
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
         'Content-Disposition': `attachment; filename="${filename}"`,
       },
     })
+    res.headers.set('x-request-id', requestId)
+    return res
   }
 
-  return NextResponse.json({ entries })
+  return adminSuccess({ entries }, requestId)
 }
 
 /** POST - Append an audit log entry. Destructive actions require corresponding permission. */
 export async function POST(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const { user, supabase } = result
 
   const body = await req.json().catch(() => ({}))
   const { action, target_type, target_id, details, reason } = body
 
   if (!action || typeof action !== 'string') {
-    return NextResponse.json({ error: 'action required' }, { status: 400 })
+    return adminError('action required', 400, requestId)
   }
 
   if (DESTRUCTIVE_ACTIONS.has(action)) {
@@ -131,21 +136,20 @@ export async function POST(req: NextRequest) {
           ? ADMIN_PERMISSIONS.anonymize_users
           : ADMIN_PERMISSIONS.bulk_applications
     const forbidden = requirePermission(result, perm)
-    if (forbidden) return forbidden
+    if (forbidden) return adminErrorFromResponse(forbidden, requestId)
   }
 
   const reasonErr = validateReasonForDestructive(action, reason)
   if (reasonErr) {
-    return NextResponse.json({ error: reasonErr }, { status: 400 })
+    return adminError(reasonErr, 400, requestId)
   }
 
   if (DESTRUCTIVE_ACTIONS.has(action)) {
     const rateErr = await checkDestructiveRateLimit(supabase, user.id, action, 1)
     if (rateErr) {
-      return NextResponse.json(
-        { error: rateErr },
-        { status: 429, headers: { 'Retry-After': '3600' } }
-      )
+      const res = adminError(rateErr, 429, requestId)
+      res.headers.set('Retry-After', '3600')
+      return res
     }
   }
 
@@ -158,7 +162,7 @@ export async function POST(req: NextRequest) {
   })
 
   if (insertError) {
-    return NextResponse.json({ error: insertError }, { status: 500 })
+    return adminError(insertError, 500, requestId)
   }
-  return NextResponse.json({ ok: true })
+  return adminSuccess({ ok: true }, requestId)
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 
@@ -7,14 +8,15 @@ export const dynamic = 'force-dynamic'
 
 /** GET - List active sessions. Requires active_sessions. */
 export async function GET(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.active_sessions)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
   const supabase = getServiceRoleClient()
   if (!supabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
   }
 
   const minutes = Math.min(60, Math.max(1, parseInt(req.nextUrl.searchParams.get('minutes') || '15', 10) || 15))
@@ -23,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error('[admin 500]', error)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    return adminError('Operation failed. Please try again.', 500, requestId)
   }
 
   const list = (rows ?? []) as Array<{ user_id: string; email: string | null; last_active_at: string }>
@@ -48,5 +50,5 @@ export async function GET(req: NextRequest) {
     last_active_at: r.last_active_at,
   }))
 
-  return NextResponse.json({ count: users.length, users, minutes })
+  return adminSuccess({ count: users.length, users, minutes }, requestId)
 }

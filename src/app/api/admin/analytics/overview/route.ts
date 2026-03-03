@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 
@@ -21,18 +22,21 @@ export interface Insight {
 
 /** GET - Product Analytics overview for admin dashboard. DAU/WAU/MAU, stickiness, sessions, feature usage, funnels, admin behavior. */
 export async function GET(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.read_analytics)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) {
-    return NextResponse.json(cache.body, { headers: { 'X-Cache': 'HIT' } })
+    const res = adminSuccess(cache.body, requestId)
+    res.headers.set('X-Cache', 'HIT')
+    return res
   }
 
   const supabase = getServiceRoleClient()
   if (!supabase) {
-    return NextResponse.json({ error: 'Server unavailable' }, { status: 503 })
+    return adminError('Server unavailable', 503, requestId)
   }
 
   const params = req.nextUrl.searchParams
@@ -119,9 +123,11 @@ export async function GET(req: NextRequest) {
     }
 
     cache = { at: Date.now(), body }
-    return NextResponse.json(body, { headers: { 'X-Cache': 'MISS' } })
+    const res = adminSuccess(body, requestId)
+    res.headers.set('X-Cache', 'MISS')
+    return res
   } catch (e) {
     console.error('[admin analytics]', e)
-    return NextResponse.json({ error: 'Analytics query failed' }, { status: 500 })
+    return adminError('Analytics query failed', 500, requestId)
   }
 }

@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { writeAuditLog } from '@/lib/audit-server'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,14 +12,15 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.mutate_users)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
   const { id: userId } = await params
   if (!userId || !/^[0-9a-f-]{36}$/i.test(userId)) {
-    return NextResponse.json({ error: 'Invalid user id' }, { status: 400 })
+    return adminError('Invalid user id', 400, requestId)
   }
 
   const body = await req.json().catch(() => ({}))
@@ -26,17 +28,26 @@ export async function POST(
 
   const supabase = getServiceRoleClient()
   if (!supabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
   }
 
-  const { error } = await supabase
+  const { error: profileError } = await supabase
     .from('profiles')
     .update({ is_verified: isVerified, updated_at: new Date().toISOString() })
     .eq('id', userId)
 
-  if (error) {
-    console.error('[admin verification]', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (profileError) {
+    console.error('[admin verification]', profileError)
+    return adminError(profileError.message, 500, requestId)
+  }
+
+  if (isVerified) {
+    const now = new Date().toISOString()
+    await supabase
+      .from('verification_requests')
+      .update({ status: 'approved', reviewed_at: now })
+      .eq('user_id', userId)
+      .eq('status', 'pending')
   }
 
   await writeAuditLog(supabase, req, result.user, {
@@ -46,5 +57,5 @@ export async function POST(
     details: { is_verified: isVerified },
   })
 
-  return NextResponse.json({ ok: true })
+  return adminSuccess({ ok: true }, requestId)
 }

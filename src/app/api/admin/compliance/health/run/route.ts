@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
@@ -7,19 +7,21 @@ import {
   upsertControlHealth,
   ensureGovernanceReviewEscalation,
 } from '@/lib/control-health'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
 /** POST - Run daily control health checks, upsert admin_control_health, ensure governance review escalation. Requires export_audit. Call from cron once per day. */
 export async function POST(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.export_audit)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
   const supabase = getServiceRoleClient()
   if (!supabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
   }
 
   let results = await runControlHealthChecks(supabase)
@@ -38,20 +40,14 @@ export async function POST(req: NextRequest) {
       .eq('name', 'super_admin')
       .single()
     if (roleErr || !roleRow?.id) {
-      return NextResponse.json(
-        { error: 'CC6.1 auto-fix failed: could not get super_admin role', details: roleErr?.message },
-        { status: 500 }
-      )
+      return adminError('CC6.1 auto-fix failed: could not get super_admin role', 500, requestId)
     }
     const { error: assignErr } = await supabase.from('admin_user_roles').upsert(
       { admin_user_id: result.user.id, role_id: roleRow.id },
       { onConflict: 'admin_user_id,role_id' }
     )
     if (assignErr) {
-      return NextResponse.json(
-        { error: 'CC6.1 auto-fix failed: could not assign super_admin', details: assignErr.message },
-        { status: 500 }
-      )
+      return adminError('CC6.1 auto-fix failed: could not assign super_admin', 500, requestId)
     }
     results = await runControlHealthChecks(supabase)
   }
@@ -72,9 +68,9 @@ export async function POST(req: NextRequest) {
     ? Math.round(results.reduce((a, r) => a + r.score, 0) / results.length)
     : null
 
-  return NextResponse.json({
+  return adminSuccess({
     ok: true,
     overall_score: overall,
     controls: results,
-  })
+  }, requestId)
 }
