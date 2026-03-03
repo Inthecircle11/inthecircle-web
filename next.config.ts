@@ -1,15 +1,14 @@
 import type { NextConfig } from "next";
 
-// Fail production build on Vercel if ADMIN_BASE_PATH is not set (required for header rules and security).
-// Only enforce for Production env; Preview builds may not have the var.
+// Warn (do not fail) if ADMIN_BASE_PATH is not set in production; build can succeed and /admin remains available.
 if (
   process.env.VERCEL === "1" &&
   process.env.VERCEL_ENV === "production" &&
   !process.env.ADMIN_BASE_PATH?.trim()
 ) {
-  throw new Error(
-    "Build failed: ADMIN_BASE_PATH must be set for production. Set it in Vercel → Project → Settings → Environment Variables (Production)."
-  );
+  console.warn(
+    "ADMIN_BASE_PATH is not set for production. Set it in Vercel → Project → Settings → Environment Variables (Production) to use an obscure admin URL."
+  )
 }
 
 // Production must use `next build` + `next start`. Do not run `next dev` in production;
@@ -57,7 +56,7 @@ const nextConfig: NextConfig = {
       base && base.length > 0
         ? [
             { source: `/${base}`, destination: '/admin' },
-            { source: `/${base}/:path*`, destination: '/admin/:path*' },
+            { source: `/${base}/:path*`, destination: `/admin/:path*` },
           ]
         : []
     // Favicon: serve from public/favicon.ico (no rewrite). Ensures GET /favicon.ico returns 200.
