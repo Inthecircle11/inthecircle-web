@@ -16,6 +16,7 @@
     "import-waitlist": "node scripts/import-waitlist-from-csv.mjs",
     "complete-applications": "node scripts/complete-missing-applications.mjs",
     "verify-domain": "node scripts/verify-domain-ownership.mjs",
+    "vercel:check": "node scripts/verify-domain-ownership.mjs",
     "check:migrations": "node scripts/check-migrations.mjs",
     "preview": "npx vercel",
     "deploy": "node scripts/deploy.mjs",
