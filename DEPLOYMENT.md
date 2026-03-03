@@ -9,17 +9,36 @@ There is **one admin panel** in this repo: `src/app/admin/page.tsx`. It is serve
 
 ## Rule: one domain, one project
 
-**app.inthecircle.co must be attached only to the inthecircle-web project.** If another Vercel project (e.g. "inthecircle") has this domain, visitors see that project’s app — different design, different layout. Always ensure only **inthecircle-web** has **app.inthecircle.co**.
+**app.inthecircle.co must be attached only to one Vercel project** (e.g. **inthecircle-web** or **inthecircle web v2**). If another project has this domain, visitors see that project’s app. Always ensure only the intended project has **app.inthecircle.co**.
 
 ## Vercel setup
 
-1. **Domain:** Ensure the Vercel project **inthecircle-web** has the domain **app.inthecircle.co** assigned (Vercel Dashboard → Project → Settings → Domains). No other project in the team should have this domain.
+1. **Domain:** Ensure the Vercel project that serves the app has the domain **app.inthecircle.co** (Vercel Dashboard → Project → Settings → Domains). No other project in the team should have this domain. The project can be **inthecircle-web** or **inthecircle web v2** (see below).
 2. **Git:** Production Branch = **`main`**. Root Directory = empty (repo root is the app).
-3. **Env (production):** Set `ADMIN_GATE_PASSWORD`, `ADMIN_USER_IDS`, and `ADMIN_EMAILS` in the inthecircle-web project’s Environment Variables.
+3. **Env (production):** Set `ADMIN_GATE_PASSWORD`, `ADMIN_USER_IDS`, and `ADMIN_EMAILS` in that project’s Environment Variables.
+
+### Connecting “inthecircle web v2” to the web app
+
+If your production project in Vercel is named **inthecircle web v2** (or **inthecircle-web-v2**):
+
+1. **From Vercel Dashboard**
+   - Open [Vercel](https://vercel.com) → your team → project **inthecircle web v2**.
+   - **Settings → Domains:** Add **app.inthecircle.co** to this project.
+   - Remove **app.inthecircle.co** from any other project (e.g. inthecircle, inthecircle-web): go to each project → Settings → Domains → remove the domain.
+   - **Settings → Git:** Ensure this project is connected to the **inthecircle-web** repo and Production Branch is **main** (so pushes to `main` deploy here).
+
+2. **From CLI (after `vercel login`)**
+   - Use the project name exactly as Vercel shows it (often the slug is lowercase with hyphens, e.g. `inthecircle-web-v2`). Then run:
+   ```bash
+   export VERCEL_PROJECT_NAME=inthecircle-web-v2
+   ./scripts/move-domain-to-inthecircle-web.sh
+   ```
+   - Verify: `VERCEL_PROJECT_NAME=inthecircle-web-v2 npm run verify-domain`
+   - Deploy from this repo: `cd` into the repo linked to that project and run `vercel deploy --prod`, or push to **main** if Git is connected.
 
 ## Prevent domain mix-up
 
-Run `npm run verify-domain` (uses token from `vercel login` or `VERCEL_TOKEN`). It checks that **app.inthecircle.co** is only on **inthecircle-web**; if another project has the domain, it exits with an error and tells you how to fix it.
+Run `npm run verify-domain` (uses token from `vercel login` or `VERCEL_TOKEN`). It checks that **app.inthecircle.co** is only on the expected project (default **inthecircle-web**; set `VERCEL_PROJECT_NAME` if you use e.g. **inthecircle-web-v2**). If another project has the domain, it exits with an error and tells you how to fix it.
 
 ## All from CLI (no dashboard)
 
@@ -42,7 +61,7 @@ npm run verify-domain
 
 ## Fix production (wrong admin showing)
 
-**One-time fix (recommended):** Run this once from the inthecircle-web repo. It removes **app.inthecircle.co** from every other Vercel project, assigns it only to **inthecircle-web**, then deploys. After that, the domain will never point at the wrong app.
+**One-time fix (recommended):** Run this once from the inthecircle-web repo. It removes **app.inthecircle.co** from every other Vercel project, assigns it only to the target project (default **inthecircle-web**; set `VERCEL_PROJECT_NAME=inthecircle-web-v2` for v2), then deploys.
 
 ```bash
 vercel login

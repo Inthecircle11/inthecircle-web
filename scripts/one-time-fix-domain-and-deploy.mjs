@@ -17,7 +17,7 @@ import { homedir, platform } from 'os'
 import { spawn } from 'child_process'
 
 const PRODUCTION_DOMAIN = 'app.inthecircle.co'
-const OWNER_PROJECT_NAME = 'inthecircle-web'
+const OWNER_PROJECT_NAME = process.env.VERCEL_PROJECT_NAME || 'inthecircle-web'
 const TEAM_ID = process.env.TEAM_ID || 'team_pPf6WSH38ILGLhFASbKqYYgL'
 const VERCEL_API = 'https://api.vercel.com'
 
@@ -107,7 +107,7 @@ async function main() {
     process.exit(1)
   }
 
-  console.log('ONE-TIME FIX: Making sure app.inthecircle.co is ONLY on inthecircle-web, then deploying.\n')
+  console.log('ONE-TIME FIX: Making sure app.inthecircle.co is ONLY on ' + OWNER_PROJECT_NAME + ', then deploying.\n')
 
   const projects = await api(`/v9/projects?teamId=${TEAM_ID}&limit=100`)
   const list = projects.projects ?? projects
@@ -163,7 +163,7 @@ async function main() {
     console.log('Domain was not on any other project. Proceeding to deploy.\n')
   }
 
-  console.log('Deploying inthecircle-web to production...\n')
+  console.log('Deploying ' + OWNER_PROJECT_NAME + ' to production...\n')
   const child = spawn('vercel', ['deploy', '--prod'], {
     stdio: 'inherit',
     cwd: process.cwd(),

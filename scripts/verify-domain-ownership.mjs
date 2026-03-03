@@ -15,7 +15,7 @@ import { join } from 'path'
 import { homedir, platform } from 'os'
 
 const PRODUCTION_DOMAIN = 'app.inthecircle.co'
-const OWNER_PROJECT_NAME = 'inthecircle-web'
+const OWNER_PROJECT_NAME = process.env.VERCEL_PROJECT_NAME || 'inthecircle-web'
 const TEAM_ID = process.env.TEAM_ID || 'team_pPf6WSH38ILGLhFASbKqYYgL'
 const VERCEL_API = 'https://api.vercel.com'
 
@@ -119,7 +119,7 @@ async function main() {
 
   if (projectsWithDomain[0] !== OWNER_PROJECT_NAME) {
     console.error(`Domain "${PRODUCTION_DOMAIN}" is on project "${projectsWithDomain[0]}", not "${OWNER_PROJECT_NAME}".`)
-    console.error(`Move the domain to inthecircle-web: run ./scripts/move-domain-to-inthecircle-web.sh\n`)
+    console.error(`Move the domain to ${OWNER_PROJECT_NAME}: run ./scripts/move-domain-to-inthecircle-web.sh\n`)
     process.exit(1)
   }
 

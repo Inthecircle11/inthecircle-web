@@ -1644,6 +1644,18 @@ export default function AdminPanel() {
     }
     setActionLoading('bulk')
     try {
+      const updated_at_by_id: Record<string, string> = {}
+      applicationIds.forEach((id) => {
+        const app = applications.find((a) => a.id === id)
+        if (app?.updated_at != null && String(app.updated_at).trim()) {
+          updated_at_by_id[id] = String(app.updated_at).trim()
+        }
+      })
+      if (Object.keys(updated_at_by_id).length !== applicationIds.length) {
+        setError('Some selected applications are missing data. Refresh the list and try again.')
+        setActionLoading(null)
+        return
+      }
       const res = await fetch('/api/admin/bulk-applications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1651,6 +1663,7 @@ export default function AdminPanel() {
         body: JSON.stringify({
           application_ids: applicationIds,
           action,
+          updated_at_by_id,
           ...(reason ? { reason } : {}),
         }),
       })
@@ -1672,6 +1685,11 @@ export default function AdminPanel() {
       }
       if (res.status === 429) {
         setError(data.error || 'Rate limit exceeded. Try again later.')
+        return
+      }
+      if (res.status === 409) {
+        setError(data.error || 'Some applications were modified by another admin. Refresh and try again.')
+        await loadData()
         return
       }
       if (res.status === 207 && data.errors && Array.isArray(data.errors)) {
@@ -3756,11 +3774,11 @@ function ApplicationsTab({
                 <div className="flex items-center gap-4">
                   <Avatar url={app.profile_image_url} name={app.name || app.username || app.email || ''} size={48} />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                       <span className="font-medium text-[var(--text)]">
                         {app.name || app.username || app.email || (app.user_id ? `User ${String(app.user_id).slice(0, 8)}` : 'Unknown')}
                       </span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
                         (app.status?.toUpperCase() ?? '') === 'ACTIVE' || app.status?.toUpperCase() === 'APPROVED' ? 'bg-green-500/20 text-green-400' :
                         app.status?.toUpperCase() === 'REJECTED' ? 'bg-red-500/20 text-red-400' :
                         app.status?.toUpperCase() === 'WAITLISTED' || app.status?.toUpperCase() === 'WAITLIST' ? 'bg-purple-500/20 text-purple-400' :
@@ -3773,9 +3791,34 @@ function ApplicationsTab({
                     <p className="text-sm text-[var(--text-muted)]">
                       {[app.username && `@${app.username}`, app.email, app.niche].filter(Boolean).join(' · ') || (app.user_id ? `ID: ${String(app.user_id).slice(0, 8)}` : '—')}
                     </p>
+                    {(app.instagram_username || app.referrer_username || (app.follower_count != null && app.follower_count !== '')) && (
+                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                        {[app.instagram_username && `Instagram @${app.instagram_username}`, app.referrer_username && `Referred by @${app.referrer_username}`, app.follower_count != null && app.follower_count !== '' && `${Number(app.follower_count).toLocaleString()} followers`].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
                   </div>
                   {isPending(app.status) && (
                     <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                      {onClaim && (app.assigned_to == null || (app.assignment_expires_at && new Date(app.assignment_expires_at) < new Date())) && (
+                        <button
+                          type="button"
+                          onClick={() => onClaim(app.id)}
+                          disabled={actionLoading === app.id}
+                          className="px-3 py-1.5 text-sm font-medium bg-blue-500/15 text-blue-400 rounded-lg border border-blue-500/30 hover:bg-blue-500/25 disabled:opacity-50"
+                        >
+                          Claim
+                        </button>
+                      )}
+                      {onRelease && app.assigned_to === currentUserId && app.assignment_expires_at && new Date(app.assignment_expires_at) >= new Date() && (
+                        <button
+                          type="button"
+                          onClick={() => onRelease(app.id)}
+                          disabled={actionLoading === app.id}
+                          className="px-3 py-1.5 text-sm font-medium text-[var(--text)] bg-[var(--surface-hover)] border border-[var(--separator)] rounded-lg hover:bg-[var(--separator)] disabled:opacity-50"
+                        >
+                          Release
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => onApprove(app.id, app.updated_at)}
@@ -3898,10 +3941,12 @@ function ApplicationDetailModal({
       >
         <div className="flex items-center justify-between p-4 border-b border-[var(--separator)]">
           <div className="flex items-center gap-3">
-            <Avatar url={app.profile_image_url} name={app.name} size={48} />
+            <Avatar url={app.profile_image_url} name={app.name || app.username || app.email || ''} size={48} />
             <div>
-              <h2 id="app-detail-title" className="font-semibold text-[var(--text)]">{app.name || 'No name'}</h2>
-              <p className="text-sm text-[var(--text-muted)]">@{app.username}</p>
+              <h2 id="app-detail-title" className="font-semibold text-[var(--text)]">{app.name || app.username || app.email || 'Unknown'}</h2>
+              <p className="text-sm text-[var(--text-muted)]">
+                {[app.username && `@${app.username}`, app.email].filter(Boolean).join(' · ') || (app.user_id ? `ID: ${String(app.user_id).slice(0, 8)}` : '—')}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">

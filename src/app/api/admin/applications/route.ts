@@ -4,20 +4,19 @@ import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import { getRequestId, jsonError } from '@/lib/request-id'
 import { getServiceRoleClient } from '@/lib/supabase-service'
+import {
+  getCountsCache,
+  setCountsCache,
+  getAppsCache,
+  COUNTS_CACHE_TTL_MS,
+  APPS_CACHE_TTL_MS,
+} from '@/lib/admin-applications-cache'
 
 export const dynamic = 'force-dynamic'
 
 /** Phase 13: True pagination. Default limit 50, max 200. When page is omitted, legacy behavior returns array only (temporary). */
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 200
-
-/** Cache TTL: 30s for counts, 15s for application lists (balance freshness and performance) */
-let countsCache: { at: number; counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number; total: number } } | null = null
-const COUNTS_CACHE_TTL_MS = 30_000
-
-/** Cache for application lists by status+page */
-const appsCache = new Map<string, { at: number; data: Array<Record<string, unknown>> }>()
-const APPS_CACHE_TTL_MS = 15_000
 
 function normalizeApplicationStatus(raw: unknown): string {
   const s = String(raw ?? '').trim().toUpperCase()
@@ -66,7 +65,7 @@ export async function GET(req: NextRequest) {
 
   // OPTIMIZED: Use single RPC for counts (with 30s cache) instead of 6 separate queries
   let counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number; total: number }
-  
+  const countsCache = getCountsCache()
   if (countsCache && Date.now() - countsCache.at < COUNTS_CACHE_TTL_MS) {
     counts = countsCache.counts
   } else {
@@ -84,11 +83,12 @@ export async function GET(req: NextRequest) {
         total: Number(cd.total) || 0,
       }
     }
-    countsCache = { at: Date.now(), counts }
+    setCountsCache({ at: Date.now(), counts })
   }
 
   // Direct query to applications table with profile join
   const cacheKey = `${statusParam}-${page}-${limit}`
+  const appsCache = getAppsCache()
   const cached = appsCache.get(cacheKey)
   
   let list: Array<Record<string, unknown>>
@@ -138,6 +138,7 @@ export async function GET(req: NextRequest) {
       
       if (profilesError) {
         console.error('[admin applications] profiles fetch', profilesError)
+        return jsonError(req, { error: 'Failed to load profiles' }, 500)
       }
       if (profilesData && profilesData.length > 0) {
         for (const p of profilesData as Array<Record<string, unknown>>) {
@@ -160,8 +161,34 @@ export async function GET(req: NextRequest) {
         bio: profile.bio ?? a.bio ?? '',
         niche: profile.niche ?? a.niche ?? '',
         phone: profile.phone ?? a.phone ?? null,
+        referrer_username: a.referrer_username ?? null,
+        instagram_username: a.instagram_username ?? null,
+        follower_count: a.follower_count ?? null,
       }
     })
+
+    // Enrich email from auth.users for rows that still have no email (profile may not store it)
+    const needEmail = list.filter((r: Record<string, unknown>) => !(r.email && String(r.email).trim()))
+    if (needEmail.length > 0) {
+      try {
+        const ids = [...new Set(needEmail.map((r: Record<string, unknown>) => r.user_id).filter(Boolean))] as string[]
+        const { data: emailRows, error: emailErr } = await supabase.rpc('admin_get_emails_for_user_ids', { p_user_ids: ids })
+        if (!emailErr && emailRows) {
+          const emailMap: Record<string, string> = {}
+          ;(emailRows as Array<{ user_id: string; email: string | null }>).forEach((row) => {
+            if (row.email && row.user_id) emailMap[String(row.user_id).toLowerCase()] = row.email
+          })
+          list = list.map((r: Record<string, unknown>) => {
+            if (r.email && String(r.email).trim()) return r
+            const uid = r.user_id != null ? String(r.user_id).toLowerCase() : ''
+            const authEmail = emailMap[uid]
+            return authEmail ? { ...r, email: authEmail } : r
+          })
+        }
+      } catch {
+        // RPC may not exist yet (migration not run); continue without auth email enrichment
+      }
+    }
     
     appsCache.set(cacheKey, { at: Date.now(), data: list })
     
@@ -172,7 +199,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Client-side filtering for assignment (not in DB)
+  // Client-side filtering for assignment (not in DB). Uses result.user.id so assigned_to_me returns only rows where assigned_to === current admin; response returns actual assigned_to/assigned_at/assignment_expires_at.
   if (filter === 'unassigned') {
     list = list.filter((a) => a.assigned_to == null || (a.assignment_expires_at && new Date(a.assignment_expires_at as string) < now))
   } else if (filter === 'assigned_to_me') {
@@ -199,7 +226,7 @@ export async function GET(req: NextRequest) {
     list = [...list].sort((a, b) => priority(a.submitted_at as string) - priority(b.submitted_at as string) || new Date((a.submitted_at as string) ?? 0).getTime() - new Date((b.submitted_at as string) ?? 0).getTime())
   }
 
-  // Map to response format (profile data already included from RPC)
+  // Map to response format (profile + auth email + application fields)
   const applications = list.map((a) => {
     const rawStatus = a.status
     return {
@@ -214,17 +241,17 @@ export async function GET(req: NextRequest) {
       application_date: a.submitted_at ?? '',
       status: normalizeApplicationStatus(rawStatus),
       review_notes: a.review_notes ?? null,
-      referrer_username: null,
+      referrer_username: a.referrer_username ?? null,
       why_join: a.why_join ?? null,
       what_to_offer: a.what_to_offer ?? null,
       collaboration_goals: a.collaboration_goals ?? null,
       phone: a.phone ?? null,
-      instagram_username: null,
-      follower_count: null,
+      instagram_username: a.instagram_username ?? null,
+      follower_count: a.follower_count ?? null,
       updated_at: a.updated_at ?? null,
-      assigned_to: null,
-      assigned_at: null,
-      assignment_expires_at: null,
+      assigned_to: a.assigned_to ?? null,
+      assigned_at: a.assigned_at ?? null,
+      assignment_expires_at: a.assignment_expires_at ?? null,
     }
   })
 
