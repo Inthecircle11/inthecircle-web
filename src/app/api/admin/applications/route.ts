@@ -152,8 +152,8 @@ export async function GET(req: NextRequest) {
         .in('id', userIds)
       
       if (profilesError) {
-        console.error('[admin applications] profiles fetch', profilesError)
-        return jsonError(req, { error: 'Failed to load profiles' }, 500)
+        console.error('[admin applications] profiles fetch (degraded)', profilesError.message)
+        // Continue with empty profilesMap so list still returns application data; do not 500
       }
       if (profilesData && profilesData.length > 0) {
         for (const p of profilesData as Array<Record<string, unknown>>) {
