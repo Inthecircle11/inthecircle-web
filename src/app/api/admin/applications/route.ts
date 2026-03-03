@@ -62,8 +62,10 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(limitParam || String(DEFAULT_LIMIT), 10) || DEFAULT_LIMIT))
   const now = new Date()
   const offset = (page - 1) * limit
+  const nowIso = now.toISOString()
 
-  // OPTIMIZED: Use single RPC for counts (with 30s cache) instead of 6 separate queries
+  // Cache key must include assignment filter so "all" vs "assigned_to_me" vs "unassigned" don't share cache
+  const cacheKey = `${statusParam}-${filter}-${page}-${limit}`
   let counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number; total: number }
   let countsErrorFlag = false
   const countsCache = getCountsCache()
@@ -92,7 +94,6 @@ export async function GET(req: NextRequest) {
   }
 
   // Direct query to applications table with profile join
-  const cacheKey = `${statusParam}-${page}-${limit}`
   const appsCache = getAppsCache()
   const cached = appsCache.get(cacheKey)
   
@@ -111,17 +112,25 @@ export async function GET(req: NextRequest) {
       'suspended': ['SUSPENDED'],
     }
 
-    // First get applications
+    // First get applications (apply assignment filter in DB so we get the right page of rows)
     let appsQuery = supabase
       .from('applications')
       .select('*')
       .order('submitted_at', { ascending: true })
-      .range(offset, offset + limit - 1)
 
     if (statusParam !== 'all') {
       const dbStatuses = statusMap[statusParam] || [statusParam.toUpperCase()]
       appsQuery = appsQuery.in('status', dbStatuses)
     }
+
+    const currentUserId = result.user.id
+    if (filter === 'unassigned') {
+      appsQuery = appsQuery.or(`assigned_to.is.null,assignment_expires_at.lt.${nowIso}`)
+    } else if (filter === 'assigned_to_me') {
+      appsQuery = appsQuery.eq('assigned_to', currentUserId).gte('assignment_expires_at', nowIso)
+    }
+
+    appsQuery = appsQuery.range(offset, offset + limit - 1)
 
     const { data: appsData, error: appsError } = await appsQuery
 
@@ -202,14 +211,6 @@ export async function GET(req: NextRequest) {
       const oldest = [...appsCache.entries()].sort((a, b) => a[1].at - b[1].at)[0]
       if (oldest) appsCache.delete(oldest[0])
     }
-  }
-
-  // Client-side filtering for assignment (not in DB). Uses result.user.id so assigned_to_me returns only rows where assigned_to === current admin; response returns actual assigned_to/assigned_at/assignment_expires_at.
-  if (filter === 'unassigned') {
-    list = list.filter((a) => a.assigned_to == null || (a.assignment_expires_at && new Date(a.assignment_expires_at as string) < now))
-  } else if (filter === 'assigned_to_me') {
-    const currentUserId = result.user.id
-    list = list.filter((a) => a.assigned_to === currentUserId && a.assignment_expires_at && new Date(a.assignment_expires_at as string) >= now)
   }
 
   // Priority sorting for overdue items
