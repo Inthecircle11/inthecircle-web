@@ -19,15 +19,18 @@
     "check:migrations": "node scripts/check-migrations.mjs",
     "preview": "npx vercel",
     "deploy": "node scripts/deploy.mjs",
-    "one-time-fix": "node scripts/one-time-fix-domain-and-deploy.mjs"
+    "one-time-fix": "node scripts/one-time-fix-domain-and-deploy.mjs",
+    "audit:behavior": "node scripts/behavior-intelligence-audit.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^9.0.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.94.0",
+    "import-in-the-middle": "^3.0.0",
     "next": "15.2.8",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "require-in-the-middle": "^8.0.0",
     "resend": "^6.9.3"
   },
   "devDependencies": {

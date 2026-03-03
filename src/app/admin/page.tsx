@@ -3659,6 +3659,9 @@ function ApplicationsTab({
   actionLoading,
   selectedApp,
   setSelectedApp,
+  onClaim,
+  onRelease,
+  currentUserId,
 }: {
   applications: Application[]
   allApplications: Application[]
@@ -3791,9 +3794,9 @@ function ApplicationsTab({
                     <p className="text-sm text-[var(--text-muted)]">
                       {[app.username && `@${app.username}`, app.email, app.niche].filter(Boolean).join(' · ') || (app.user_id ? `ID: ${String(app.user_id).slice(0, 8)}` : '—')}
                     </p>
-                    {(app.instagram_username || app.referrer_username || (app.follower_count != null && app.follower_count !== '')) && (
+                    {(app.instagram_username || app.referrer_username || (app.follower_count != null && app.follower_count > 0)) && (
                       <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                        {[app.instagram_username && `Instagram @${app.instagram_username}`, app.referrer_username && `Referred by @${app.referrer_username}`, app.follower_count != null && app.follower_count !== '' && `${Number(app.follower_count).toLocaleString()} followers`].filter(Boolean).join(' · ')}
+                        {[app.instagram_username && `Instagram @${app.instagram_username}`, app.referrer_username && `Referred by @${app.referrer_username}`, app.follower_count != null && app.follower_count > 0 && `${Number(app.follower_count).toLocaleString()} followers`].filter(Boolean).join(' · ')}
                       </p>
                     )}
                   </div>

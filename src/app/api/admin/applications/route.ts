@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
 
     // Get user IDs and fetch profiles (normalize UUIDs to lowercase for reliable lookup)
     const userIds = [...new Set((appsData ?? []).map((a: Record<string, unknown>) => a.user_id).filter(Boolean) as string[])]
-    let profilesMap: Record<string, Record<string, unknown>> = {}
+    const profilesMap: Record<string, Record<string, unknown>> = {}
     
     if (userIds.length > 0) {
       const cols = 'id, name, username, email, profile_image_url, bio, niche, phone'
