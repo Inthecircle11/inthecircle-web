@@ -19,6 +19,16 @@ const supabaseHost = supabaseUrl ? new URL(supabaseUrl).hostname : null
 
 const nextConfig: NextConfig = {
   eslint: { ignoreDuringBuilds: true },
+  // Suppress known Sentry/OpenTelemetry require-in-the-middle warning (safe to ignore).
+  webpack: (config) => {
+    config.ignoreWarnings = [
+      ...(config.ignoreWarnings || []),
+      { module: /require-in-the-middle/ },
+      { module: /@opentelemetry\/instrumentation/ },
+      { message: /Critical dependency: the request of a dependency is an expression/ },
+    ]
+    return config
+  },
   images: {
     remotePatterns: [
       ...(supabaseHost
