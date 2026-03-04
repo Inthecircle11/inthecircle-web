@@ -15,7 +15,7 @@ Configure GitHub so that `main` cannot be force-pushed or deleted, and all chang
      - Leave **Dismiss stale pull request approvals** and **Require review from Code Owners** as needed.
    - **Require status checks to pass before merging**
      - **Require branches to be up to date before merging:** optional (recommended: enabled).
-     - In **Status checks that are required**, search for and add: **CI** (the name of the GitHub Actions workflow).
+     - In **Status checks that are required**, search for and add: **build** (the CI job name; or **CI** if that appears).
    - **Do not allow bypassing the above settings** (if available for your plan).
    - **Restrict who can push to matching branches:** leave empty unless you want to limit pushers.
    - **Allow force pushes:** **Do not allow** (or leave unchecked).

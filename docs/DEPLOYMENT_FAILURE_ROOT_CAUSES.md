@@ -86,14 +86,22 @@ The CI workflow runs `scripts/check-smart-quotes.mjs`. It fails the build if any
 
 ## Branch protection
 
-Configure once in GitHub:
+Configure once in GitHub (required so CI must pass before merge):
 
+**Option A — Script (recommended)**  
+Create a token at [github.com/settings/tokens](https://github.com/settings/tokens) with `repo` scope, then run from the repo root:
+
+```bash
+GITHUB_TOKEN=ghp_your_token node scripts/enable-branch-protection.mjs
+```
+
+**Option B — GitHub UI**  
 1. Repo → **Settings** → **Branches** → **Branch protection rules** → Add rule for `main`.
 2. Enable **Require a pull request before merging**.
-3. Enable **Require status checks to pass** and add **CI**.
+3. Enable **Require status checks to pass** and add **build** (the CI job name).
 4. Disable force push and branch deletion for `main`.
 
-See [docs/BRANCH_PROTECTION.md](./BRANCH_PROTECTION.md) for step-by-step details.
+See [docs/BRANCH_PROTECTION.md](./BRANCH_PROTECTION.md) for full UI steps.
 
 ---
 
