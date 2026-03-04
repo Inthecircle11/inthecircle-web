@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import type { User } from '../types'
 import { parseAdminResponse } from '@/lib/admin-client'
 
@@ -9,8 +9,8 @@ export function useUsers(opts?: { setError?: (e: string | null) => void; handle4
   const [usersTotalCount, setUsersTotalCount] = useState<number | null>(null)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
 
-  const setError = opts?.setError ?? (() => {})
-  const handle403 = opts?.handle403 ?? (() => {})
+  const setError = useMemo(() => opts?.setError ?? (() => {}), [opts?.setError])
+  const handle403 = useMemo(() => opts?.handle403 ?? (() => {}), [opts?.handle403])
 
   const loadUsers = useCallback(async (page = 1, limit = 50, search?: string) => {
     try {

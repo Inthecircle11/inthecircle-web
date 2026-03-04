@@ -7,6 +7,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const compat = new FlatCompat({ baseDirectory: __dirname })
 
 const eslintConfig = defineConfig([
+  {
+    ignores: [
+      '**/* 2.*',
+      '**/* 3.*',
+      '**/* 4.*',
+    ],
+  },
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   {
     rules: {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import type { Application, Stats, AppFilter } from '../types'
 import { parseAdminResponse } from '@/lib/admin-client'
 
@@ -19,8 +19,8 @@ export function useApplications(opts?: { setError?: (e: string | null) => void; 
   const [selectedAppIds, setSelectedAppIds] = useState<Set<string>>(new Set())
   const [applicationsLoading, setApplicationsLoading] = useState(false)
 
-  const setError = opts?.setError ?? (() => {})
-  const handle403 = opts?.handle403 ?? (() => {})
+  const setError = useMemo(() => opts?.setError ?? (() => {}), [opts?.setError])
+  const handle403 = useMemo(() => opts?.handle403 ?? (() => {}), [opts?.handle403])
 
   const fetchApplications = useCallback(async (
     sort?: string,

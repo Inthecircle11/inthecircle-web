@@ -47,7 +47,6 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(limitParam || String(DEFAULT_LIMIT), 10) || DEFAULT_LIMIT))
   const now = new Date()
   const offset = (page - 1) * limit
-  const nowIso = now.toISOString()
 
   let counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number; total: number }
   const { data: countsData, error: countsError } = await supabase.rpc('admin_get_application_counts').single()

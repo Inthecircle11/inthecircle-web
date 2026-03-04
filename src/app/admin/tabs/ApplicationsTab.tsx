@@ -99,7 +99,7 @@ export function ApplicationsTab({
   applicationsPageSize,
   onApplicationsPageChange,
   applicationsLoading = false,
-  applicationsCountsError,
+  applicationsCountsError: _applicationsCountsError,
   onApprove,
   onReject,
   onWaitlist,

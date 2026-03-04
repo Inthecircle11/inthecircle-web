@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef, type Dispatch, type SetStateAction } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { getAdminBase } from '@/lib/admin'
@@ -25,8 +25,6 @@ import { InboxTab } from './tabs/InboxTab'
 import { DashboardTab } from './tabs/DashboardTab'
 import { ApplicationsTab } from './tabs/ApplicationsTab'
 import { UsersTab } from './tabs/UsersTab'
-import { StatCard } from './components/StatCard'
-import { Avatar } from './components/Avatar'
 import { downloadCSV, formatTimeAgo } from './utils'
 import type {
   Stats,
@@ -46,7 +44,7 @@ import type {
 // TYPES - Re-export / local extensions only (main types in ./types.ts)
 // ============================================
 const isMessageRead = (m: InboxMessage) => m.seen_at !== null
-const isMessageDelivered = (m: InboxMessage) => m.delivered_at !== null
+const _isMessageDelivered = (m: InboxMessage) => m.delivered_at !== null
 
 // Location parsing: normalize "City, Country" / "Country" into country + city for flags and grouping
 const COUNTRY_TO_ISO: Record<string, string> = {
@@ -249,6 +247,7 @@ function NavIconAnalytics() {
 }
 
 /** Focus trap and return-focus for modal dialogs */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function useModalFocusTrap(dialogRef: React.RefObject<HTMLElement | null>, onClose: () => void) {
   const savedFocusRef = useRef<HTMLElement | null>(null)
   useEffect(() => {
@@ -2056,10 +2055,10 @@ export default function AdminPanel() {
               Enter the gate password to continue to the admin panel.
             </p>
             <p className="text-[var(--text-muted)] text-[13px] mt-3">
-              This is the new Inthecircle Admin. After you continue, you'll sign in with your admin email, then see the dashboard (Overview, Applications, Users, etc.). Prefer a shorter URL? Use <a href="/admin" className="text-[var(--accent-purple)] hover:underline font-medium">app.inthecircle.co/admin</a>.
+              This is the new Inthecircle Admin. After you continue, you&apos;ll sign in with your admin email, then see the dashboard (Overview, Applications, Users, etc.). Prefer a shorter URL? Use <a href="/admin" className="text-[var(--accent-purple)] hover:underline font-medium">app.inthecircle.co/admin</a>.
             </p>
             <p className="text-[var(--text-muted)] text-[12px] mt-4">
-              If after signing in you don't see a left sidebar with Overview, Applications, Users — hard refresh (Cmd+Shift+R or Ctrl+Shift+R) or open in an incognito window to avoid cached files.
+              If after signing in you don&apos;t see a left sidebar with Overview, Applications, Users — hard refresh (Cmd+Shift+R or Ctrl+Shift+R) or open in an incognito window to avoid cached files.
             </p>
           </div>
           <form onSubmit={submitGatePassword} className="space-y-4">
