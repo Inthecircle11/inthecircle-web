@@ -86,7 +86,9 @@ export async function GET(req: NextRequest) {
 
   // Apply assignment filter in DB so pagination is over the filtered set (fixes "No applications found" when filter would otherwise leave 0 of first 50)
   if (filter === 'unassigned') {
-    appsQuery = appsQuery.or(`assigned_to.is.null,assignment_expires_at.lt.${now.toISOString()}`)
+    // PostgREST or: (condition1,condition2). Use .is() for null; .lt. for timestamp.
+    const orClause = `(assigned_to.is.null,assignment_expires_at.lt.${now.toISOString()})`
+    appsQuery = appsQuery.or(orClause)
   } else if (filter === 'assigned_to_me') {
     appsQuery = appsQuery
       .eq('assigned_to', result.user.id)
@@ -98,7 +100,13 @@ export async function GET(req: NextRequest) {
   const { data: appsData, error: appsError } = await appsQuery
 
   if (appsError) {
+    console.error(`[${requestId}] applications query error:`, appsError.message, { filter, statusParam, page, limit })
     return adminError('Failed to fetch applications', 500, requestId)
+  }
+
+  const rowCount = (appsData ?? []).length
+  if (rowCount === 0 && counts.total > 0 && filter === 'all' && statusParam === 'all') {
+    console.warn(`[${requestId}] applications query returned 0 rows but counts.total=${counts.total} (filter=all, status=all)`)
   }
 
   const userIds = [...new Set((appsData ?? []).map((a: Record<string, unknown>) => a.user_id).filter(Boolean) as string[])]

@@ -889,7 +889,7 @@ export default function AdminPanel() {
         if (filter) params.set('filter', filter)
         if (appStatus && appStatus !== 'all') params.set('status', appStatus)
         const q = params.toString()
-        const res = await fetch(`/api/admin/applications?${q}`, { credentials: 'include' })
+        const res = await fetch(`/api/admin/applications?${q}`, { credentials: 'include', cache: 'no-store' })
         if (res.status === 403) return { apps: [], total: 0, counts: null, permissionDenied: true }
         const json = await res.json().catch(() => ({}))
         const { data } = parseAdminResponse<{ applications?: Application[]; total?: number; counts?: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number } }>(res, json)
@@ -1204,6 +1204,21 @@ export default function AdminPanel() {
     if (!authorized || activeTab === 'overview') return
     loadData(undefined, { skipOverview: true })
   }, [activeTab, authorized, loadData])
+
+  // If Applications tab shows counts but list is empty (e.g. race or API glitch), refetch once
+  const applicationsEmptyRefetchDone = useRef(false)
+  useEffect(() => {
+    if (
+      !authorized ||
+      activeTab !== 'applications' ||
+      applications.length > 0 ||
+      stats.total <= 0 ||
+      applicationsLoading ||
+      applicationsEmptyRefetchDone.current
+    ) return
+    applicationsEmptyRefetchDone.current = true
+    loadData(undefined, { skipOverview: true })
+  }, [authorized, activeTab, applications.length, stats.total, applicationsLoading, loadData])
 
   // Log admin action for audit trail (fire-and-forget). Pass reason for destructive actions.
   async function logAudit(
