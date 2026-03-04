@@ -1,23 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
 const MAX_USERS = 500
 
-/** GET - List users (profiles). Replaces admin_get_all_users RPC. Requires read_users. */
+/** GET - List users (profiles). Requires read_users. */
 export async function GET(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.read_users)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
   const supabase = getServiceRoleClient()
-  if (!supabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
-  }
+  if (!supabase) return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
 
   const [listResult, countResult] = await Promise.all([
     supabase
@@ -29,12 +29,10 @@ export async function GET(req: NextRequest) {
   ])
 
   const { data: profiles, error } = listResult
-  // Get total count from the count query (not limited by MAX_USERS)
   const totalCount = countResult.error ? null : (countResult.count ?? null)
-
   if (error) {
-    console.error('[admin users]', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error(`[${requestId}]`, error)
+    return adminError(error.message, 500, requestId)
   }
 
   const list = (profiles ?? []).map((p: Record<string, unknown>) => ({
@@ -50,7 +48,6 @@ export async function GET(req: NextRequest) {
     niche: p.niche ?? null,
   }))
 
-  const total =
-    totalCount != null && !countResult.error ? totalCount : list.length
-  return NextResponse.json({ users: list, total })
+  const total = totalCount != null && !countResult.error ? totalCount : list.length
+  return adminSuccess({ users: list, total }, requestId)
 }

@@ -17,7 +17,7 @@ import { homedir, platform } from 'os'
 import { spawn } from 'child_process'
 
 const PRODUCTION_DOMAIN = 'app.inthecircle.co'
-const OWNER_PROJECT_NAME = process.env.VERCEL_PROJECT_NAME || 'inthecircle-web-v2'
+const OWNER_PROJECT_NAME = process.env.VERCEL_PROJECT_NAME || 'inthecircle-web'
 const TEAM_ID = process.env.TEAM_ID || 'team_pPf6WSH38ILGLhFASbKqYYgL'
 const VERCEL_API = 'https://api.vercel.com'
 

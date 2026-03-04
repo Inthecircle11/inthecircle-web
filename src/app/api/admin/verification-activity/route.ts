@@ -1,20 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
 /** GET - Recent verification activity (approved/rejected). Replaces admin_get_recent_verification_activity RPC. */
 export async function GET(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.read_applications)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
   const supabase = getServiceRoleClient()
   if (!supabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
   }
 
   const { data: rows, error } = await supabase
@@ -27,7 +29,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error('[admin verification-activity]', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return adminError(error.message, 500, requestId)
   }
 
   const userIds = [...new Set((rows ?? []).map((r: { user_id: string }) => r.user_id))]
@@ -51,5 +53,5 @@ export async function GET(req: NextRequest) {
     color: r.status === 'approved' ? '#10B981' : '#EF4444',
   }))
 
-  return NextResponse.json(activity)
+  return adminSuccess(activity, requestId)
 }

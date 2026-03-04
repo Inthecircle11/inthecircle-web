@@ -1,47 +1,31 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { hasPermission, ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import type { AdminRoleName } from '@/lib/admin-rbac'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
-/** Cache TTL: 30 seconds for overview stats (balance between freshness and performance). Keyed by active_sessions permission so cache is not shared across permission boundaries. */
-const CACHE_TTL_MS = 30_000
-const overviewCacheMap = new Map<string, { at: number; body: Record<string, unknown> }>()
-
-/** GET - Ultra-fast overview stats using single RPC call. */
+/** GET - Ultra-fast overview stats. No in-memory cache (serverless-safe). */
 export async function GET(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.read_applications)
-  if (forbidden) return forbidden
-
-  const canViewActiveSessions = hasPermission(result.roles as AdminRoleName[], ADMIN_PERMISSIONS.active_sessions)
-  const cacheKey = `overview:${canViewActiveSessions}`
-  const cached = overviewCacheMap.get(cacheKey)
-
-  // Return cached data if fresh (30s TTL); cache is keyed by permission so activeSessions is never leaked
-  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
-    const res = NextResponse.json(cached.body)
-    res.headers.set('X-Cache', 'HIT')
-    return res
-  }
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
   const supabase = getServiceRoleClient()
   if (!supabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
   }
 
-  // Always use admin_get_overview_counts (the accurate source) + admin_get_overview_app_stats
-  // Note: admin_get_all_stats exists but returns outdated data (wrong verifiedCount, missing newUsersLast7d)
   let parsed: { stats: Record<string, number>; overview: Record<string, number>; activeToday?: number | string }
   {
     const [appRes, countsRes] = await Promise.all([
       supabase.rpc('admin_get_overview_app_stats').single(),
       supabase.rpc('admin_get_overview_counts').single(),
     ])
-    // TABLE-returning RPCs can return array of one row; .single() gives that row, but be defensive
     const app = (Array.isArray(appRes.data) ? appRes.data[0] : appRes.data) ?? {}
     const countsRow = (Array.isArray(countsRes.data) ? countsRes.data[0] : countsRes.data) ?? {}
     const appData = app as { total?: number; approved?: number; rejected?: number; waitlisted?: number; suspended?: number }
@@ -51,16 +35,9 @@ export async function GET(req: NextRequest) {
     const rejected = Number(appData.rejected) || 0
     const waitlisted = Number(appData.waitlisted) || 0
     const suspended = Number(appData.suspended) || 0
-    
-    // Get new_users_7d - if RPC doesn't return it, it will be null/undefined
-    // We need to ensure it's at least as large as new_users_24h (logical constraint)
     const newUsers24h = Number(c.new_users_24h) || 0
     let newUsers7d = Number(c.new_users_7d) || 0
-    // Sanity check: 7d must be >= 24h (if not, RPC is outdated)
-    if (newUsers7d < newUsers24h) {
-      newUsers7d = newUsers24h
-    }
-    
+    if (newUsers7d < newUsers24h) newUsers7d = newUsers24h
     parsed = {
       stats: {
         total,
@@ -83,14 +60,11 @@ export async function GET(req: NextRequest) {
       },
     }
   }
-  
-  // Sanity check: ensure new_users_7d >= new_users_24h (logical constraint)
+
   if ((parsed.overview?.newUsersLast7d ?? 0) < (parsed.overview?.newUsersLast24h ?? 0)) {
     parsed.overview.newUsersLast7d = parsed.overview.newUsersLast24h
   }
-  
-  // Fallback for verified count: if RPC returns 0, query profiles.is_verified directly
-  // This handles the case where the old RPC uses verification_requests instead of profiles.is_verified
+
   if ((parsed.overview?.verifiedCount ?? 0) === 0) {
     const { count: verifiedFromProfiles } = await supabase
       .from('profiles')
@@ -101,21 +75,14 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // If admin_get_all_stats didn't return activeToday, fetch it from dedicated RPC (same DB, no extra permission)
   let activeToday: number | null =
-    parsed.activeToday != null && parsed.activeToday !== ''
-      ? Number(parsed.activeToday)
-      : null
+    parsed.activeToday != null && parsed.activeToday !== '' ? Number(parsed.activeToday) : null
   if (activeToday === null) {
     const { data: activeTodayRow } = await supabase.rpc('admin_get_active_today_count').maybeSingle()
     if (activeTodayRow != null && typeof (activeTodayRow as { active_count?: unknown }).active_count !== 'undefined') {
       const raw = (activeTodayRow as { active_count: number | string }).active_count
-      activeToday =
-        typeof raw === 'number'
-          ? Math.max(0, Math.floor(raw))
-          : Math.max(0, parseInt(String(raw), 10) || 0)
+      activeToday = typeof raw === 'number' ? Math.max(0, Math.floor(raw)) : Math.max(0, parseInt(String(raw), 10) || 0)
     }
-    // Fallback when admin_get_active_today_count is missing (e.g. migration not run)
     if (activeToday === null) {
       const { data: rows } = await supabase.rpc('get_active_sessions', { active_minutes: 24 * 60 })
       const list = (rows ?? []) as Array<{ user_id: string }>
@@ -123,7 +90,6 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Fetch active sessions separately (requires profile join, but only if user has permission)
   let activeSessions = null
   if (hasPermission(result.roles as AdminRoleName[], ADMIN_PERMISSIONS.active_sessions)) {
     const { data: sessionsData } = await supabase.rpc('get_active_sessions', { active_minutes: 15 })
@@ -151,7 +117,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const body = {
+  const data = {
     stats: {
       total: Number(parsed.stats?.total) || 0,
       pending: Number(parsed.stats?.pending) || 0,
@@ -174,9 +140,5 @@ export async function GET(req: NextRequest) {
       applicationsApprovedLast7d: Number(parsed.overview?.applicationsApprovedLast7d) || 0,
     },
   }
-
-  overviewCacheMap.set(cacheKey, { at: Date.now(), body })
-  const res = NextResponse.json(body)
-  res.headers.set('X-Cache', 'MISS')
-  return res
+  return adminSuccess(data, requestId)
 }

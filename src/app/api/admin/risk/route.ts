@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import { writeAuditLog } from '@/lib/audit-server'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,14 +26,15 @@ function getThresholdLevel(metricName: string, value: number): 'yellow' | 'red' 
 
 /** GET - Risk dashboard: KPIs + open escalations + last escalation time. Triggers new escalations when metrics cross thresholds (dedupe 24h per metric). Requires read_risk. */
 export async function GET(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.read_risk)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
   const supabase = getServiceRoleClient()
   if (!supabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
   }
 
   const now = new Date()
@@ -119,11 +121,11 @@ export async function GET(req: NextRequest) {
   const open_escalations = (openRows ?? []) as Array<Record<string, unknown>>
   const last_escalation_time = latestRow?.created_at ?? null
 
-  return NextResponse.json({
+  return adminSuccess({
     pending_applications,
     pending_reports,
     overdue_data_requests,
     open_escalations,
     last_escalation_time,
-  })
+  }, requestId)
 }

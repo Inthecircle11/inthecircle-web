@@ -53,4 +53,3 @@ jobs:
         run: npm run verify-domain
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_NAME: inthecircle-web-v2

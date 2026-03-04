@@ -9,95 +9,42 @@ import { hasPermission, ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import type { AdminPermission } from '@/lib/admin-rbac'
 import AdminProductAnalyticsTab from './ProductAnalyticsTab'
 import { trackAdminEvent, startSession, endSessionWithBeacon, ADMIN_EVENTS } from '@/lib/analytics'
+import { parseAdminResponse } from '@/lib/admin-client'
+import { ConfirmModal } from './components/ConfirmModal'
+import { AdminErrorBoundary } from './AdminErrorBoundary'
+import { OverviewTab } from './tabs/OverviewTab'
+import { VerificationsTab } from './tabs/VerificationsTab'
+import { ApprovalsTab } from './tabs/ApprovalsTab'
+import { RiskTab } from './tabs/RiskTab'
+import { DataRequestsTab } from './tabs/DataRequestsTab'
+import { ReportsTab } from './tabs/ReportsTab'
+import { AuditLogTab } from './tabs/AuditLogTab'
+import { ComplianceTab } from './tabs/ComplianceTab'
+import { SettingsTab } from './tabs/SettingsTab'
+import { InboxTab } from './tabs/InboxTab'
+import { DashboardTab } from './tabs/DashboardTab'
+import { ApplicationsTab } from './tabs/ApplicationsTab'
+import { UsersTab } from './tabs/UsersTab'
+import { StatCard } from './components/StatCard'
+import { Avatar } from './components/Avatar'
+import { downloadCSV, formatTimeAgo } from './utils'
+import type {
+  Stats,
+  Application,
+  User,
+  VerificationRequest,
+  RecentActivity,
+  InboxMessage,
+  InboxThread,
+  LocationByCountry,
+  ConversationDisplay,
+  Tab,
+  AppFilter,
+} from './types'
 
 // ============================================
-// TYPES - Matching iOS Admin exactly
+// TYPES - Re-export / local extensions only (main types in ./types.ts)
 // ============================================
-
-interface Stats {
-  total: number
-  pending: number
-  approved: number
-  rejected: number
-  waitlisted: number
-  suspended: number
-}
-
-interface Application {
-  id: string
-  user_id: string
-  name: string
-  username: string
-  email: string
-  profile_image_url: string | null
-  bio: string
-  niche: string
-  application_date: string
-  status: string
-  review_notes: string | null
-  referrer_username: string | null
-  why_join: string | null
-  what_to_offer: string | null
-  collaboration_goals: string | null
-  phone: string | null
-  instagram_username: string | null
-  follower_count: number | null
-  updated_at?: string
-  assigned_to?: string | null
-  assigned_at?: string | null
-  assignment_expires_at?: string | null
-}
-
-interface User {
-  id: string
-  name: string | null  // DB returns 'name' not 'full_name'
-  username: string | null
-  email: string | null
-  profile_image_url: string | null  // DB returns 'profile_image_url' not 'avatar_url'
-  is_verified: boolean
-  is_banned: boolean
-  created_at: string | null
-}
-
-interface VerificationRequest {
-  id: string
-  user_id: string
-  username: string
-  profile_image_url: string | null
-  requested_at: string
-}
-
-interface RecentActivity {
-  id: string
-  type: string
-  title: string
-  subtitle: string
-  timestamp: Date
-  color: string
-}
-
-// Inbox types - matching iOS MatchesStore
-interface InboxThread {
-  id: string
-  user1_id: string | null
-  user2_id: string | null
-  created_at: string
-  updated_at: string
-}
-
-interface InboxMessage {
-  id: string
-  thread_id: string
-  sender_id: string
-  content: string | null
-  media_url: string | null
-  media_type: string | null
-  seen_at: string | null
-  delivered_at: string | null
-  created_at: string
-}
-
-// Helper functions for message status
 const isMessageRead = (m: InboxMessage) => m.seen_at !== null
 const isMessageDelivered = (m: InboxMessage) => m.delivered_at !== null
 
@@ -167,14 +114,6 @@ function parseLocation(raw: string): { country: string; countryCode: string; cit
   return { country: countryName, countryCode: countryCode || '', city: cityPart, flag }
 }
 
-interface LocationByCountry {
-  country: string
-  countryCode: string
-  flag: string
-  total: number
-  cities: { city: string; count: number }[]
-}
-
 interface InboxProfile {
   id: string
   username: string | null
@@ -189,21 +128,6 @@ interface ProfileRow {
   name: string | null
   profile_image_url: string | null
 }
-
-interface ConversationDisplay {
-  threadId: string
-  otherUserId: string
-  otherUserName: string
-  otherUserUsername: string
-  otherUserAvatar: string | null
-  lastMessage: string
-  lastMessageTime: Date
-  unreadCount: number
-  messages: InboxMessage[]
-}
-
-type Tab = 'overview' | 'dashboard' | 'applications' | 'users' | 'verifications' | 'inbox' | 'reports' | 'data-requests' | 'risk' | 'approvals' | 'audit' | 'compliance' | 'analytics' | 'settings'
-type AppFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'waitlisted' | 'suspended'
 
 /** Tab visibility: show tab only if user has this permission (Phase 11). */
 const TAB_PERMISSION: Record<Tab, AdminPermission> = {
@@ -432,6 +356,8 @@ export default function AdminPanel() {
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
+  // Confirm modal for bulk reject/suspend (replaces confirm/prompt)
+  const [confirmBulk, setConfirmBulk] = useState<{ open: boolean; action?: 'reject' | 'suspend'; applicationIds?: string[] }>({ open: false })
   // Inline admin login (avoids dependency on /admin/login which can 404 in production)
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
@@ -623,7 +549,11 @@ export default function AdminPanel() {
   useEffect(() => {
     let cancelled = false
     fetch('/api/admin/identity', { credentials: 'include' })
-      .then((res) => res.ok ? res.json() : null)
+      .then(async (res) => {
+        const json = await res.json().catch(() => null)
+        const { data } = parseAdminResponse<{ app?: string }>(res, json)
+        return data
+      })
       .then((data) => {
         if (!cancelled) setWrongDeployment(!data || data.app !== 'inthecircle-web')
       })
@@ -750,11 +680,15 @@ export default function AdminPanel() {
       if (!cancelled) setGateUnlocked(true)
     }, 10000)
     fetch('/api/admin/gate', { credentials: 'include' })
-      .then((res) => res.json())
-      .then((data) => {
+      .then(async (res) => {
+        const json = await res.json()
+        return { res, json }
+      })
+      .then(({ res, json }) => {
         if (!cancelled) {
           clearTimeout(timeoutId)
-          setGateUnlocked(data.unlocked === true)
+          const { data } = parseAdminResponse<{ unlocked?: boolean }>(res, json)
+          setGateUnlocked(data?.unlocked === true)
         }
       })
       .catch(() => {
@@ -777,12 +711,13 @@ export default function AdminPanel() {
         credentials: 'include',
         body: JSON.stringify({ password: gatePassword }),
       })
-      const data = await res.json()
-      if (data.ok) {
+      const json = await res.json()
+      const { data, error } = parseAdminResponse<{ ok?: boolean }>(res, json)
+      if (error) {
+        setGateError(error)
+      } else if (data) {
         setGateUnlocked(true)
         setGatePassword('')
-      } else {
-        setGateError(data.error || 'Incorrect password')
       }
     } catch {
       setGateError('Something went wrong')
@@ -802,18 +737,19 @@ export default function AdminPanel() {
       }
 
       const res = await fetch('/api/admin/check', { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
+      const json = await res.json().catch(() => ({}))
       if (res.status === 401) {
         setAuthorized(false)
         setError('Session expired. Please log in again.')
         return
       }
+      const { data } = parseAdminResponse<{ authorized?: boolean; roles?: string[]; sessionId?: string }>(res, json)
       const authorized = !!data?.authorized
       const roles = Array.isArray(data?.roles) ? data.roles : []
 
       if (!authorized) {
         setAuthorized(false)
-        setLoginError('This account is not authorized to access the admin panel. Add your email or user ID to ADMIN_EMAILS or ADMIN_USER_IDS in the server environment.')
+        setLoginError('This account is not authorized to access the admin panel.')
         return
       }
 
@@ -898,17 +834,34 @@ export default function AdminPanel() {
         clearTimeout(timeoutId)
         if (res.status === 403) return { stats: { total: 0, pending: 0, approved: 0, rejected: 0, waitlisted: 0, suspended: 0 }, activeToday: null, activeSessions: null, overviewCounts: null, permissionDenied: true }
         if (!res.ok) return null
-        const data = await res.json()
+        const json = await res.json()
+        const { data } = parseAdminResponse(res, json)
+        if (!data) return null
+        const d = data as { stats?: Stats; activeToday?: number; activeSessions?: unknown; overviewCounts?: unknown }
         return {
-          stats: data.stats ?? { total: 0, pending: 0, approved: 0, rejected: 0, waitlisted: 0, suspended: 0 },
+          stats: d.stats ?? { total: 0, pending: 0, approved: 0, rejected: 0, waitlisted: 0, suspended: 0 },
           activeToday: (() => {
-            const v = data.activeToday
+            const v = d.activeToday
             if (typeof v === 'number' && !Number.isNaN(v)) return Math.max(0, v)
             if (typeof v === 'string') { const n = parseInt(v, 10); if (!Number.isNaN(n)) return Math.max(0, n) }
             return v != null ? Math.max(0, Number(v)) : null
           })(),
-          activeSessions: data.activeSessions ?? null,
-          overviewCounts: data.overviewCounts ?? null,
+          activeSessions: (d.activeSessions ?? null) as {
+            count: number
+            users: Array<{ user_id: string; email: string | null; username: string | null; name: string | null; last_active_at: string }>
+            minutes: number
+          } | null,
+          overviewCounts: (d.overviewCounts ?? null) as {
+            totalUsers: number
+            verifiedCount: number
+            newUsersLast24h: number
+            newUsersLast7d: number
+            newUsersLast30d: number
+            totalThreadCount: number
+            totalMessageCount: number
+            applicationsSubmittedLast7d: number
+            applicationsApprovedLast7d: number
+          } | null,
         }
       } catch {
         return null
@@ -932,17 +885,13 @@ export default function AdminPanel() {
         const q = params.toString()
         const res = await fetch(`/api/admin/applications?${q}`, { credentials: 'include' })
         if (res.status === 403) return { apps: [], total: 0, counts: null, permissionDenied: true }
-        if (res.ok) {
-          const data = await res.json()
-          if (Array.isArray(data)) {
-            return { apps: data, total: data.length, counts: null, permissionDenied: false }
-          }
-          const apps = (data?.applications ?? []) as Application[]
-          const total = typeof data?.total === 'number' ? data.total : apps.length
-          const counts = data?.counts && typeof data.counts.pending === 'number' ? data.counts as { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number } : null
-          return { apps, total, counts, countsError: !!data?.countsError, permissionDenied: false }
-        }
-        return { apps: [], total: 0, counts: null, permissionDenied: false }
+        const json = await res.json().catch(() => ({}))
+        const { data } = parseAdminResponse<{ applications?: Application[]; total?: number; counts?: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number } }>(res, json)
+        if (!res.ok || !data) return { apps: [], total: 0, counts: null, permissionDenied: false }
+        const apps = (data.applications ?? []) as Application[]
+        const total = typeof data.total === 'number' ? data.total : apps.length
+        const counts = data.counts && typeof data.counts.pending === 'number' ? data.counts : null
+        return { apps, total, counts, countsError: false, permissionDenied: false }
       } catch (e) {
         console.error('Applications error:', e)
         return { apps: [], total: 0, counts: null, permissionDenied: false }
@@ -953,7 +902,9 @@ export default function AdminPanel() {
       try {
         const res = await fetch('/api/admin/users', { credentials: 'include' })
         if (!res.ok) return { users: [], profiles: [], total: 0 }
-        const data = await res.json()
+        const json = await res.json()
+        const { data } = parseAdminResponse<{ users?: User[]; total?: number }>(res, json)
+        if (!data?.users) return { users: [], profiles: [], total: 0 }
         const users = (data.users || []).map((u: User & { location?: string | null; niche?: string | null }) => ({
           id: u.id,
           name: u.name,
@@ -981,7 +932,8 @@ export default function AdminPanel() {
       try {
         const res = await fetch('/api/admin/active-today', { credentials: 'include', cache: 'no-store' })
         if (!res.ok) return null
-        const data = await res.json().catch(() => ({}))
+        const json = await res.json().catch(() => ({}))
+        const { data } = parseAdminResponse<{ count?: number }>(res, json)
         const raw = data?.count
         if (typeof raw === 'number' && !Number.isNaN(raw)) return Math.max(0, Math.floor(raw))
         if (typeof raw === 'string') {
@@ -1265,12 +1217,13 @@ export default function AdminPanel() {
       if (filters?.date_from) params.set('date_from', filters.date_from)
       if (filters?.date_to) params.set('date_to', filters.date_to)
       const res = await fetch(`/api/admin/audit?${params.toString()}`, { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.entries) setAuditLog(data.entries)
+      const json = await res.json().catch(() => ({}))
+      const { data, error: err } = parseAdminResponse<{ entries?: typeof auditLog }>(res, json)
+      if (res.ok && data?.entries) setAuditLog(data.entries)
       else setAuditLog([])
       if (!res.ok) {
         if (res.status === 403) void handle403()
-        else setError(data.error || 'Failed to load audit log.')
+        else setError(err || 'Failed to load audit log.')
       }
     } catch {
       setAuditLog([])
@@ -1315,12 +1268,13 @@ export default function AdminPanel() {
       if (opts?.filter) params.set('filter', opts.filter)
       if (opts?.status) params.set('status', opts.status || 'pending')
       const res = await fetch(`/api/admin/reports?${params.toString()}`, { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.reports) setReports(data.reports)
+      const json = await res.json().catch(() => ({}))
+      const { data, error: err } = parseAdminResponse<{ reports?: unknown[] }>(res, json)
+      if (res.ok && data?.reports) setReports((data.reports ?? []) as Array<Record<string, unknown>>)
       else setReports([])
       if (!res.ok) {
         if (res.status === 403) void handle403()
-        else setError(data.error || 'Failed to load reports.')
+        else setError(err || 'Failed to load reports.')
       }
     } catch {
       setReports([])
@@ -1333,12 +1287,13 @@ export default function AdminPanel() {
     setError(null)
     try {
       const res = await fetch('/api/admin/data-requests', { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.requests) setDataRequests(data.requests)
+      const json = await res.json().catch(() => ({}))
+      const { data, error: err } = parseAdminResponse<{ requests?: unknown[] }>(res, json)
+      if (res.ok && data?.requests) setDataRequests((data.requests ?? []) as Array<Record<string, unknown>>)
       else setDataRequests([])
       if (!res.ok) {
         if (res.status === 403) void handle403()
-        else setError(data.error || 'Failed to load data requests.')
+        else setError(err || 'Failed to load data requests.')
       }
     } catch {
       setDataRequests([])
@@ -1351,12 +1306,13 @@ export default function AdminPanel() {
     setError(null)
     try {
       const res = await fetch('/api/admin/config', { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
+      const json = await res.json().catch(() => ({}))
+      const { data, error: err } = parseAdminResponse<Record<string, string>>(res, json)
       if (res.ok && data && typeof data === 'object') setAppConfig(data)
       else setAppConfig({})
       if (!res.ok) {
         if (res.status === 403) void handle403()
-        else setError(data?.error || 'Failed to load config.')
+        else setError(err || 'Failed to load config.')
       }
     } catch {
       setAppConfig({})
@@ -1369,12 +1325,13 @@ export default function AdminPanel() {
     setError(null)
     try {
       const res = await fetch('/api/admin/risk', { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data) setRiskData(data)
+      const json = await res.json().catch(() => ({}))
+      const { data, error: err } = parseAdminResponse(res, json)
+      if (res.ok && data) setRiskData(data as typeof riskData)
       else setRiskData(null)
       if (!res.ok) {
         if (res.status === 403) void handle403()
-        else setError(data?.error || 'Failed to load risk dashboard.')
+        else setError(err || 'Failed to load risk dashboard.')
       }
     } catch {
       setRiskData(null)
@@ -1387,12 +1344,13 @@ export default function AdminPanel() {
     setError(null)
     try {
       const res = await fetch('/api/admin/approvals?status=pending', { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && Array.isArray(data.requests)) setApprovalsPending(data.requests)
+      const json = await res.json().catch(() => ({}))
+      const { data, error: err } = parseAdminResponse<{ requests?: unknown[] }>(res, json)
+      if (res.ok && Array.isArray(data?.requests)) setApprovalsPending((data.requests ?? []) as Array<Record<string, unknown>>)
       else setApprovalsPending([])
       if (!res.ok) {
         if (res.status === 403) void handle403()
-        else setError(data?.error || 'Failed to load approvals')
+        else setError(err || 'Failed to load approvals')
       }
     } catch {
       setApprovalsPending([])
@@ -1405,17 +1363,15 @@ export default function AdminPanel() {
     setError(null)
     try {
       const res = await fetch('/api/admin/blocked-users', { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.blocked) {
-        setBlockedUsers(data.blocked)
-      } else {
-        setBlockedUsers([])
+      const json = await res.json().catch(() => ({}))
+      const { data, error: err } = parseAdminResponse<{ blocked?: unknown[] }>(res, json)
+      if (res.ok && data?.blocked) setBlockedUsers((data.blocked ?? []) as Array<Record<string, unknown>>)
+      else setBlockedUsers([])
+      if (!res.ok) {
         if (res.status === 403) {
           setError(PERMISSION_DENIED_MESSAGE)
           void handle403()
-        } else {
-          setError(data?.error || 'Failed to load blocked users.')
-        }
+        } else setError(err || 'Failed to load blocked users.')
       }
     } catch {
       setBlockedUsers([])
@@ -1434,21 +1390,25 @@ export default function AdminPanel() {
         fetch('/api/admin/compliance/governance-reviews', { credentials: 'include' }),
         fetch('/api/admin/compliance/health', { credentials: 'include' }),
       ])
-      const cData = await cRes.json().catch(() => ({}))
-      const eData = await eRes.json().catch(() => ({}))
-      const gData = await gRes.json().catch(() => ({}))
-      const hData = await hRes.json().catch(() => ({}))
-      if (cRes.ok && Array.isArray(cData.controls)) setComplianceControls(cData.controls)
+      const cJson = await cRes.json().catch(() => ({}))
+      const eJson = await eRes.json().catch(() => ({}))
+      const gJson = await gRes.json().catch(() => ({}))
+      const hJson = await hRes.json().catch(() => ({}))
+      const cData = parseAdminResponse<{ controls?: unknown[] }>(cRes, cJson).data
+      const eData = parseAdminResponse<{ evidence?: unknown[] }>(eRes, eJson).data
+      const gData = parseAdminResponse<{ reviews?: unknown[] }>(gRes, gJson).data
+      const hData = parseAdminResponse<{ overall_score?: number; controls?: unknown[]; last_checked_at?: string | null }>(hRes, hJson).data
+      if (cRes.ok && Array.isArray(cData?.controls)) setComplianceControls((cData.controls ?? []) as Array<Record<string, unknown>>)
       else setComplianceControls([])
-      if (eRes.ok && Array.isArray(eData.evidence)) setComplianceEvidence(eData.evidence)
+      if (eRes.ok && Array.isArray(eData?.evidence)) setComplianceEvidence((eData.evidence ?? []) as Array<Record<string, unknown>>)
       else setComplianceEvidence([])
-      if (gRes.ok && Array.isArray(gData.reviews)) setComplianceReviews(gData.reviews)
+      if (gRes.ok && Array.isArray(gData?.reviews)) setComplianceReviews((gData.reviews ?? []) as Array<Record<string, unknown>>)
       else setComplianceReviews([])
-      if (hRes.ok && hData.overall_score !== undefined) setComplianceHealth({ overall_score: hData.overall_score, controls: hData.controls ?? [], last_checked_at: hData.last_checked_at ?? null })
+      if (hRes.ok && hData && hData.overall_score !== undefined) setComplianceHealth({ overall_score: hData.overall_score, controls: (hData.controls ?? []) as { control_code: string; status: string; score: number; last_checked_at: string; notes: string | null; }[], last_checked_at: hData.last_checked_at ?? null })
       else setComplianceHealth(null)
       const any403 = cRes.status === 403 || eRes.status === 403 || gRes.status === 403 || hRes.status === 403
       if (any403) void handle403()
-      else if (!cRes.ok || !eRes.ok || !gRes.ok || !hRes.ok) setError(cData?.error || eData?.error || gData?.error || hData?.error || 'Failed to load compliance data')
+      else if (!cRes.ok || !eRes.ok || !gRes.ok || !hRes.ok) setError(parseAdminResponse(cRes, cJson).error || parseAdminResponse(eRes, eJson).error || parseAdminResponse(gRes, gJson).error || parseAdminResponse(hRes, hJson).error || 'Failed to load compliance data')
     } catch {
       setComplianceControls([])
       setComplianceEvidence([])
@@ -1631,20 +1591,15 @@ export default function AdminPanel() {
     }
   }
 
-  async function bulkApplicationAction(applicationIds: string[], action: 'approve' | 'reject' | 'waitlist' | 'suspend') {
+  async function bulkApplicationAction(applicationIds: string[], action: 'approve' | 'reject' | 'waitlist' | 'suspend', reasonFromModal?: string) {
     if (applicationIds.length === 0) return
     const isDestructive = action === 'reject' || action === 'suspend'
-    let reason: string | null = null
-    if (isDestructive) {
-      const actionLabel = action === 'reject' ? 'Reject' : 'Suspend'
-      if (!confirm(`${actionLabel} ${applicationIds.length} application(s)? This cannot be undone. You must provide a reason.`)) return
-      reason = window.prompt('Reason (required, min 5 characters):')
-      if (!reason || reason.trim().length < 5) {
-        setError('Reason required (min 5 characters) for reject/suspend')
-        return
-      }
-      reason = reason.trim()
+    let reason: string | null = reasonFromModal ?? null
+    if (isDestructive && reason == null) {
+      setConfirmBulk({ open: true, action, applicationIds })
+      return
     }
+    if (isDestructive && reason != null) reason = reason.trim()
     setActionLoading('bulk')
     try {
       const updated_at_by_id: Record<string, string> = {}
@@ -1670,43 +1625,45 @@ export default function AdminPanel() {
           ...(reason ? { reason } : {}),
         }),
       })
-      const data = await res.json().catch(() => ({}))
+      const json = await res.json().catch(() => ({}))
+      const { data: payload, error: err } = parseAdminResponse<{ approval_required?: boolean; errors?: string[]; ok?: boolean; count?: number }>(res, json)
       if (res.status === 401) {
         setAuthorized(false)
         setError('Session expired. Please log in again.')
         return
       }
-      if (!data || typeof data !== 'object') {
-        setError('Invalid response from server. Please try again.')
+      if (!payload && err) {
+        setError(err)
         return
       }
-      if (res.status === 202 && data.approval_required) {
+      if (res.status === 202 && payload?.approval_required) {
         showToast('Approval required. Request submitted.', 'success')
         setSelectedAppIds(new Set())
         loadApprovals()
         return
       }
       if (res.status === 429) {
-        setError(data.error || 'Rate limit exceeded. Try again later.')
+        setError(err || 'Rate limit exceeded. Try again later.')
         return
       }
       if (res.status === 409) {
-        setError(data.error || 'Some applications were modified by another admin. Refresh and try again.')
+        setError(err || 'Some applications were modified by another admin. Refresh and try again.')
         await loadData()
         return
       }
-      if (res.status === 207 && data.errors && Array.isArray(data.errors)) {
-        const failed = data.errors.length
+      if (res.status === 207 && payload?.errors && Array.isArray(payload.errors)) {
+        const failed = payload.errors.length
         const succeeded = Math.max(0, applicationIds.length - failed)
-        setError(`Some items failed. ${succeeded} succeeded, ${failed} failed. ${data.errors.slice(0, 3).join('; ')}${data.errors.length > 3 ? '…' : ''}`)
+        setError(`Some items failed. ${succeeded} succeeded, ${failed} failed. ${payload.errors.slice(0, 3).join('; ')}${payload.errors.length > 3 ? '…' : ''}`)
         if (succeeded > 0) {
           await loadData()
           showToast(`${succeeded} application(s) ${action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : action === 'waitlist' ? 'waitlisted' : 'suspended'}`)
         }
         return
       }
-      if (!data.ok) setError(data.errors?.join(', ') || data.error || 'Bulk action failed')
-      else {
+      if (!payload?.ok && payload !== null) {
+        setError(err || 'Bulk action failed')
+      } else {
         setSelectedAppIds(new Set())
         await loadData()
         const actionLabel = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : action === 'waitlist' ? 'waitlisted' : 'suspended'
@@ -1733,9 +1690,10 @@ export default function AdminPanel() {
         credentials: 'include',
         body: JSON.stringify({ is_verified: !currentStatus }),
       })
-      const data = await res.json().catch(() => ({}))
+      const json = await res.json().catch(() => ({}))
+      const { error: err } = parseAdminResponse(res, json)
       if (!res.ok) {
-        setError(data?.error || `Failed to update verification`)
+        setError(err || 'Failed to update verification')
         return
       }
       await loadData()
@@ -2173,8 +2131,9 @@ export default function AdminPanel() {
           return
         }
         const res = await fetch('/api/admin/check', { credentials: 'include' })
-        const { authorized: isAdmin } = await res.json()
-        if (!isAdmin) {
+        const json = await res.json().catch(() => ({}))
+        const { data } = parseAdminResponse<{ authorized?: boolean }>(res, json)
+        if (!data?.authorized) {
           await supabase.auth.signOut()
           setLoginError('This account is not authorized to access the admin panel.')
           setLoginLoading(false)
@@ -2282,6 +2241,8 @@ export default function AdminPanel() {
   }) as { id: Tab; label: string; icon: React.ReactNode; badge?: number }[]
 
   return (
+    <AdminErrorBoundary>
+    <>
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] flex">
       {wrongDeployment === true && (
         <div className="fixed top-0 left-0 right-0 z-[100] bg-red-600 text-white px-4 py-2 text-center text-sm font-medium">
@@ -3005,3242 +2966,26 @@ export default function AdminPanel() {
         </main>
       </div>
     </div>
-  )
-}
-
-// ============================================
-// OVERVIEW TAB - Investor / executive summary
-// ============================================
-
-function downloadCSV(filename: string, headers: string[], rows: (string | number | null | undefined)[][]) {
-  const escape = (v: string | number | null | undefined) => {
-    if (v == null) return ''
-    const s = String(v)
-    if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`
-    return s
-  }
-  const line = (row: (string | number | null | undefined)[]) => row.map(escape).join(',')
-  const csv = [headers.join(','), ...rows.map(line)].join('\r\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-function OverviewTab({
-  totalUsers,
-  newUsersLast24h,
-  newUsersThisWeek,
-  newUsersLast30d,
-  growthRateWoW,
-  activeUsersToday,
-  activeSessions,
-  totalThreads,
-  totalMessages,
-  avgMessagesPerUser,
-  verifiedUsersCount,
-  verificationRate,
-  stats,
-  approvalRate,
-  applicationsSubmittedLast7d,
-  applicationsApprovedLast7d,
-  signupsByWeek,
-  cumulativeUsersByWeek,
-  locationsByCountry,
-  citiesList,
-  topNiches,
-  snapshotDate,
-  users,
-  applications,
-}: {
-  totalUsers: number
-  newUsersLast24h: number
-  newUsersThisWeek: number
-  newUsersLast30d: number
-  growthRateWoW: number
-  activeUsersToday: number
-  activeSessions: {
-    count: number
-    users: Array<{ user_id: string; email: string | null; username: string | null; name: string | null; last_active_at: string }>
-    minutes: number
-  } | null
-  totalThreads: number
-  totalMessages: number
-  avgMessagesPerUser: string
-  verifiedUsersCount: number
-  verificationRate: number
-  stats: Stats
-  approvalRate: number
-  applicationsSubmittedLast7d: number
-  applicationsApprovedLast7d: number
-  signupsByWeek: { label: string; count: number; weekStart: Date }[]
-  cumulativeUsersByWeek: { label: string; count: number; weekStart: Date; cumulative: number }[]
-  locationsByCountry: LocationByCountry[]
-  citiesList: { label: string; count: number }[]
-  topNiches: [string, number][]
-  snapshotDate: Date
-  users: User[]
-  applications: Application[]
-}) {
-  const maxWeekly = Math.max(1, ...signupsByWeek.map(w => w.count))
-
-  const onExportUsers = () => {
-    const headers = ['id', 'email', 'name', 'username', 'is_verified', 'is_banned', 'created_at']
-    const rows = users.map(u => [
-      u.id,
-      u.email ?? '',
-      u.name ?? '',
-      u.username ?? '',
-      u.is_verified ? 'true' : 'false',
-      u.is_banned ? 'true' : 'false',
-      u.created_at ?? '',
-    ])
-    downloadCSV(`users_export_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows)
-  }
-
-  const onExportApplications = () => {
-    const headers = [
-      'id', 'user_id', 'name', 'username', 'email', 'niche', 'status', 'application_date',
-      'referrer_username', 'instagram_username', 'follower_count',
-    ]
-    const rows = applications.map(a => [
-      a.id,
-      a.user_id,
-      a.name ?? '',
-      a.username ?? '',
-      a.email ?? '',
-      a.niche ?? '',
-      (a.status ?? '').toUpperCase(),
-      a.application_date ?? '',
-      a.referrer_username ?? '',
-      a.instagram_username ?? '',
-      a.follower_count ?? '',
-    ])
-    downloadCSV(`applications_export_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows)
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-[var(--text)] tracking-tight">Platform overview</h2>
-          <p className="text-[var(--text-secondary)] text-sm mt-1">
-            Data as of {snapshotDate instanceof Date ? snapshotDate.toLocaleString() : new Date(snapshotDate).toLocaleString()}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={onExportUsers}
-            className="px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-[var(--text)] text-sm font-medium hover:bg-[var(--surface-hover)]"
-          >
-            Export users (CSV)
-          </button>
-          <button
-            type="button"
-            onClick={onExportApplications}
-            className="px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-[var(--text)] text-sm font-medium hover:bg-[var(--surface-hover)]"
-          >
-            Export applications (CSV)
-          </button>
-        </div>
-      </div>
-
-      {/* Executive KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard title="Total users" value={totalUsers} icon="👥" color="#A855F7" trend={`+${newUsersLast30d} last 30d`} />
-        {/* Active today - inline to guarantee number display */}
-        <div className="bg-[var(--surface)] border border-[var(--separator)] p-5 rounded-2xl shadow-[var(--shadow-card)]">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg mb-3 bg-[#3B82F6]/20 text-[#2563EB]">📈</div>
-          <p className="text-3xl font-bold min-h-[1.25em] tabular-nums text-[#3B82F6]">{typeof activeUsersToday === 'number' ? activeUsersToday : 0}</p>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">Active today</p>
-          <p className="text-xs mt-2 text-[var(--text-muted)]">Logged in last 24h</p>
-        </div>
-        <StatCard title="Conversations" value={totalThreads} icon="💬" color="#8B5CF6" trend={`${totalMessages} messages · ${avgMessagesPerUser} avg/user`} />
-        <StatCard title="Verified" value={typeof verifiedUsersCount === 'number' ? verifiedUsersCount : 0} icon="✓" color="#10B981" trend={`${verificationRate}% of users`} />
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard title="New (24h)" value={newUsersLast24h} icon="🆕" color="#06B6D4" trend="Signups" />
-        <StatCard title="New (7d)" value={newUsersThisWeek} icon="📅" color="#F59E0B" trend={growthRateWoW !== 0 ? `${growthRateWoW > 0 ? '+' : ''}${growthRateWoW}% WoW` : 'This week'} />
-        <StatCard title="Applications (7d)" value={applicationsSubmittedLast7d} icon="📋" color="#EC4899" trend={`${applicationsApprovedLast7d} approved · ${approvalRate}% rate`} />
-        <StatCard title="Pending review" value={stats.pending} icon="⏳" color="#F59E0B" trend={`${stats.approved} approved · ${stats.rejected} rejected`} />
-      </div>
-
-      {/* Concurrent active users (last 15 min) */}
-      <div className="rounded-2xl bg-[var(--surface)] border border-[var(--separator)] p-4 md:p-6 shadow-[var(--shadow-soft)]">
-        <h3 className="text-lg font-semibold text-[var(--text)] mb-2">Concurrent active users</h3>
-        <p className="text-sm text-[var(--text-secondary)] mb-4">
-          Users with an active session in the last {activeSessions?.minutes ?? 15} minutes (who they are right now).
-        </p>
-        {activeSessions === null ? (
-          <p className="text-sm text-[var(--text-muted)]">Loading… or run migration <code className="text-xs bg-[var(--surface-hover)] px-1 rounded">20260225000001_get_active_sessions.sql</code></p>
-        ) : activeSessions.count === 0 ? (
-          <p className="text-sm text-[var(--text-muted)]">No one active in the last {activeSessions.minutes} minutes.</p>
-        ) : (
-          <>
-            <p className="text-2xl font-bold text-[var(--accent-purple)] mb-4">{activeSessions.count} active now</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--separator)] text-left text-[var(--text-muted)]">
-                    <th className="py-2 pr-4">User</th>
-                    <th className="py-2 pr-4">Email</th>
-                    <th className="py-2">Last active</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activeSessions.users.map((u) => (
-                    <tr key={u.user_id} className="border-b border-[var(--separator)]/50">
-                      <td className="py-2 pr-4 text-[var(--text)]">
-                        {u.name || u.username ? `${u.name || ''} ${u.username ? `@${u.username}` : ''}`.trim() || '—' : '—'}
-                      </td>
-                      <td className="py-2 pr-4 text-[var(--text-secondary)]">{u.email ?? '—'}</td>
-                      <td className="py-2 text-[var(--text-muted)]">
-                        {u.last_active_at ? new Date(u.last_active_at).toLocaleString() : '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* 12-week growth */}
-      <div className="rounded-2xl bg-[var(--surface)] border border-[var(--separator)] p-4 md:p-6 shadow-[var(--shadow-soft)]">
-        <h3 className="text-lg font-semibold text-[var(--text)] mb-4">12-week signup growth</h3>
-        <div className="h-64 flex items-end gap-1">
-          {signupsByWeek.map((w, _i) => (
-            <div key={w.label} className="flex-1 flex flex-col items-center gap-1">
-              <div
-                className="w-full rounded-t bg-[var(--accent-purple)]/80 hover:bg-[var(--accent-purple)] transition-colors min-h-[4px]"
-                style={{ height: `${(w.count / maxWeekly) * 100}%` }}
-                title={`${w.label}: ${w.count}`}
-              />
-              <span className="text-[10px] text-[var(--text-muted)] truncate w-full text-center">{w.label}</span>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 pt-4 border-t border-[var(--separator)]">
-          <p className="text-sm text-[var(--text-secondary)]">
-            Cumulative users (last 12 weeks): <strong className="text-[var(--text)]">{cumulativeUsersByWeek[cumulativeUsersByWeek.length - 1]?.cumulative ?? 0}</strong>
-          </p>
-        </div>
-      </div>
-
-      {/* Top niches, Countries, Cities — separate sections */}
-      <div className="grid md:grid-cols-3 gap-6">
-        <div className="rounded-2xl bg-[var(--surface)] border border-[var(--separator)] p-4 md:p-6">
-          <h3 className="text-lg font-semibold text-[var(--text)] mb-3">Top niches (applications)</h3>
-          <ul className="space-y-2">
-            {topNiches.slice(0, 8).map(([name, count]) => (
-              <li key={name} className="flex justify-between text-sm">
-                <span className="text-[var(--text)] truncate mr-2">{name || '—'}</span>
-                <span className="text-[var(--text-muted)]">{count}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="rounded-2xl bg-[var(--surface)] border border-[var(--separator)] p-4 md:p-6">
-          <h3 className="text-lg font-semibold text-[var(--text)] mb-3">Countries</h3>
-          {locationsByCountry.length === 0 ? (
-            <p className="text-[var(--text-muted)] text-sm">No country data yet</p>
-          ) : (
-            <ul className="space-y-2 max-h-48 overflow-y-auto">
-              {locationsByCountry.slice(0, 8).map((row) => (
-                <li key={row.country} className="flex items-center justify-between py-1.5">
-                  <span className="text-base" aria-hidden>{row.flag}</span>
-                  <span className="font-medium text-[var(--text)] flex-1 ml-2 truncate">{row.country}</span>
-                  <span className="text-sm text-[var(--text-muted)]">{row.total}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <div className="rounded-2xl bg-[var(--surface)] border border-[var(--separator)] p-4 md:p-6">
-          <h3 className="text-lg font-semibold text-[var(--text)] mb-3">Cities</h3>
-          {citiesList.length === 0 ? (
-            <p className="text-[var(--text-muted)] text-sm">No city data yet</p>
-          ) : (
-            <ul className="space-y-2 max-h-48 overflow-y-auto">
-              {citiesList.slice(0, 8).map(({ label, count }) => (
-                <li key={label} className="flex justify-between py-1.5">
-                  <span className="text-[var(--text)] truncate flex-1 mr-2">{label}</span>
-                  <span className="text-sm text-[var(--text-muted)]">{count}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      <p className="text-sm text-[var(--text-muted)]">
-        For detailed metrics, recent activity, and full dashboard use the <strong>Dashboard</strong> tab.
-      </p>
-    </div>
-  )
-}
-
-// ============================================
-// DASHBOARD TAB - Advanced metrics
-// ============================================
-
-function DashboardTab({ 
-  stats, totalUsers, verifiedUsersCount, newUsersThisWeek, 
-  newUsersLast24h, newUsersLast30d,
-  activeUsersToday, pendingVerifications, recentActivity,
-  bannedUsersCount, totalThreads, totalMessages,
-  approvalRate, rejectionRate, verificationRate,
-  topNiches, signupsByDay, maxSignupsInWeek,
-  appsSubmittedThisWeek, avgMessagesPerThread, engagementFromExactCounts,
-  locationsByCountry, citiesList, locationSetPct, usersWithLocationSet,
-  topNichesByUser, nicheSetPct, topReferrers,
-  setActiveTab,
-  onRefreshData,
-}: {
-  stats: Stats
-  totalUsers: number
-  verifiedUsersCount: number
-  newUsersThisWeek: number
-  newUsersLast24h: number
-  newUsersLast30d: number
-  activeUsersToday: number
-  pendingVerifications: number
-  recentActivity: RecentActivity[]
-  bannedUsersCount: number
-  totalThreads: number
-  totalMessages: number
-  approvalRate: number
-  rejectionRate: number
-  verificationRate: number
-  topNiches: [string, number][]
-  signupsByDay: { label: string; count: number }[]
-  maxSignupsInWeek: number
-  appsSubmittedThisWeek: number
-  avgMessagesPerThread: string
-  engagementFromExactCounts: boolean
-  locationsByCountry: LocationByCountry[]
-  citiesList: { label: string; count: number }[]
-  locationSetPct: number
-  usersWithLocationSet: number
-  topNichesByUser: [string, number][]
-  nicheSetPct: number
-  topReferrers: [string, number][]
-  setActiveTab?: (tab: Tab) => void
-  onRefreshData?: () => Promise<void>
-}) {
-  const [cacheRefreshed, setCacheRefreshed] = useState(false)
-  const handleClearCache = async () => {
-    if (onRefreshData) {
-      await onRefreshData()
-      setCacheRefreshed(true)
-      setTimeout(() => setCacheRefreshed(false), 2500)
-    }
-  }
-  return (
-    <div className="space-y-6">
-      {/* Primary KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard 
-          title="Total Users" 
-          value={totalUsers} 
-          icon="👥" 
-          color="#A855F7"
-          trend={`+${newUsersThisWeek} this week · +${newUsersLast30d} last 30d`}
-        />
-        <StatCard 
-          title="Pending Apps" 
-          value={stats.pending} 
-          icon="⏳" 
-          color="#F59E0B"
-          trend="Needs review"
-        />
-        <StatCard 
-          title="Verified Users" 
-          value={typeof verifiedUsersCount === 'number' ? verifiedUsersCount : 0} 
-          icon="✓" 
-          color="#10B981"
-          trend={`${verificationRate}% of total · ${pendingVerifications} pending`}
-        />
-        {/* Active Today - inline to guarantee number display */}
-        <div className="bg-[var(--surface)] border border-[var(--separator)] p-5 rounded-2xl shadow-[var(--shadow-card)]">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg mb-3 bg-[#3B82F6]/20 text-[#2563EB]">📈</div>
-          <p className="text-3xl font-bold min-h-[1.25em] tabular-nums text-[#3B82F6]">{typeof activeUsersToday === 'number' ? activeUsersToday : 0}</p>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">Active Today</p>
-          <p className="text-xs mt-2 text-[var(--text-muted)]">Last 24h</p>
-        </div>
-      </div>
-
-      {/* Secondary metrics row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <MetricPill label="New (24h)" value={newUsersLast24h} color="#8B5CF6" />
-        <MetricPill label="Banned" value={bannedUsersCount} color="#EF4444" />
-        <MetricPill label="Approval rate" value={`${approvalRate}%`} color="#10B981" />
-        <MetricPill label="Conversations" value={totalThreads} color="#3B82F6" />
-        <MetricPill label="Messages" value={totalMessages} color="#0EA5E9" />
-        <MetricPill label="Apps this week" value={appsSubmittedThisWeek} color="#F59E0B" />
-      </div>
-
-      {/* User growth - Last 7 days */}
-      <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-2xl p-6 shadow-[var(--shadow-soft)]">
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-[var(--text)]">
-          <span className="w-8 h-8 rounded-lg bg-[#A855F7]/20 flex items-center justify-center text-[#A855F7]">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>
-          </span>
-          User signups · Last 7 days
-        </h3>
-        <div className="flex items-end gap-2 h-24">
-          {signupsByDay.map((day, _i) => (
-            <div key={day.label} className="flex-1 flex flex-col items-center gap-1">
-              <div 
-                className="w-full rounded-t-md min-h-[4px] transition-all duration-300"
-                style={{ 
-                  height: `${(day.count / maxSignupsInWeek) * 80}px`,
-                  backgroundColor: 'var(--accent-purple)',
-                  opacity: 0.6 + (day.count / maxSignupsInWeek) * 0.4
-                }}
-              />
-              <span className="text-xs font-medium text-[var(--text)]">{day.count}</span>
-              <span className="text-[10px] text-[var(--text-muted)]">{day.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Application funnel */}
-        <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-2xl p-6 shadow-[var(--shadow-soft)]">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-[var(--text)]">
-            <span className="w-8 h-8 rounded-lg bg-[#F59E0B]/20 flex items-center justify-center text-[#F59E0B]">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-            </span>
-            Application funnel
-          </h3>
-          <div className="space-y-3">
-            <FunnelRow label="Approved" value={stats.approved} pct={approvalRate} color="#10B981" />
-            <FunnelRow label="Rejected" value={stats.rejected} pct={rejectionRate} color="#EF4444" />
-            <FunnelRow label="Waitlisted" value={stats.waitlisted} pct={stats.total ? Math.round((stats.waitlisted / stats.total) * 100) : 0} color="#A855F7" />
-            <FunnelRow label="Suspended" value={stats.suspended} pct={stats.total ? Math.round((stats.suspended / stats.total) * 100) : 0} color="#F97316" />
-            <FunnelRow label="Pending" value={stats.pending} pct={stats.total ? Math.round((stats.pending / stats.total) * 100) : 0} color="#F59E0B" />
-          </div>
-        </div>
-
-        {/* Top niches */}
-        <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-2xl p-6 shadow-[var(--shadow-soft)]">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-[var(--text)]">
-            <span className="w-8 h-8 rounded-lg bg-[#3B82F6]/20 flex items-center justify-center text-[#3B82F6]">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.51 0 .955.198 1.377.481L12 3l.623.481A3 3 0 0114.99 3H17v14a2 2 0 01-2 2H9a2 2 0 01-2-2V3z" /></svg>
-            </span>
-            Top niches (applications)
-          </h3>
-          {topNiches.length === 0 ? (
-            <p className="text-[var(--text-muted)] text-sm">No applications yet</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {topNiches.map(([niche, count]) => (
-                <span 
-                  key={niche}
-                  className="px-3 py-1.5 rounded-xl bg-[var(--surface-hover)] border border-[var(--separator)] text-sm text-[var(--text)]"
-                >
-                  {niche} <span className="font-semibold text-[var(--accent-purple)]">{count}</span>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Demographics & locations: Countries and Cities separate */}
-      <div className="mb-4 flex items-center gap-4 flex-wrap">
-        <span className="text-sm text-[var(--text-secondary)]">
-          {usersWithLocationSet} of {totalUsers} users ({locationSetPct}%) have location set
-        </span>
-      </div>
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-2xl p-6 shadow-[var(--shadow-soft)]">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-[var(--text)]">
-            <span className="w-8 h-8 rounded-lg bg-[#10B981]/20 flex items-center justify-center text-[#10B981]">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0h.5a2.5 2.5 0 0010.5-4.065M12 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </span>
-            Countries
-          </h3>
-          {locationsByCountry.length === 0 ? (
-            <p className="text-[var(--text-muted)] text-sm">No country data yet</p>
-          ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-              {locationsByCountry.map((row) => (
-                <div key={row.country} className="flex items-center justify-between py-2 border-b border-[var(--separator)] last:border-0">
-                  <span className="text-base" aria-hidden>{row.flag}</span>
-                  <span className="text-sm text-[var(--text)] flex-1 ml-2 truncate">{row.country}</span>
-                  <span className="text-sm font-semibold text-[var(--accent-purple)]">{row.total}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-2xl p-6 shadow-[var(--shadow-soft)]">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-[var(--text)]">
-            <span className="w-8 h-8 rounded-lg bg-[#0EA5E9]/20 flex items-center justify-center text-[#0EA5E9]">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-            </span>
-            Cities
-          </h3>
-          {citiesList.length === 0 ? (
-            <p className="text-[var(--text-muted)] text-sm">No city data yet</p>
-          ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-              {citiesList.map(({ label, count }) => (
-                <div key={label} className="flex items-center justify-between py-2 border-b border-[var(--separator)] last:border-0">
-                  <span className="text-sm text-[var(--text)] truncate flex-1">{label}</span>
-                  <span className="text-sm font-semibold text-[var(--accent-purple)] ml-2">{count}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="mt-6">
-        <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-2xl p-6 shadow-[var(--shadow-soft)]">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-[var(--text)]">
-            <span className="w-8 h-8 rounded-lg bg-[#8B5CF6]/20 flex items-center justify-center text-[#8B5CF6]">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-            </span>
-            User demographics (niche)
-          </h3>
-          <div className="mb-4 flex items-center gap-4 flex-wrap">
-            <span className="text-sm text-[var(--text-secondary)]">
-              {nicheSetPct}% of users have a niche set in profile
-            </span>
-          </div>
-          {topNichesByUser.length === 0 ? (
-            <p className="text-[var(--text-muted)] text-sm">No niche data yet</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {topNichesByUser.map(([niche, count]) => (
-                <span 
-                  key={niche}
-                  className="px-3 py-1.5 rounded-xl bg-[var(--surface-hover)] border border-[var(--separator)] text-sm text-[var(--text)]"
-                >
-                  {niche} <span className="font-semibold text-[var(--accent-purple)]">{count}</span>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Top referrers (applications) */}
-      {topReferrers.length > 0 && (
-        <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-2xl p-6 shadow-[var(--shadow-soft)]">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-[var(--text)]">
-            <span className="w-8 h-8 rounded-lg bg-[#F59E0B]/20 flex items-center justify-center text-[#F59E0B]">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
-            </span>
-            Top referrers (applications)
-          </h3>
-          <div className="flex flex-wrap gap-3">
-            {topReferrers.map(([username, count]) => (
-              <span 
-                key={username}
-                className="px-3 py-2 rounded-xl bg-[var(--surface-hover)] border border-[var(--separator)] text-sm"
-              >
-                @{username} <span className="font-semibold text-[var(--accent-purple)]">{count}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Engagement (inbox) */}
-      <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-2xl p-6 shadow-[var(--shadow-soft)]">
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-[var(--text)]">
-          <span className="w-8 h-8 rounded-lg bg-[#0EA5E9]/20 flex items-center justify-center text-[#0EA5E9]">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-          </span>
-          Engagement
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 rounded-xl bg-[var(--surface-hover)] border border-[var(--separator)]">
-            <p className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Conversations</p>
-            <p className="text-2xl font-bold text-[var(--text)]">{totalThreads}</p>
-          </div>
-          <div className="p-4 rounded-xl bg-[var(--surface-hover)] border border-[var(--separator)]">
-            <p className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Total messages</p>
-            <p className="text-2xl font-bold text-[var(--text)]">{totalMessages}</p>
-          </div>
-          <div className="p-4 rounded-xl bg-[var(--surface-hover)] border border-[var(--separator)]">
-            <p className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Avg per thread</p>
-            <p className="text-2xl font-bold text-[var(--text)]">{avgMessagesPerThread}</p>
-          </div>
-          <div className="p-4 rounded-xl bg-[var(--surface-hover)] border border-[var(--separator)]">
-            <p className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Verification rate</p>
-            <p className="text-2xl font-bold text-[var(--text)]">{verificationRate}%</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Data accuracy note */}
-      <div className="bg-[var(--surface)]/50 border border-[var(--separator)] rounded-xl px-4 py-3 flex items-start gap-3">
-        <span className="text-[var(--text-muted)] mt-0.5" aria-hidden>ℹ️</span>
-        <div className="text-sm text-[var(--text-secondary)]">
-          <p className="font-medium text-[var(--text)]">Data accuracy</p>
-          <p className="mt-1">
-            User counts, applications, verifications, locations and niches come from your live database and are exact.
-            {engagementFromExactCounts ? ' Conversation and message totals are exact platform-wide counts.' : ' Conversation and message totals are from the most recent threads until full counts load.'}
-            Signups by day are grouped by your browser&apos;s local date.
-          </p>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-2xl p-6 shadow-[var(--shadow-soft)]">
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-[var(--text)]">
-          🕐 Recent Activity
-        </h3>
-        {recentActivity.length === 0 ? (
-          <div className="text-center py-8 text-[var(--text-muted)]">
-            <div className="text-4xl mb-2">📭</div>
-            <p>No recent activity</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {recentActivity.slice(0, 5).map(activity => (
-              <div key={activity.id} className="flex items-center gap-3 p-3 bg-[var(--surface-hover)] rounded-xl border border-[var(--separator)]">
-                <div 
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-lg"
-                  style={{ backgroundColor: `${activity.color}20`, color: activity.color }}
-                >
-                  {activity.type.includes('approved') ? '✓' : '✗'}
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-[var(--text)]">{activity.title}</p>
-                  <p className="text-sm text-[var(--text-secondary)]">{activity.subtitle}</p>
-                </div>
-                <span className="text-xs text-[var(--text-muted)]">
-                  {formatTimeAgo(activity.timestamp)}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-2xl p-6 shadow-[var(--shadow-soft)]">
-        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-[var(--text)]">
-          ⚡ Quick Actions
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <QuickAction icon="🔔" label="Send Notification" onClick={() => setActiveTab?.('settings')} />
-          <QuickAction icon="📤" label="Export Data" onClick={() => setActiveTab?.('overview')} />
-          <QuickAction icon="📋" label="View Logs" onClick={() => setActiveTab?.('audit')} />
-          <QuickAction icon="🔄" label={cacheRefreshed ? 'Refreshed' : 'Refresh data'} onClick={handleClearCache} />
-        </div>
-        {cacheRefreshed && <p className="text-sm text-[var(--success)] mt-2">Data refreshed.</p>}
-      </div>
-    </div>
-  )
-}
-
-// ============================================
-// APPLICATIONS TAB — built from scratch
-// ============================================
-
-function ApplicationsTab({
-  applications,
-  filter,
-  setFilter,
-  getFilterCount,
-  onStatusFilterChange,
-  appSearch,
-  setAppSearch,
-  applicationsTotal,
-  applicationsPage,
-  applicationsPageSize,
-  onApplicationsPageChange,
-  applicationsLoading = false,
-  applicationsCountsError = false,
-  onApprove,
-  onReject,
-  onWaitlist,
-  onSuspend,
-  onExportCsv,
-  actionLoading,
-  selectedApp,
-  setSelectedApp,
-  onClaim,
-  onRelease,
-  currentUserId,
-}: {
-  applications: Application[]
-  allApplications: Application[]
-  stats: Stats
-  filter: AppFilter
-  setFilter: (f: AppFilter) => void
-  getFilterCount: (f: AppFilter) => number
-  onStatusFilterChange?: (f: AppFilter) => void
-  appSearch: string
-  setAppSearch: (s: string) => void
-  appSort: string
-  appAssignmentFilter: string
-  onSortFilterChange: (sort: string, filter: string) => void
-  applicationsTotal: number
-  applicationsPage: number
-  applicationsPageSize: number
-  onApplicationsPageChange: (page: number) => void
-  applicationsLoading?: boolean
-  applicationsCountsError?: boolean
-  selectedAppIds: Set<string>
-  setSelectedAppIds: Dispatch<SetStateAction<Set<string>>>
-  onApprove: (id: string, updated_at?: string) => void
-  onReject: (id: string, updated_at?: string) => void
-  onWaitlist: (id: string, updated_at?: string) => void
-  onSuspend: (id: string, updated_at?: string) => void
-  onBulkAction: (ids: string[], action: 'approve' | 'reject' | 'waitlist' | 'suspend') => void
-  onExportCsv: () => void
-  actionLoading: string | null
-  selectedApp: Application | null
-  setSelectedApp: (a: Application | null) => void
-  currentUserId?: string | null
-  onClaim?: (id: string) => Promise<void>
-  onRelease?: (id: string) => Promise<void>
-}) {
-  const totalPages = Math.max(1, Math.ceil(applicationsTotal / applicationsPageSize))
-  const statusLabel = (s: string) => {
-    const u = (s || '').toUpperCase()
-    if (u === 'ACTIVE' || u === 'APPROVED') return 'Approved'
-    if (u === 'REJECTED') return 'Rejected'
-    if (u === 'WAITLISTED' || u === 'WAITLIST') return 'Waitlisted'
-    if (u === 'SUSPENDED') return 'Suspended'
-    return 'Pending'
-  }
-  const isPending = (s: string) => ['SUBMITTED', 'PENDING_REVIEW', 'DRAFT', 'PENDING'].includes((s || '').toUpperCase())
-  const filters: { key: AppFilter; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'pending', label: 'Pending' },
-    { key: 'approved', label: 'Approved' },
-    { key: 'waitlisted', label: 'Waitlisted' },
-    { key: 'rejected', label: 'Rejected' },
-    { key: 'suspended', label: 'Suspended' },
-  ]
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="text-xl font-semibold text-[var(--text)]">Applications</h2>
-        <button
-          type="button"
-          onClick={onExportCsv}
-          className="text-sm text-[var(--text-muted)] hover:text-[var(--text)]"
-        >
-          Export CSV
-        </button>
-      </div>
-
-      <input
-        type="text"
-        placeholder="Search by name, email, or username..."
-        value={appSearch}
-        onChange={e => setAppSearch(e.target.value)}
-        className="w-full max-w-md px-4 py-2 text-sm bg-[var(--surface)] border border-[var(--separator)] rounded-lg text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-purple)]"
-      />
-
-      {applicationsCountsError && (
-        <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          <strong>Application counts could not be loaded.</strong> The database function <code className="rounded bg-black/20 px-1">admin_get_application_counts</code> may be missing or the Supabase project may be wrong. In Vercel, check that <strong>NEXT_PUBLIC_SUPABASE_URL</strong> and <strong>SUPABASE_SERVICE_ROLE_KEY</strong> point to the project that has your applications. Run the migration that creates <code className="rounded bg-black/20 px-1">admin_get_application_counts</code> in Supabase (e.g. <code className="rounded bg-black/20 px-1">supabase/migrations/20260303000001_fix_application_counts.sql</code>).
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        {filters.map(({ key, label }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => (onStatusFilterChange ?? setFilter)(key)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg ${
-              filter === key
-                ? 'bg-[var(--accent-purple)] text-white'
-                : 'bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--separator)]'
-            }`}
-          >
-            {label} ({getFilterCount(key)})
-          </button>
-        ))}
-      </div>
-
-      {applicationsLoading && (
-        <div className="flex justify-center py-16">
-          <div className="w-8 h-8 border-2 border-[var(--accent-purple)] border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
-
-      {!applicationsLoading && applications.length === 0 && (
-        <div className="text-center py-16 text-[var(--text-muted)]">No applications found</div>
-      )}
-
-      {!applicationsLoading && applications.length > 0 && (
-        <>
-          <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-xl divide-y divide-[var(--separator)]">
-            {applications.map(app => (
-              <div
-                key={app.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelectedApp(app)}
-                onKeyDown={e => e.key === 'Enter' && setSelectedApp(app)}
-                className="p-4 hover:bg-[var(--surface-hover)] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--accent-purple)] focus:ring-inset"
-              >
-                <div className="flex items-center gap-4">
-                  <Avatar url={app.profile_image_url} name={app.name || app.username || app.email || ''} size={48} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                      <span className="font-medium text-[var(--text)]">
-                        {app.name || app.username || app.email || (app.user_id ? `User ${String(app.user_id).slice(0, 8)}` : 'Unknown')}
-                      </span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
-                        (app.status?.toUpperCase() ?? '') === 'ACTIVE' || app.status?.toUpperCase() === 'APPROVED' ? 'bg-green-500/20 text-green-400' :
-                        app.status?.toUpperCase() === 'REJECTED' ? 'bg-red-500/20 text-red-400' :
-                        app.status?.toUpperCase() === 'WAITLISTED' || app.status?.toUpperCase() === 'WAITLIST' ? 'bg-purple-500/20 text-purple-400' :
-                        app.status?.toUpperCase() === 'SUSPENDED' ? 'bg-gray-500/20 text-gray-400' :
-                        'bg-yellow-500/20 text-yellow-400'
-                      }`}>
-                        {statusLabel(app.status)}
-                      </span>
-                    </div>
-                    <p className="text-sm text-[var(--text-muted)]">
-                      {[app.username && `@${app.username}`, app.email, app.niche].filter(Boolean).join(' · ') || (app.user_id ? `ID: ${String(app.user_id).slice(0, 8)}` : '—')}
-                    </p>
-                    {(app.instagram_username || app.referrer_username || (app.follower_count != null && app.follower_count > 0)) && (
-                      <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                        {[app.instagram_username && `Instagram @${app.instagram_username}`, app.referrer_username && `Referred by @${app.referrer_username}`, app.follower_count != null && app.follower_count > 0 && `${Number(app.follower_count).toLocaleString()} followers`].filter(Boolean).join(' · ')}
-                      </p>
-                    )}
-                  </div>
-                  {isPending(app.status) && (
-                    <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                      {onClaim && (app.assigned_to == null || (app.assignment_expires_at && new Date(app.assignment_expires_at) < new Date())) && (
-                        <button
-                          type="button"
-                          onClick={() => onClaim(app.id)}
-                          disabled={actionLoading === app.id}
-                          className="px-3 py-1.5 text-sm font-medium bg-blue-500/15 text-blue-400 rounded-lg border border-blue-500/30 hover:bg-blue-500/25 disabled:opacity-50"
-                        >
-                          Claim
-                        </button>
-                      )}
-                      {onRelease && app.assigned_to === currentUserId && app.assignment_expires_at && new Date(app.assignment_expires_at) >= new Date() && (
-                        <button
-                          type="button"
-                          onClick={() => onRelease(app.id)}
-                          disabled={actionLoading === app.id}
-                          className="px-3 py-1.5 text-sm font-medium text-[var(--text)] bg-[var(--surface-hover)] border border-[var(--separator)] rounded-lg hover:bg-[var(--separator)] disabled:opacity-50"
-                        >
-                          Release
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => onApprove(app.id, app.updated_at)}
-                        disabled={actionLoading === app.id}
-                        className="px-3 py-1.5 text-sm font-medium text-white bg-green-500 rounded-lg hover:bg-green-600 disabled:opacity-50"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onWaitlist(app.id, app.updated_at)}
-                        disabled={actionLoading === app.id}
-                        className="px-3 py-1.5 text-sm font-medium text-[var(--text)] bg-[var(--surface-hover)] border border-[var(--separator)] rounded-lg hover:bg-[var(--separator)] disabled:opacity-50"
-                      >
-                        Waitlist
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onReject(app.id, app.updated_at)}
-                        disabled={actionLoading === app.id}
-                        className="px-3 py-1.5 text-sm font-medium text-red-400 bg-[var(--surface-hover)] border border-[var(--separator)] rounded-lg hover:bg-red-500/10 disabled:opacity-50"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  )}
-                  <span className="text-xs text-[var(--text-muted)] shrink-0">
-                    {app.application_date ? new Date(app.application_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-4">
-              <button
-                type="button"
-                onClick={() => onApplicationsPageChange(applicationsPage - 1)}
-                disabled={applicationsPage <= 1}
-                className="px-4 py-2 text-sm bg-[var(--surface)] border border-[var(--separator)] rounded-lg disabled:opacity-30"
-              >
-                Previous
-              </button>
-              <span className="text-sm text-[var(--text-muted)]">Page {applicationsPage} of {totalPages}</span>
-              <button
-                type="button"
-                onClick={() => onApplicationsPageChange(applicationsPage + 1)}
-                disabled={applicationsPage >= totalPages}
-                className="px-4 py-2 text-sm bg-[var(--surface)] border border-[var(--separator)] rounded-lg disabled:opacity-30"
-              >
-                Next
-              </button>
-            </div>
-          )}
-        </>
-      )}
-
-      {selectedApp && (
-        <ApplicationDetailModal
-          app={selectedApp}
-          onClose={() => setSelectedApp(null)}
-          onApprove={() => onApprove(selectedApp.id, selectedApp.updated_at)}
-          onReject={() => onReject(selectedApp.id, selectedApp.updated_at)}
-          onWaitlist={() => onWaitlist(selectedApp.id, selectedApp.updated_at)}
-          onSuspend={() => onSuspend(selectedApp.id, selectedApp.updated_at)}
-          isLoading={actionLoading === selectedApp.id}
-          canAct
-        />
-      )}
-    </div>
-  )
-}
-
-function ApplicationDetailModal({
-  app,
-  onClose,
-  onApprove,
-  onReject,
-  onWaitlist,
-  onSuspend: _onSuspend,
-  isLoading,
-  canAct = true,
-}: {
-  app: Application
-  onClose: () => void
-  onApprove: () => void
-  onReject: () => void
-  onWaitlist: () => void
-  onSuspend: () => void
-  isLoading: boolean
-  canAct?: boolean
-}) {
-  const dialogRef = useRef<HTMLDivElement>(null)
-  const handleClose = useModalFocusTrap(dialogRef, onClose)
-  const status = (app.status || '').toUpperCase()
-
-  useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = prev }
-  }, [])
-
-  const statusLabel = status === 'ACTIVE' || status === 'APPROVED' ? 'Approved' : status === 'REJECTED' ? 'Rejected' : status === 'WAITLISTED' || status === 'WAITLIST' ? 'Waitlisted' : status === 'SUSPENDED' ? 'Suspended' : 'Pending'
-
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
-      onClick={e => e.target === e.currentTarget && handleClose()}
-      role="presentation"
-    >
-      <div
-        ref={dialogRef}
-        className="bg-[var(--background)] rounded-2xl max-w-lg w-full flex flex-col shadow-xl border border-[var(--separator)] overflow-hidden"
-        style={{ maxHeight: 'min(90vh, 700px)' }}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="app-detail-title"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between p-4 border-b border-[var(--separator)]">
-          <div className="flex items-center gap-3">
-            <Avatar url={app.profile_image_url} name={app.name || app.username || app.email || ''} size={48} />
-            <div>
-              <h2 id="app-detail-title" className="font-semibold text-[var(--text)]">{app.name || app.username || app.email || 'Unknown'}</h2>
-              <p className="text-sm text-[var(--text-muted)]">
-                {[app.username && `@${app.username}`, app.email].filter(Boolean).join(' · ') || (app.user_id ? `ID: ${String(app.user_id).slice(0, 8)}` : '—')}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`text-xs px-2 py-1 rounded-full ${
-              status === 'ACTIVE' || status === 'APPROVED' ? 'bg-green-500/20 text-green-400' :
-              status === 'REJECTED' ? 'bg-red-500/20 text-red-400' :
-              status === 'WAITLISTED' || status === 'WAITLIST' ? 'bg-purple-500/20 text-purple-400' :
-              status === 'SUSPENDED' ? 'bg-gray-500/20 text-gray-400' : 'bg-yellow-500/20 text-yellow-400'
-            }`}>
-              {statusLabel}
-            </span>
-            <button type="button" onClick={handleClose} className="p-2 rounded-lg hover:bg-[var(--surface-hover)] text-[var(--text-muted)]" aria-label="Close">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div><span className="text-[var(--text-muted)]">Email</span><p className="text-[var(--text)] truncate">{app.email || '-'}</p></div>
-            <div><span className="text-[var(--text-muted)]">Phone</span><p className="text-[var(--text)]">{app.phone || '-'}</p></div>
-            <div><span className="text-[var(--text-muted)]">Instagram</span><p className="text-[var(--text)]">{app.instagram_username ? `@${app.instagram_username}` : '-'}</p></div>
-            <div><span className="text-[var(--text-muted)]">Followers</span><p className="text-[var(--text)]">{app.follower_count?.toLocaleString() ?? '-'}</p></div>
-            {app.niche && <div><span className="text-[var(--text-muted)]">Niche</span><p className="text-[var(--accent-purple)]">{app.niche}</p></div>}
-            {app.referrer_username && <div><span className="text-[var(--text-muted)]">Referred by</span><p className="text-[var(--text)]">@{app.referrer_username}</p></div>}
-            <div><span className="text-[var(--text-muted)]">Applied</span><p className="text-[var(--text)]">{app.application_date ? new Date(app.application_date).toLocaleDateString() : '-'}</p></div>
-          </div>
-          {app.bio && <div><h3 className="text-xs font-medium text-[var(--text-muted)] uppercase mb-1">Bio</h3><p className="text-sm text-[var(--text)] p-3 rounded-lg bg-[var(--surface)]">{app.bio}</p></div>}
-          {app.why_join && <div><h3 className="text-xs font-medium text-[var(--text-muted)] uppercase mb-1">Why join?</h3><p className="text-sm text-[var(--text)] p-3 rounded-lg bg-[var(--surface)]">{app.why_join}</p></div>}
-          {app.what_to_offer && <div><h3 className="text-xs font-medium text-[var(--text-muted)] uppercase mb-1">What to offer</h3><p className="text-sm text-[var(--text)] p-3 rounded-lg bg-[var(--surface)]">{app.what_to_offer}</p></div>}
-          {app.collaboration_goals && <div><h3 className="text-xs font-medium text-[var(--text-muted)] uppercase mb-1">Collaboration goals</h3><p className="text-sm text-[var(--text)] p-3 rounded-lg bg-[var(--surface)]">{app.collaboration_goals}</p></div>}
-        </div>
-
-        <div className="p-4 border-t border-[var(--separator)] bg-[var(--surface)] flex gap-2">
-          <button type="button" onClick={onApprove} disabled={!canAct || isLoading || status === 'APPROVED' || status === 'ACTIVE'} className="flex-1 py-2 rounded-lg bg-emerald-500 text-white text-sm font-medium hover:bg-emerald-600 disabled:opacity-40">Approve</button>
-          <button type="button" onClick={onWaitlist} disabled={!canAct || isLoading || status === 'WAITLISTED' || status === 'WAITLIST'} className="flex-1 py-2 rounded-lg bg-[var(--surface-hover)] border border-[var(--separator)] text-sm font-medium text-[var(--text)] hover:bg-[var(--separator)] disabled:opacity-40">Waitlist</button>
-          <button type="button" onClick={onReject} disabled={!canAct || isLoading || status === 'REJECTED'} className="flex-1 py-2 rounded-lg bg-[var(--surface-hover)] border border-[var(--separator)] text-sm font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-40">Reject</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ============================================
-// USERS TAB - Matching iOS
-// ============================================
-
-type UserFilter = 'all' | 'verified' | 'banned' | 'new_7d'
-
-function UsersTab({
-  users, onToggleVerify, onToggleBan, onDelete, canDeleteUser = true, canAnonymizeUser = true, onExportUser, onAnonymizeUser, actionLoading, selectedUser, setSelectedUser
-}: {
-  users: User[]
-  onToggleVerify: (id: string, current: boolean) => void
-  onToggleBan: (id: string, current: boolean) => void
-  onDelete: (id: string, reason: string) => void
-  canDeleteUser?: boolean
-  canAnonymizeUser?: boolean
-  onExportUser?: (userId: string) => void | Promise<void>
-  onAnonymizeUser?: (userId: string, reason: string) => void | Promise<void>
-  actionLoading: string | null
-  selectedUser: User | null
-  setSelectedUser: (u: User | null) => void
-}) {
-  const [search, setSearch] = useState('')
-  const [userFilter, setUserFilter] = useState<UserFilter>('all')
-  
-  const filteredBySearch = users.filter(u => 
-    (u.name?.toLowerCase() || '').includes(search.toLowerCase()) ||
-    (u.username?.toLowerCase() || '').includes(search.toLowerCase()) ||
-    (u.email?.toLowerCase() || '').includes(search.toLowerCase())
-  )
-  const filteredUsers = userFilter === 'all'
-    ? filteredBySearch
-    : userFilter === 'verified'
-      ? filteredBySearch.filter(u => u.is_verified)
-      : userFilter === 'banned'
-        ? filteredBySearch.filter(u => u.is_banned)
-        : filteredBySearch.filter(u => {
-            if (!u.created_at) return false
-            const weekAgo = new Date()
-            weekAgo.setDate(weekAgo.getDate() - 7)
-            return new Date(u.created_at) > weekAgo
-          })
-
-  return (
-    <div className="space-y-4">
-      <input
-        id="admin-users-search"
-        name="users-search"
-        type="text"
-        placeholder="Search users by name, username, email..."
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        className="input-field w-full"
-        aria-label="Search users"
-      />
-      <div className="flex flex-wrap gap-2">
-        {(['all', 'verified', 'banned', 'new_7d'] as UserFilter[]).map(f => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => setUserFilter(f)}
-            className={`px-3 py-1.5 rounded-xl text-sm font-medium ${
-              userFilter === f ? 'bg-[var(--accent-purple)] text-[var(--text)]' : 'bg-[var(--surface)] text-[var(--text-secondary)] border border-[var(--separator)]'
-            }`}
-          >
-            {f === 'all' ? 'All' : f === 'verified' ? 'Verified' : f === 'banned' ? 'Banned' : 'New (7d)'}
-          </button>
-        ))}
-      </div>
-      
-      <div className="text-sm text-[var(--text-muted)]">
-        Users ({filteredUsers.length})
-      </div>
-
-      <div className="space-y-3">
-        {filteredUsers.map(user => (
-          <div 
-            key={user.id}
-            onClick={() => setSelectedUser(user)}
-            className="bg-[var(--surface)] border border-[var(--separator)] p-4 rounded-xl cursor-pointer hover:bg-[var(--surface-hover)] transition-smooth card-interactive"
-          >
-            <div className="flex items-center gap-4">
-              <Avatar url={user.profile_image_url} name={user.name || '?'} size={48} />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-[var(--text)]">{user.name || 'No name'}</span>
-                  {user.is_verified && <span className="text-[var(--verified)]">✓</span>}
-                  {user.is_banned && <span className="text-[var(--error)]">🚫</span>}
-                </div>
-                <p className="text-[var(--text-secondary)] text-sm">@{user.username} • {user.email}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* User Detail Modal */}
-      {selectedUser && (
-        <UserDetailModal
-          user={selectedUser}
-          onClose={() => setSelectedUser(null)}
-          onToggleVerify={() => onToggleVerify(selectedUser.id, selectedUser.is_verified)}
-          onToggleBan={() => onToggleBan(selectedUser.id, selectedUser.is_banned)}
-          onDelete={(reason) => onDelete(selectedUser.id, reason)}
-          canDeleteUser={canDeleteUser}
-          canAnonymizeUser={canAnonymizeUser}
-          onExportUser={onExportUser}
-          onAnonymizeUser={onAnonymizeUser ? (reason) => onAnonymizeUser(selectedUser.id, reason) : undefined}
-          isLoading={actionLoading === selectedUser.id}
-        />
-      )}
-    </div>
-  )
-}
-
-// ============================================
-// VERIFICATIONS TAB - Matching iOS
-// ============================================
-
-function VerificationsTab({
-  pendingVerifications, onApprove, onReject, actionLoading
-}: {
-  pendingVerifications: VerificationRequest[]
-  onApprove: (userId: string) => void
-  onReject: (userId: string) => void
-  actionLoading: string | null
-}) {
-  return (
-    <div className="space-y-4">
-      <div className="text-sm text-[var(--text-muted)]">
-        Pending Verifications ({pendingVerifications.length})
-      </div>
-
-      {pendingVerifications.length === 0 ? (
-        <div className="text-center py-12 text-[var(--text-muted)]">
-          <div className="text-5xl mb-4">✓</div>
-          <p>No pending verification requests</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {pendingVerifications.map(v => (
-            <div key={v.id} className="bg-[var(--surface)] p-4 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Avatar url={v.profile_image_url} name={v.username} size={48} />
-                  <div>
-                    <p className="font-semibold">@{v.username}</p>
-                    <p className="text-sm text-[var(--text-secondary)]">
-                      Requested {formatTimeAgo(new Date(v.requested_at))}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => onReject(v.user_id)}
-                    disabled={actionLoading === v.user_id}
-                    className="px-4 py-2 bg-red-500/20 text-red-400 rounded-xl hover:bg-red-500/30 disabled:opacity-50"
-                  >
-                    Reject
-                  </button>
-                  <button
-                    onClick={() => onApprove(v.user_id)}
-                    disabled={actionLoading === v.user_id}
-                    className="px-4 py-2 bg-green-500 text-[var(--text)] rounded-xl hover:bg-green-600 disabled:opacity-50"
-                  >
-                    Approve
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ============================================
-// REPORTS TAB
-// ============================================
-
-type ReportFilter = 'all' | 'pending' | 'resolved' | 'dismissed'
-type ReportAssignmentFilter = 'all' | 'unassigned' | 'assigned_to_me'
-type ReportSort = 'overdue' | 'oldest' | 'assigned_to_me'
-function ReportsTab({
-  reports,
-  loading,
-  currentUserId = null,
-  onRefresh,
-  onClaim,
-  onRelease,
-  onResolve,
-}: {
-  reports: Array<Record<string, unknown>>
-  loading: boolean
-  currentUserId?: string | null
-  onRefresh: (opts?: { sort?: string; filter?: string; status?: string }) => void
-  onClaim?: (reportId: string) => Promise<void>
-  onRelease?: (reportId: string) => Promise<void>
-  onResolve: (reportId: string, status: 'resolved' | 'dismissed', notes?: string, updated_at?: string) => Promise<void>
-}) {
-  const [resolvingId, setResolvingId] = useState<string | null>(null)
-  const [claimingId, setClaimingId] = useState<string | null>(null)
-  const [reportFilter, setReportFilter] = useState<ReportFilter>('all')
-  const [assignmentFilter, setAssignmentFilter] = useState<ReportAssignmentFilter>('all')
-  const [sort, setSort] = useState<ReportSort>('overdue')
-  const pending = reports.filter(r => r.status === 'pending')
-  let filtered = reportFilter === 'all' ? reports : reports.filter(r => String(r.status) === reportFilter)
-  const now = new Date()
-  const isClaimedByOther = (r: Record<string, unknown>): boolean => {
-    const assignedTo = r.assigned_to as string | null | undefined
-    const expiresAt = r.assignment_expires_at as string | null | undefined
-    if (!assignedTo) return false
-    if (expiresAt && new Date(expiresAt) < now) return false
-    return assignedTo !== currentUserId
-  }
-  const isClaimedByMe = (r: Record<string, unknown>): boolean => {
-    const assignedTo = r.assigned_to as string | null | undefined
-    const expiresAt = r.assignment_expires_at as string | null | undefined
-    return !!(assignedTo === currentUserId && expiresAt && new Date(expiresAt) >= now)
-  }
-  if (assignmentFilter === 'unassigned') filtered = filtered.filter(r => !r.assigned_to || (r.assignment_expires_at && new Date(r.assignment_expires_at as string) < now))
-  else if (assignmentFilter === 'assigned_to_me' && currentUserId) filtered = filtered.filter(isClaimedByMe)
-  const handleRefresh = () => onRefresh({ sort, filter: assignmentFilter, status: reportFilter === 'all' ? undefined : reportFilter })
-  const didMountRef = useRef(false)
-  useEffect(() => {
-    if (!didMountRef.current) { didMountRef.current = true; return }
-    onRefresh({ sort, filter: assignmentFilter, status: reportFilter === 'all' ? undefined : reportFilter })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sort, assignmentFilter, reportFilter])
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-[var(--text-secondary)]">{reports.length} reports · {pending.length} pending</p>
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-xs text-[var(--text-muted)]">Status:</span>
-          {(['all', 'pending', 'resolved', 'dismissed'] as ReportFilter[]).map(f => (
-            <button key={f} type="button" onClick={() => setReportFilter(f)} className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize ${reportFilter === f ? 'bg-[var(--accent-purple)] text-white' : 'bg-[var(--surface)] border border-[var(--separator)] text-[var(--text-secondary)] hover:text-[var(--text)]'}`}>{f}</button>
-          ))}
-          <span className="text-xs text-[var(--text-muted)] ml-2">Assignment:</span>
-          {(['all', 'unassigned', 'assigned_to_me'] as ReportAssignmentFilter[]).map(f => (
-            <button key={f} type="button" onClick={() => setAssignmentFilter(f)} className={`px-3 py-1.5 rounded-lg text-sm font-medium ${assignmentFilter === f ? 'bg-[var(--accent-purple)] text-white' : 'bg-[var(--surface)] border border-[var(--separator)] text-[var(--text-secondary)]'}`}>{f === 'assigned_to_me' ? 'Assigned to me' : f}</button>
-          ))}
-          <span className="text-xs text-[var(--text-muted)]">Sort:</span>
-          {(['overdue', 'oldest', 'assigned_to_me'] as ReportSort[]).map(s => (
-            <button key={s} type="button" onClick={() => setSort(s)} className={`px-3 py-1.5 rounded-lg text-sm ${sort === s ? 'bg-[var(--accent-purple)] text-white' : 'bg-[var(--surface)] border border-[var(--separator)]'}`}>{s === 'assigned_to_me' ? 'My items first' : s}</button>
-          ))}
-        </div>
-        <button type="button" onClick={handleRefresh} disabled={loading} className="px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-sm font-medium disabled:opacity-50">
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
-      </div>
-      {loading && reports.length === 0 ? (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--separator)] animate-pulse">
-              <div className="h-5 w-3/4 bg-[var(--surface-hover)] rounded mb-2" />
-              <div className="h-4 w-1/2 bg-[var(--surface-hover)] rounded" />
-            </div>
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-16 rounded-2xl bg-[var(--surface)] border border-[var(--separator)]">
-          <div className="text-4xl mb-3 opacity-60">⚠️</div>
-          <p className="text-[var(--text-secondary)] font-medium">{reports.length === 0 ? 'No reports yet' : `No ${reportFilter} reports`}</p>
-          <p className="text-sm text-[var(--text-muted)] mt-1">{reports.length === 0 ? 'When users report content, they will appear here.' : 'Try another filter.'}</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((r: Record<string, unknown>) => {
-            const claimedByOther = r.status === 'pending' && isClaimedByOther(r)
-            const claimedByMe = isClaimedByMe(r)
-            const canAct = r.status === 'pending' && !claimedByOther
-            return (
-            <div key={String(r.id)} className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--separator)]">
-              <div className="flex justify-between items-start gap-4 flex-wrap">
-                <div>
-                  <p className="font-medium text-[var(--text)]">
-                    Report by @{String(r.reporter_username ?? r.reporter_id ?? '?')} → reported @{String(r.reported_username ?? r.reported_user_id ?? '?')}
-                  </p>
-                  <p className="text-sm text-[var(--text-secondary)] mt-1">{String(r.reason ?? 'No reason')}</p>
-                  <p className="text-xs text-[var(--text-muted)] mt-1">{new Date(String(r.created_at)).toLocaleString()}</p>
-                  {(claimedByMe || !!(r.assigned_to && r.assignment_expires_at && new Date(r.assignment_expires_at as string) >= now)) && (
-                    <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400">
-                      {claimedByMe ? 'Claimed by you' : 'Claimed by another moderator'}
-                    </span>
-                  )}
-                  <span className={`inline-block mt-2 ml-1 text-xs px-2 py-0.5 rounded-full ${r.status === 'pending' ? 'bg-amber-500/20 text-amber-400' : 'bg-[var(--surface-hover)]'}`}>
-                    {String(r.status)}
-                  </span>
-                </div>
-                {r.status === 'pending' && (
-                  <div className="flex gap-2 flex-wrap">
-                    {!claimedByMe && !claimedByOther && onClaim && (
-                      <button type="button" disabled={claimingId === r.id} onClick={async () => { setClaimingId(String(r.id)); await onClaim(String(r.id)); setClaimingId(null) }} className="px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-400 text-sm">Claim</button>
-                    )}
-                    {claimedByMe && onRelease && (
-                      <button type="button" disabled={claimingId === r.id} onClick={async () => { setClaimingId(String(r.id)); await onRelease(String(r.id)); setClaimingId(null) }} className="px-3 py-1.5 rounded-lg bg-[var(--surface-hover)] text-sm">Release</button>
-                    )}
-                    <button type="button" disabled={!canAct || resolvingId === r.id} onClick={async () => { setResolvingId(String(r.id)); await onResolve(String(r.id), 'dismissed', undefined, r.updated_at as string); setResolvingId(null) }} className="px-3 py-1.5 rounded-lg bg-[var(--surface-hover)] text-sm">Dismiss</button>
-                    <button type="button" disabled={!canAct || resolvingId === r.id} onClick={async () => { setResolvingId(String(r.id)); await onResolve(String(r.id), 'resolved', undefined, r.updated_at as string); setResolvingId(null) }} className="px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-sm">Resolve</button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )})}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ============================================
-// APPROVALS TAB — 4-Eyes Approval Workflow
-// ============================================
-
-function ApprovalsTab({
-  requests,
-  loading,
-  onRefresh,
-  onApprove,
-  onReject,
-  canApprove,
-}: {
-  requests: Array<Record<string, unknown>>
-  loading: boolean
-  onRefresh: () => void
-  onApprove: (id: string) => Promise<void>
-  onReject: (id: string) => Promise<void>
-  canApprove: boolean
-}) {
-  const [actingId, setActingId] = useState<string | null>(null)
-  const now = new Date()
-  const formatRemaining = (expiresAt: string) => {
-    const exp = new Date(expiresAt)
-    if (exp <= now) return 'Expired'
-    const min = Math.floor((exp.getTime() - now.getTime()) / 60000)
-    if (min < 60) return `${min} min left`
-    const h = Math.floor(min / 60)
-    return `${h}h ${min % 60}m left`
-  }
-  const actionLabel = (action: string) => {
-    if (action === 'user_delete') return 'Delete user'
-    if (action === 'user_anonymize') return 'Anonymize user'
-    if (action === 'bulk_reject') return 'Bulk reject applications'
-    if (action === 'bulk_suspend') return 'Bulk suspend applications'
-    return action
-  }
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-[var(--text)]">Pending approvals</h2>
-        <button type="button" onClick={onRefresh} disabled={loading} className="px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-sm font-medium disabled:opacity-50">
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
-      </div>
-      {loading && requests.length === 0 ? (
-        <div className="space-y-3">
-          {[1, 2].map(i => (
-            <div key={i} className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--separator)] animate-pulse">
-              <div className="h-5 w-2/3 bg-[var(--surface-hover)] rounded mb-2" />
-              <div className="h-4 w-1/2 bg-[var(--surface-hover)] rounded" />
-            </div>
-          ))}
-        </div>
-      ) : requests.length === 0 ? (
-        <div className="py-12 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-center text-[var(--text-muted)] text-sm">No pending approvals</div>
-      ) : (
-        <div className="space-y-3">
-          {requests.map((r: Record<string, unknown>) => {
-            const id = String(r.id)
-            const expiresAt = String(r.expires_at ?? '')
-            const isExpired = expiresAt && new Date(expiresAt) <= now
-            return (
-              <div key={id} className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--separator)] flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="font-medium text-[var(--text)]">{actionLabel(String(r.action ?? ''))}</p>
-                  <p className="text-sm text-[var(--text-secondary)]">Target: {String(r.target_type)} · {String(r.target_id)}</p>
-                  <p className="text-xs text-[var(--text-muted)] mt-1">Reason: {String(r.reason ?? '—')}</p>
-                  <p className="text-xs text-[var(--text-muted)]">Requested at: {new Date(String(r.requested_at)).toLocaleString()} · {formatRemaining(expiresAt)}</p>
-                </div>
-                {canApprove && !isExpired && (
-                  <div className="flex gap-2">
-                    <button type="button" disabled={actingId === id} onClick={async () => { setActingId(id); await onReject(id); setActingId(null) }} className="px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-sm font-medium disabled:opacity-50">Reject</button>
-                    <button type="button" disabled={actingId === id} onClick={async () => { setActingId(id); await onApprove(id); setActingId(null) }} className="px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-sm font-medium disabled:opacity-50">Approve</button>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ============================================
-// RISK TAB — Incident Control Layer
-// ============================================
-
-function RiskTab({
-  data,
-  loading,
-  onRefresh,
-  onResolve,
-  canResolve,
-  onNavigateToTab,
-}: {
-  data: {
-    pending_applications: number
-    pending_reports: number
-    overdue_data_requests: number
-    open_escalations: Array<Record<string, unknown>>
-    last_escalation_time: string | null
-  } | null
-  loading: boolean
-  onRefresh: () => void
-  onResolve: (escalationId: string, notes?: string) => Promise<void>
-  canResolve: boolean
-  onNavigateToTab: (tab: Tab) => void
-}) {
-  const [resolvingId, setResolvingId] = useState<string | null>(null)
-  const pendingApps = data?.pending_applications ?? 0
-  const pendingReports = data?.pending_reports ?? 0
-  const overdueData = data?.overdue_data_requests ?? 0
-  const openEscalations = data?.open_escalations ?? []
-  const hasRed = openEscalations.some((e: Record<string, unknown>) => e.threshold_level === 'red')
-  const metricLabel = (name: string) => {
-    if (name === 'pending_applications') return 'Pending applications'
-    if (name === 'pending_reports') return 'Pending reports'
-    if (name === 'overdue_data_requests') return 'Overdue data requests'
-    return name
-  }
-  const queueTab = (name: string): Tab | null => {
-    if (name === 'pending_applications') return 'applications'
-    if (name === 'pending_reports') return 'reports'
-    if (name === 'overdue_data_requests') return 'data-requests'
-    return null
-  }
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-[var(--text)]">Operational risk</h2>
-        <button type="button" onClick={onRefresh} disabled={loading} className="px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-sm font-medium disabled:opacity-50">
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
-      </div>
-      {data?.last_escalation_time && (
-        <p className="text-xs text-[var(--text-muted)]">Last escalation: {new Date(data.last_escalation_time).toLocaleString()}</p>
-      )}
-      {/* KPI cards with links to queues */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <button type="button" onClick={() => onNavigateToTab('applications')} className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-left hover:border-[var(--accent-purple)]/30 transition-colors">
-          <p className="text-2xl font-bold text-[var(--text)]">{pendingApps}</p>
-          <p className="text-sm text-[var(--text-secondary)]">Pending applications</p>
-          <p className="text-xs text-[var(--accent-purple)] mt-1">View queue →</p>
-        </button>
-        <button type="button" onClick={() => onNavigateToTab('reports')} className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-left hover:border-[var(--accent-purple)]/30 transition-colors">
-          <p className="text-2xl font-bold text-[var(--text)]">{pendingReports}</p>
-          <p className="text-sm text-[var(--text-secondary)]">Pending reports</p>
-          <p className="text-xs text-[var(--accent-purple)] mt-1">View queue →</p>
-        </button>
-        <button type="button" onClick={() => onNavigateToTab('data-requests')} className="p-4 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-left hover:border-[var(--accent-purple)]/30 transition-colors">
-          <p className="text-2xl font-bold text-[var(--text)]">{overdueData}</p>
-          <p className="text-sm text-[var(--text-secondary)]">Overdue data requests</p>
-          <p className="text-xs text-[var(--accent-purple)] mt-1">View queue →</p>
-        </button>
-      </div>
-      {/* Open escalations */}
-      <div>
-        <h3 className="text-base font-medium text-[var(--text)] mb-3">
-          Open escalations
-          {hasRed && <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/20 text-red-400">Red</span>}
-        </h3>
-        {loading && openEscalations.length === 0 ? (
-          <div className="space-y-3">
-            {[1, 2].map(i => (
-              <div key={i} className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--separator)] animate-pulse">
-                <div className="h-5 w-2/3 bg-[var(--surface-hover)] rounded mb-2" />
-                <div className="h-4 w-1/3 bg-[var(--surface-hover)] rounded" />
-              </div>
-            ))}
-          </div>
-        ) : openEscalations.length === 0 ? (
-          <div className="py-8 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-center text-[var(--text-muted)] text-sm">No open escalations</div>
-        ) : (
-          <div className="space-y-3">
-            {openEscalations.map((e: Record<string, unknown>) => {
-              const id = String(e.id)
-              const tab = queueTab(e.metric_name as string)
-              const isRed = e.threshold_level === 'red'
-              return (
-                <div key={id} className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--separator)] flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-[var(--text)]">{metricLabel(e.metric_name as string)}</p>
-                    <p className="text-sm text-[var(--text-secondary)]">Value: {String(e.metric_value)} · {new Date(String(e.created_at)).toLocaleString()}</p>
-                    <span className={`inline-block mt-2 text-xs px-2 py-0.5 rounded-full ${isRed ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                      {isRed ? 'Red' : 'Yellow'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {tab && (
-                      <button type="button" onClick={() => onNavigateToTab(tab)} className="px-3 py-1.5 rounded-lg bg-[var(--surface-hover)] text-sm">View queue</button>
-                    )}
-                    {canResolve && (
-                      <button
-                        type="button"
-                        disabled={resolvingId === id}
-                        onClick={async () => {
-                          setResolvingId(id)
-                          await onResolve(id)
-                          setResolvingId(null)
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 text-sm font-medium disabled:opacity-50"
-                      >
-                        Resolve
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ============================================
-// DATA REQUESTS TAB
-// ============================================
-
-function DataRequestsTab({
-  requests,
-  loading,
-  onRefresh,
-  onStatusChange,
-}: {
-  requests: Array<Record<string, unknown>>
-  loading: boolean
-  onRefresh: () => void
-  onStatusChange: (requestId: string, status: string, updated_at?: string) => Promise<void>
-}) {
-  const [draftStatus, setDraftStatus] = useState<Record<string, string>>({})
-  const [updatingId, setUpdatingId] = useState<string | null>(null)
-  const getStatus = (r: Record<string, unknown>) => draftStatus[String(r.id)] ?? String(r.status)
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-[var(--text-secondary)]">{requests.length} requests</p>
-        <button type="button" onClick={onRefresh} disabled={loading} className="px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-sm font-medium disabled:opacity-50">
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
-      </div>
-      {loading && requests.length === 0 ? (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--separator)] animate-pulse">
-              <div className="h-5 w-2/3 bg-[var(--surface-hover)] rounded mb-2" />
-              <div className="h-4 w-1/3 bg-[var(--surface-hover)] rounded" />
-            </div>
-          ))}
-        </div>
-      ) : requests.length === 0 ? (
-        <div className="text-center py-16 rounded-2xl bg-[var(--surface)] border border-[var(--separator)]">
-          <div className="text-4xl mb-3 opacity-60">📥</div>
-          <p className="text-[var(--text-secondary)] font-medium">No data requests yet</p>
-          <p className="text-sm text-[var(--text-muted)] mt-1">Export or deletion requests will appear here.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {requests.map((r: Record<string, unknown>) => {
-            const id = r.id != null ? String(r.id) : null
-            const current = id ? (getStatus(r)) : String(r.status)
-            const unchanged = id ? current === String(r.status) : true
-            return (
-              <div key={id ?? `req-${r.user_id}-${r.created_at}`} className="bg-[var(--surface)] p-4 rounded-xl border border-[var(--separator)] flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="font-medium text-[var(--text)]">{String(r.name ?? r.username ?? r.user_id)} · {String(r.request_type)}</p>
-                  <p className="text-xs text-[var(--text-muted)]">{new Date(String(r.created_at)).toLocaleString()}</p>
-                  <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${r.status === 'pending' ? 'bg-amber-500/20 text-amber-400' : 'bg-[var(--surface-hover)]'}`}>{String(r.status)}</span>
-                  {id == null && <p className="text-xs text-amber-400 mt-1">No id — add primary key to data_requests to update status.</p>}
-                </div>
-                {id != null && (
-                  <div className="flex items-center gap-2">
-                    <select
-                      id={`data-request-status-${id}`}
-                      name="data_request_status"
-                      value={current}
-                      onChange={e => setDraftStatus(prev => ({ ...prev, [id]: e.target.value }))}
-                      className="px-3 py-1.5 rounded-lg bg-[var(--surface-hover)] border border-[var(--separator)] text-sm"
-                      aria-label="Status"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="completed">Completed</option>
-                      <option value="failed">Failed</option>
-                    </select>
-                    <button
-                      type="button"
-                      disabled={unchanged || updatingId === id}
-                      onClick={async () => {
-                        setUpdatingId(id)
-                        // Pass updated_at when available for conflict-safe PATCH (C3).
-                        const updatedAt = (r as { updated_at?: string }).updated_at
-                        await onStatusChange(id, current, updatedAt)
-                        setDraftStatus(prev => { const next = { ...prev }; delete next[id]; return next })
-                        setUpdatingId(null)
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-[var(--accent-purple)] text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {updatingId === id ? 'Updating…' : 'Update'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ============================================
-// AUDIT LOG TAB
-// ============================================
-
-type AuditFilters = {
-  admin_user_id?: string
-  action?: string
-  target_type?: string
-  target_id?: string
-  date_from?: string
-  date_to?: string
-  limit?: number
-}
-type AuditSortKey = 'created_at' | 'admin_email' | 'action' | 'target'
-function AuditLogTab({
-  entries,
-  loading,
-  onRefresh,
-  onExportCsv,
-  onVerifyChain,
-  verifyResult,
-  verifyLoading,
-  onCreateSnapshot,
-  snapshotLoading,
-}: {
-  entries: Array<{ id: string; action: string; target_type: string | null; target_id: string | null; admin_email: string | null; created_at: string; details?: unknown }>
-  loading: boolean
-  onRefresh: (filters?: AuditFilters) => void
-  onExportCsv?: (filters?: AuditFilters) => void
-  onVerifyChain?: () => Promise<{ chain_valid: boolean; snapshot_valid?: boolean; first_corrupted_id?: string; rows_checked?: number } | null>
-  verifyResult?: { chain_valid: boolean; snapshot_valid?: boolean; first_corrupted_id?: string; snapshot_date?: string; rows_checked?: number } | null
-  verifyLoading?: boolean
-  onCreateSnapshot?: () => Promise<boolean>
-  snapshotLoading?: boolean
-}) {
-  const [sortKey, setSortKey] = useState<AuditSortKey>('created_at')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const [filterAction, setFilterAction] = useState('')
-  const [filterTargetType, setFilterTargetType] = useState('')
-  const [filterTargetId, setFilterTargetId] = useState('')
-  const [filterDateFrom, setFilterDateFrom] = useState('')
-  const [filterDateTo, setFilterDateTo] = useState('')
-  const getFilters = (): AuditFilters => {
-    const f: AuditFilters = { limit: 100 }
-    if (filterAction.trim()) f.action = filterAction.trim()
-    if (filterTargetType.trim()) f.target_type = filterTargetType.trim()
-    if (filterTargetId.trim()) f.target_id = filterTargetId.trim()
-    if (filterDateFrom.trim()) f.date_from = filterDateFrom.trim()
-    if (filterDateTo.trim()) f.date_to = filterDateTo.trim()
-    return f
-  }
-  const toggleSort = (key: AuditSortKey) => {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortKey(key); setSortDir(key === 'created_at' ? 'desc' : 'asc') }
-  }
-  const sorted = [...entries].sort((a, b) => {
-    let av: string | number = '', bv: string | number = ''
-    if (sortKey === 'created_at') { av = new Date(a.created_at).getTime(); bv = new Date(b.created_at).getTime() }
-    else if (sortKey === 'admin_email') { av = (a.admin_email ?? ''); bv = (b.admin_email ?? '') }
-    else if (sortKey === 'action') { av = a.action; bv = b.action }
-    else { av = (a.target_type && a.target_id ? `${a.target_type}:${a.target_id}` : ''); bv = (b.target_type && b.target_id ? `${b.target_type}:${b.target_id}` : '') }
-    const cmp = av < bv ? -1 : av > bv ? 1 : 0
-    return sortDir === 'asc' ? cmp : -cmp
-  })
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-[var(--text-secondary)]">Who did what and when</p>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => onRefresh(getFilters())} disabled={loading} className="px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-sm font-medium disabled:opacity-50 hover:bg-[var(--surface-hover)] transition-colors">
-            {loading ? 'Loading…' : 'Refresh'}
-          </button>
-          {onExportCsv && (
-            <button type="button" onClick={() => onExportCsv(getFilters())} className="px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors">
-              Export CSV
-            </button>
-          )}
-          {onVerifyChain && (
-            <button type="button" onClick={onVerifyChain} disabled={verifyLoading} className="px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-sm font-medium disabled:opacity-50 hover:bg-[var(--surface-hover)] transition-colors">
-              {verifyLoading ? 'Verifying…' : 'Verify audit chain'}
-            </button>
-          )}
-          {onCreateSnapshot && (
-            <button type="button" onClick={onCreateSnapshot} disabled={snapshotLoading} className="px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-sm font-medium disabled:opacity-50 hover:bg-[var(--surface-hover)] transition-colors">
-              {snapshotLoading ? 'Creating…' : 'Create daily snapshot'}
-            </button>
-          )}
-        </div>
-      </div>
-      {verifyResult != null && (
-        <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-[var(--surface)] border border-[var(--separator)]">
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium ${verifyResult.chain_valid ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-            Chain: {verifyResult.chain_valid ? 'Valid' : 'Invalid'}
-          </span>
-          {verifyResult.snapshot_valid !== undefined && (
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium ${verifyResult.snapshot_valid ? 'bg-green-500/20 text-green-400' : 'bg-amber-500/20 text-amber-400'}`}>
-              Snapshot: {verifyResult.snapshot_valid ? 'Valid' : 'Missing or mismatch'}
-            </span>
-          )}
-          {verifyResult.first_corrupted_id && (
-            <span className="text-sm text-[var(--text-muted)]">First corrupted: {verifyResult.first_corrupted_id}</span>
-          )}
-          {verifyResult.rows_checked != null && (
-            <span className="text-xs text-[var(--text-muted)]">Rows checked: {verifyResult.rows_checked}</span>
-          )}
-        </div>
-      )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
-        <input type="text" placeholder="Action (partial)" value={filterAction} onChange={e => setFilterAction(e.target.value)} className="input-field text-sm" aria-label="Filter by action" />
-        <input type="text" placeholder="Target type" value={filterTargetType} onChange={e => setFilterTargetType(e.target.value)} className="input-field text-sm" aria-label="Filter by target type" />
-        <input type="text" placeholder="Target ID" value={filterTargetId} onChange={e => setFilterTargetId(e.target.value)} className="input-field text-sm" aria-label="Filter by target ID" />
-        <input type="date" placeholder="From" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="input-field text-sm" aria-label="Date from" />
-        <input type="date" placeholder="To" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="input-field text-sm" aria-label="Date to" />
-      </div>
-      {loading && entries.length === 0 ? (
-        <AdminSkeletonTable rows={8} />
-      ) : entries.length === 0 ? (
-        <div className="text-center py-16 rounded-2xl bg-[var(--surface)] border border-[var(--separator)]">
-          <div className="text-4xl mb-3 opacity-60">📋</div>
-          <p className="text-[var(--text-secondary)] font-medium">No audit entries yet</p>
-          <p className="text-sm text-[var(--text-muted)] mt-1">Admin actions will be logged here.</p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border border-[var(--separator)] bg-[var(--surface)] shadow-[var(--shadow-soft)]">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10 bg-[var(--surface)] border-b border-[var(--separator)]">
-              <tr className="text-left text-[var(--text-muted)]">
-                <th className="p-3">
-                  <button type="button" onClick={() => toggleSort('created_at')} className="flex items-center gap-1 font-medium hover:text-[var(--text)] transition-colors">
-                    Time {sortKey === 'created_at' && (sortDir === 'asc' ? '↑' : '↓')}
-                  </button>
-                </th>
-                <th className="p-3">
-                  <button type="button" onClick={() => toggleSort('admin_email')} className="flex items-center gap-1 font-medium hover:text-[var(--text)] transition-colors">
-                    Admin {sortKey === 'admin_email' && (sortDir === 'asc' ? '↑' : '↓')}
-                  </button>
-                </th>
-                <th className="p-3">
-                  <button type="button" onClick={() => toggleSort('action')} className="flex items-center gap-1 font-medium hover:text-[var(--text)] transition-colors">
-                    Action {sortKey === 'action' && (sortDir === 'asc' ? '↑' : '↓')}
-                  </button>
-                </th>
-                <th className="p-3">
-                  <button type="button" onClick={() => toggleSort('target')} className="flex items-center gap-1 font-medium hover:text-[var(--text)] transition-colors">
-                    Target {sortKey === 'target' && (sortDir === 'asc' ? '↑' : '↓')}
-                  </button>
-                </th>
-                <th className="p-3 font-medium text-[var(--text-muted)]">Reason</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((e, i) => (
-                <tr key={e.id} className={`border-b border-[var(--separator)] last:border-0 hover:bg-[var(--surface-hover)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface)]/30' : ''}`}>
-                  <td className="p-3 text-[var(--text-muted)]">{new Date(e.created_at).toLocaleString()}</td>
-                  <td className="p-3">{e.admin_email ?? '—'}</td>
-                  <td className="p-3 font-medium">{e.action}</td>
-                  <td className="p-3">{e.target_type && e.target_id ? `${e.target_type}: ${e.target_id.slice(0, 8)}…` : '—'}</td>
-                  <td className="p-3 text-sm text-[var(--text-secondary)]">{(e as Record<string, unknown>).reason ? String((e as Record<string, unknown>).reason) : '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ============================================
-// COMPLIANCE TAB (Phase 7)
-// ============================================
-
-function ComplianceTab({
-  controls,
-  evidence,
-  reviews,
-  health,
-  loading,
-  generatingCode,
-  onRefresh,
-  onRunHealthCheck,
-  onRepairChain,
-  onGenerateEvidence,
-  onAddReview,
-  canExportAudit,
-}: {
-  controls: Array<Record<string, unknown>>
-  evidence: Array<Record<string, unknown>>
-  reviews: Array<Record<string, unknown>>
-  health: {
-    overall_score: number | null
-    controls: Array<{ control_code: string; status: string; score: number; last_checked_at: string; notes: string | null }>
-    last_checked_at: string | null
-  } | null
-  loading: boolean
-  generatingCode: string | null
-  onRefresh: () => void
-  onRunHealthCheck: () => Promise<void>
-  onRepairChain: () => Promise<void>
-  onGenerateEvidence: (controlCode: string) => Promise<void>
-  onAddReview: (reviewPeriod: string, summary: string) => Promise<void>
-  canExportAudit: boolean
-}) {
-  const [runningHealth, setRunningHealth] = useState(false)
-  const [repairingChain, setRepairingChain] = useState(false)
-  const [evidenceFilter, setEvidenceFilter] = useState('')
-  const [reviewPeriod, setReviewPeriod] = useState('')
-  const [reviewSummary, setReviewSummary] = useState('')
-  const [submittingReview, setSubmittingReview] = useState(false)
-
-  const filteredEvidence = evidenceFilter.trim()
-    ? evidence.filter((e) => String(e.control_code ?? '').toLowerCase().includes(evidenceFilter.trim().toLowerCase()))
-    : evidence
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-[var(--text)]">Control framework & evidence</h2>
-        <button type="button" onClick={onRefresh} disabled={loading} className="px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-sm font-medium disabled:opacity-50">
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
-      </div>
-
-      {/* Control health (Phase 8 CCM) */}
-      <div className="bg-[var(--surface)] p-6 rounded-2xl border border-[var(--separator)]">
-        <h3 className="text-base font-semibold mb-3">Control health</h3>
-        <p className="text-sm text-[var(--text-muted)] mb-4">Overall governance score and per-control status. Run checks daily (e.g. via cron calling POST /api/admin/compliance/health/run).</p>
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          {health != null && health.overall_score != null && (
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-[var(--text)]">Overall: {health.overall_score}</span>
-              <span className="text-sm text-[var(--text-muted)]">/ 100</span>
-            </div>
-          )}
-          {health?.last_checked_at && (
-            <span className="text-xs text-[var(--text-muted)]">Last run: {new Date(health.last_checked_at).toLocaleString()}</span>
-          )}
-          {canExportAudit && (
-            <button
-              type="button"
-              disabled={runningHealth}
-              onClick={async () => { setRunningHealth(true); await onRunHealthCheck(); setRunningHealth(false) }}
-              className="px-4 py-2 rounded-xl bg-[var(--accent-purple)] text-white text-sm font-medium disabled:opacity-50"
-            >
-              {runningHealth ? 'Running…' : 'Run health checks'}
-            </button>
-          )}
-          {canExportAudit && (
-            <button
-              type="button"
-              disabled={repairingChain}
-              onClick={async () => { setRepairingChain(true); await onRepairChain(); setRepairingChain(false) }}
-              className="px-4 py-2 rounded-xl bg-[var(--surface)] border border-[var(--separator)] text-sm font-medium disabled:opacity-50 text-[var(--text-secondary)]"
-              title="Recompute audit log hash chain (fixes CC7.2 when chain is broken)"
-            >
-              {repairingChain ? 'Repairing…' : 'Repair chain'}
-            </button>
-          )}
-        </div>
-        {loading && !health ? (
-          <div className="h-20 bg-[var(--surface-hover)] rounded-lg animate-pulse" />
-        ) : health?.controls?.length ? (
-          <ul className="space-y-2">
-            {health.controls.map((c) => (
-              <li key={c.control_code} className="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-[var(--separator)] last:border-0">
-                <span className="font-medium">{c.control_code}</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${c.status === 'healthy' ? 'bg-green-500/20 text-green-400' : c.status === 'warning' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'}`}>
-                  {c.status}
-                </span>
-                <span className="text-sm text-[var(--text-secondary)]">Score: {c.score}</span>
-                <span className="text-xs text-[var(--text-muted)]">{c.last_checked_at ? new Date(c.last_checked_at).toLocaleString() : ''}</span>
-                {c.notes && <span className="text-xs text-[var(--text-muted)] w-full mt-1" title={c.notes}>{c.notes}</span>}
-                {c.notes && String(c.notes).includes('No super_admin') && (
-                  <span className="text-xs text-[var(--text-muted)] w-full mt-1 block">Ensure <code className="bg-[var(--surface-hover)] px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code> is set in your deployment, then open Admin (or Settings) once so your allowlisted account is assigned super_admin.</span>
-                )}
-                <a href="#compliance-evidence" onClick={() => setEvidenceFilter(c.control_code)} className="text-xs text-[var(--accent-purple)] hover:underline">Evidence →</a>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-[var(--text-muted)]">No health data yet. Run health checks (or run migration 20260228000005) and call POST /api/admin/compliance/health/run.</p>
-        )}
-      </div>
-
-      {/* Control Mapping */}
-      <div className="bg-[var(--surface)] p-6 rounded-2xl border border-[var(--separator)]">
-        <h3 className="text-base font-semibold mb-3">Control mapping</h3>
-        <p className="text-sm text-[var(--text-muted)] mb-4">SOC2, ISO 27001, GDPR controls mapped to system components and evidence sources.</p>
-        {loading && controls.length === 0 ? (
-          <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-12 bg-[var(--surface-hover)] rounded-lg animate-pulse" />
-            ))}
-          </div>
-        ) : controls.length === 0 ? (
-          <p className="text-sm text-[var(--text-muted)]">Run migration 20260228000004_control_framework_evidence_phase7.sql to seed controls.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-[var(--text-muted)] border-b border-[var(--separator)]">
-                  <th className="p-2 font-medium">Framework</th>
-                  <th className="p-2 font-medium">Control</th>
-                  <th className="p-2 font-medium">Description</th>
-                  <th className="p-2 font-medium">Component</th>
-                  <th className="p-2 font-medium">Evidence source</th>
-                  {canExportAudit && <th className="p-2 font-medium">Generate</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {controls.map((c) => (
-                  <tr key={String(c.id)} className="border-b border-[var(--separator)] last:border-0 hover:bg-[var(--surface-hover)]">
-                    <td className="p-2">{String(c.framework)}</td>
-                    <td className="p-2 font-medium">{String(c.control_code)}</td>
-                    <td className="p-2 text-[var(--text-secondary)] max-w-[200px] truncate" title={String(c.control_description ?? '')}>{String(c.control_description ?? '')}</td>
-                    <td className="p-2">{String(c.system_component)}</td>
-                    <td className="p-2 text-xs text-[var(--text-muted)] max-w-[240px] truncate" title={String(c.evidence_source ?? '')}>{String(c.evidence_source ?? '')}</td>
-                    {canExportAudit && (
-                      <td className="p-2">
-                        <button
-                          type="button"
-                          disabled={generatingCode !== null}
-                          onClick={() => onGenerateEvidence(String(c.control_code))}
-                          className="px-2 py-1 rounded-lg bg-[var(--accent-purple)]/15 text-[var(--accent-purple)] text-xs font-medium disabled:opacity-50"
-                        >
-                          {generatingCode === c.control_code ? 'Generating…' : 'Generate'}
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Evidence export / registry */}
-      <div id="compliance-evidence" className="bg-[var(--surface)] p-6 rounded-2xl border border-[var(--separator)]">
-        <h3 className="text-base font-semibold mb-3">Evidence registry</h3>
-        <p className="text-sm text-[var(--text-muted)] mb-3">Generated evidence records. Filter by control code.</p>
-        <input
-          type="text"
-          placeholder="Filter by control code (e.g. CC7.2)"
-          value={evidenceFilter}
-          onChange={(e) => setEvidenceFilter(e.target.value)}
-          className="input-field w-full max-w-xs mb-4"
-        />
-        {loading && evidence.length === 0 ? (
-          <div className="h-24 bg-[var(--surface-hover)] rounded-lg animate-pulse" />
-        ) : filteredEvidence.length === 0 ? (
-          <p className="text-sm text-[var(--text-muted)]">No evidence records yet. Use Generate on a control above.</p>
-        ) : (
-          <ul className="space-y-2 max-h-64 overflow-y-auto">
-            {filteredEvidence.slice(0, 50).map((e) => (
-              <li key={String(e.id)} className="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-[var(--separator)] last:border-0 text-sm">
-                <span className="font-medium">{String(e.control_code)}</span>
-                <span className="text-[var(--text-muted)]">{String(e.evidence_type)} · {String(e.reference ?? '')}</span>
-                <span className="text-xs text-[var(--text-muted)]">{e.generated_at ? new Date(String(e.generated_at)).toLocaleString() : ''}</span>
-              </li>
-            ))}
-            {filteredEvidence.length > 50 && <p className="text-xs text-[var(--text-muted)]">… and {filteredEvidence.length - 50} more</p>}
-          </ul>
-        )}
-      </div>
-
-      {/* Quarterly review log */}
-      <div className="bg-[var(--surface)] p-6 rounded-2xl border border-[var(--separator)]">
-        <h3 className="text-base font-semibold mb-3">Quarterly governance review log</h3>
-        <p className="text-sm text-[var(--text-muted)] mb-4">Log governance reviews for compliance (e.g. 2025-Q1).</p>
-        <div className="flex flex-wrap gap-3 mb-4">
-          <input
-            type="text"
-            placeholder="Review period (e.g. 2025-Q1)"
-            value={reviewPeriod}
-            onChange={(e) => setReviewPeriod(e.target.value)}
-            className="input-field max-w-[180px]"
-          />
-          <textarea
-            placeholder="Summary (optional)"
-            value={reviewSummary}
-            onChange={(e) => setReviewSummary(e.target.value)}
-            className="input-field min-w-[240px] min-h-[80px]"
-            rows={2}
-          />
-          <button
-            type="button"
-            disabled={!reviewPeriod.trim() || submittingReview}
-            onClick={async () => {
-              setSubmittingReview(true)
-              await onAddReview(reviewPeriod.trim(), reviewSummary.trim())
-              setReviewPeriod('')
-              setReviewSummary('')
-              setSubmittingReview(false)
-            }}
-            className="px-4 py-2 rounded-xl bg-[var(--accent-purple)] text-white text-sm font-medium disabled:opacity-50"
-          >
-            {submittingReview ? 'Saving…' : 'Log review'}
-          </button>
-        </div>
-        {reviews.length === 0 ? (
-          <p className="text-sm text-[var(--text-muted)]">No governance reviews logged yet.</p>
-        ) : (
-          <ul className="space-y-2">
-            {reviews.map((r) => (
-              <li key={String(r.id)} className="py-2 border-b border-[var(--separator)] last:border-0">
-                <p className="font-medium">{String(r.review_period)}</p>
-                {r.summary != null && r.summary !== '' && <p className="text-sm text-[var(--text-secondary)] mt-1">{String(r.summary)}</p>}
-                <p className="text-xs text-[var(--text-muted)]">{r.created_at ? new Date(String(r.created_at)).toLocaleString() : ''}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ============================================
-// SETTINGS TAB
-// ============================================
-
-function SettingsTab({
-  appConfig = {},
-  loading = false,
-  onRefresh,
-  onSaveConfig,
-  configSaveSuccess = '',
-  clearConfigSaveSuccess,
-  blockedUsers = [],
-  blockedLoading = false,
-  onLoadBlocked,
-  setActiveTab,
-  adminRoles = [],
-  currentUserId = null,
-  onAnnounce,
-  announceSuccess = '',
-  clearAnnounceSuccess,
-  showToast,
-  on403,
-}: {
-  appConfig?: Record<string, string>
-  loading?: boolean
-  onRefresh?: () => void
-  onSaveConfig?: (updates: Record<string, string>) => Promise<void>
-  configSaveSuccess?: string
-  clearConfigSaveSuccess?: () => void
-  blockedUsers?: Array<Record<string, unknown>>
-  blockedLoading?: boolean
-  onLoadBlocked?: () => void
-  setActiveTab?: (tab: Tab) => void
-  adminRoles?: string[]
-  currentUserId?: string | null
-  onAnnounce?: (title: string, body: string, segment: string) => Promise<void>
-  announceSuccess?: string
-  clearAnnounceSuccess?: () => void
-  showToast?: (message: string, type?: 'success' | 'error') => void
-  /** Phase 12: central 403 handler (refetch roles, redirect to first allowed tab) */
-  on403?: () => void
-}) {
-  const [configDraft, setConfigDraft] = useState<Record<string, string>>(appConfig)
-  const [saving, setSaving] = useState(false)
-  const [announceTitle, setAnnounceTitle] = useState('')
-  const [announceBody, setAnnounceBody] = useState('')
-  const [announceSegment, setAnnounceSegment] = useState('all')
-  const [adminUsers, setAdminUsers] = useState<Array<{ admin_user_id: string; email: string | null; name: string | null; roles: string[] }>>([])
-  const [rolesList, setRolesList] = useState<Array<{ id: string; name: string; description: string | null }>>([])
-  const [adminUsersLoading, setAdminUsersLoading] = useState(false)
-  const [roleActionLoading, setRoleActionLoading] = useState<string | null>(null)
-  const [roleError, setRoleError] = useState<string | null>(null)
-  const [adminSessions, setAdminSessions] = useState<Array<{ id: string; session_id: string; ip_address: string | null; user_agent: string | null; country: string | null; city: string | null; created_at: string; last_seen_at: string; is_current?: boolean }>>([])
-  const [adminSessionsLoading, setAdminSessionsLoading] = useState(false)
-  const [adminSessionsError, setAdminSessionsError] = useState<string | null>(null)
-  const [revokingId, setRevokingId] = useState<string | null>(null)
-  const isSuperAdmin = adminRoles.includes('super_admin')
-  const canManageRoles = adminRoles.includes('super_admin')
-
-  const loadAdminUsersAndRoles = useCallback(async () => {
-    if (!isSuperAdmin) return
-    setAdminUsersLoading(true)
-    setRoleError(null)
-    try {
-      const [ur, rr] = await Promise.all([
-        fetch('/api/admin/admin-users', { credentials: 'include' }),
-        fetch('/api/admin/roles', { credentials: 'include' }),
-      ])
-      const userData = await ur.json().catch(() => ({}))
-      const roleData = await rr.json().catch(() => ({}))
-      if (ur.ok && userData.admin_users) setAdminUsers(userData.admin_users)
-      else if (!ur.ok) setRoleError((userData?.error as string) || 'Failed to load admin users')
-      if (rr.ok && roleData.roles) setRolesList(roleData.roles)
-      else if (!rr.ok) setRoleError((roleData?.error as string) || 'Failed to load roles')
-    } catch {
-      setRoleError('Failed to load admin users and roles')
-    }
-    setAdminUsersLoading(false)
-  }, [isSuperAdmin])
-
-  useEffect(() => {
-    if (isSuperAdmin) void loadAdminUsersAndRoles()
-  }, [isSuperAdmin, loadAdminUsersAndRoles])
-
-  const loadAdminSessions = useCallback(async () => {
-    setAdminSessionsError(null)
-    setAdminSessionsLoading(true)
-    try {
-      const res = await fetch('/api/admin/sessions', { credentials: 'include' })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && Array.isArray(data.sessions)) {
-        setAdminSessions(data.sessions)
-      } else if (res.status === 403) {
-        setAdminSessionsError('You don’t have permission to view active sessions.')
-        setAdminSessions([])
-        on403?.()
-      } else {
-        setAdminSessionsError(data.error || 'Failed to load sessions')
-        setAdminSessions([])
+    <ConfirmModal
+      open={confirmBulk.open}
+      title={confirmBulk.action === 'reject' ? 'Reject applications' : 'Suspend applications'}
+      description={
+        confirmBulk.action === 'reject'
+          ? `Reject ${confirmBulk.applicationIds?.length ?? 0} application(s)? This cannot be undone. You must provide a reason.`
+          : `Suspend ${confirmBulk.applicationIds?.length ?? 0} application(s)? This cannot be undone. You must provide a reason.`
       }
-    } catch {
-      setAdminSessionsError('Failed to load sessions')
-      setAdminSessions([])
-    }
-    setAdminSessionsLoading(false)
-  }, [on403])
-
-  useEffect(() => {
-    void loadAdminSessions()
-  }, [loadAdminSessions])
-
-  useEffect(() => { setConfigDraft(appConfig) }, [appConfig])
-  useEffect(() => {
-    if (!configSaveSuccess || !clearConfigSaveSuccess) return
-    const t = setTimeout(clearConfigSaveSuccess, 3000)
-    return () => clearTimeout(t)
-  }, [configSaveSuccess, clearConfigSaveSuccess])
-
-  const handleSaveConfig = async () => {
-    if (!onSaveConfig) return
-    setSaving(true)
-    await onSaveConfig(configDraft)
-    setSaving(false)
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="bg-[var(--surface)] p-6 rounded-2xl">
-        <h3 className="text-lg font-semibold mb-4">Two-Factor Authentication (2FA)</h3>
-        <p className="text-[var(--text-secondary)] mb-4">
-          Admin access requires 2FA. Enable or manage it in the main app Settings.
-        </p>
-        <a href="/settings/security" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium bg-[var(--accent-purple)] text-white hover:opacity-90 transition-opacity">
-          Open app Settings → 2FA
-        </a>
-      </div>
-
-      {/* Active Sessions (Phase 6) */}
-      <div className="bg-[var(--surface)] p-6 rounded-2xl">
-        <h3 className="text-lg font-semibold mb-4">Active Sessions</h3>
-        <p className="text-sm text-[var(--text-muted)] mb-3">Admin sessions for this account. Revoke any session you don’t recognize.</p>
-        <button type="button" onClick={loadAdminSessions} disabled={adminSessionsLoading} className="px-4 py-2 rounded-xl bg-[var(--surface-hover)] border border-[var(--separator)] text-sm mb-3 disabled:opacity-50">
-          {adminSessionsLoading ? 'Loading…' : 'Refresh'}
-        </button>
-        {adminSessionsError && (
-          <p className="text-sm text-[var(--error)] mb-3">{adminSessionsError}</p>
-        )}
-        {!adminSessionsError && adminSessions.length === 0 && !adminSessionsLoading && (
-          <p className="text-sm text-[var(--text-muted)]">No active sessions, or run migration for admin_sessions.</p>
-        )}
-        {!adminSessionsError && adminSessions.length > 0 && (
-          <div className="space-y-3">
-            {adminSessions.map((s) => (
-              <div
-                key={s.id}
-                className={`p-4 rounded-xl border flex flex-wrap items-center justify-between gap-3 ${s.is_current ? 'border-[var(--accent-purple)]/50 bg-[var(--accent-purple)]/5' : 'border-[var(--separator)] bg-[var(--surface-hover)]/30'}`}
-              >
-                <div>
-                  <p className="font-medium text-[var(--text)]">
-                    {s.ip_address ?? 'Unknown IP'}
-                    {s.is_current && <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-[var(--accent-purple)]/20 text-[var(--accent-purple)]">Current</span>}
-                  </p>
-                  <p className="text-xs text-[var(--text-muted)]">
-                    Last activity: {new Date(s.last_seen_at).toLocaleString()}
-                    {s.country && ` · ${s.city ? `${s.city}, ` : ''}${s.country}`}
-                  </p>
-                  {s.user_agent && <p className="text-xs text-[var(--text-muted)] truncate max-w-md" title={s.user_agent}>{s.user_agent}</p>}
-                </div>
-                {canManageRoles && !s.is_current && (
-                  <button
-                    type="button"
-                    disabled={revokingId === s.id}
-                    onClick={async () => {
-                      setRevokingId(s.id)
-                      try {
-                        const res = await fetch(`/api/admin/sessions/${s.id}/revoke`, { method: 'POST', credentials: 'include' })
-                        const data = await res.json().catch(() => ({}))
-                        if (res.ok) void loadAdminSessions()
-                        else if (res.status === 403 && showToast) showToast('You don\'t have permission to revoke sessions.', 'error')
-                        else if (showToast) showToast((data?.error as string) || 'Failed to revoke session', 'error')
-                      } finally {
-                        setRevokingId(null)
-                      }
-                    }}
-                    className="px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-sm font-medium disabled:opacity-50"
-                  >
-                    {revokingId === s.id ? 'Revoking…' : 'Revoke'}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Feature flags & maintenance */}
-      <div className="bg-[var(--surface)] p-6 rounded-2xl">
-        <h3 className="text-lg font-semibold mb-4">Feature flags & maintenance</h3>
-        <div className="space-y-4">
-          <label className="flex items-center gap-3" htmlFor="admin-config-signups-open">
-            <input id="admin-config-signups-open" name="signups_open" type="checkbox" checked={configDraft.signups_open !== 'false'} onChange={e => setConfigDraft(prev => ({ ...prev, signups_open: e.target.checked ? 'true' : 'false' }))} className="rounded" />
-            <span>Signups open</span>
-          </label>
-          <label className="flex items-center gap-3" htmlFor="admin-config-verification-open">
-            <input id="admin-config-verification-open" name="verification_requests_open" type="checkbox" checked={configDraft.verification_requests_open !== 'false'} onChange={e => setConfigDraft(prev => ({ ...prev, verification_requests_open: e.target.checked ? 'true' : 'false' }))} className="rounded" />
-            <span>Verification requests open</span>
-          </label>
-          <label className="flex items-center gap-3" htmlFor="admin-config-maintenance-mode">
-            <input id="admin-config-maintenance-mode" name="maintenance_mode" type="checkbox" checked={configDraft.maintenance_mode === 'true'} onChange={e => setConfigDraft(prev => ({ ...prev, maintenance_mode: e.target.checked ? 'true' : 'false' }))} className="rounded" />
-            <span>Maintenance mode</span>
-          </label>
-          <div>
-            <label className="block text-sm text-[var(--text-muted)] mb-1" htmlFor="admin-maintenance-banner">Maintenance banner (shown to all users)</label>
-            <input id="admin-maintenance-banner" name="maintenance_banner" type="text" value={configDraft.maintenance_banner ?? ''} onChange={e => setConfigDraft(prev => ({ ...prev, maintenance_banner: e.target.value }))} placeholder="Optional message" className="input-field w-full" />
-          </div>
-          {configSaveSuccess && (
-            <div className="mb-3 p-3 rounded-xl bg-[var(--success)]/15 border border-[var(--success)]/40 text-[var(--success)] text-sm flex items-center justify-between gap-2">
-              <span>{configSaveSuccess}</span>
-              {clearConfigSaveSuccess && <button type="button" onClick={clearConfigSaveSuccess} className="font-medium hover:underline" aria-label="Dismiss">×</button>}
-            </div>
-          )}
-          <div className="flex gap-2">
-            <button type="button" onClick={handleSaveConfig} disabled={saving || !onSaveConfig} className="px-4 py-2 rounded-xl bg-[var(--accent-purple)] text-white text-sm font-medium disabled:opacity-50">
-              {saving ? 'Saving…' : 'Save config'}
-            </button>
-            {onRefresh && <button type="button" onClick={onRefresh} disabled={loading} className="px-4 py-2 rounded-xl bg-[var(--surface-hover)] border border-[var(--separator)] text-sm disabled:opacity-50">Refresh</button>}
-          </div>
-        </div>
-      </div>
-
-      {/* Announcements */}
-      {onAnnounce && (
-        <div className="bg-[var(--surface)] p-6 rounded-2xl">
-          <h3 className="text-lg font-semibold mb-4">Send announcement</h3>
-          <p className="text-sm text-[var(--text-muted)] mb-3">Queue a push/email to users. Wire your provider in api/admin/announce/route.ts.</p>
-          {announceSuccess && (
-            <div className="mb-3 p-3 rounded-xl bg-[var(--success)]/15 border border-[var(--success)]/40 text-[var(--success)] text-sm flex items-center justify-between gap-2">
-              <span>{announceSuccess}</span>
-              <button type="button" onClick={clearAnnounceSuccess} className="font-medium hover:underline" aria-label="Dismiss">×</button>
-            </div>
-          )}
-          <label className="block text-sm text-[var(--text-muted)] mb-1" htmlFor="admin-announce-title">Title</label>
-          <input id="admin-announce-title" name="announce_title" type="text" value={announceTitle} onChange={e => setAnnounceTitle(e.target.value)} placeholder="Title" className="input-field w-full mb-2" />
-          <label className="block text-sm text-[var(--text-muted)] mb-1" htmlFor="admin-announce-message">Message</label>
-          <textarea id="admin-announce-message" name="announce_body" value={announceBody} onChange={e => setAnnounceBody(e.target.value)} placeholder="Message" className="input-field w-full mb-2 min-h-[80px]" />
-          <label className="block text-sm text-[var(--text-muted)] mb-1" htmlFor="admin-announce-segment">Audience</label>
-          <select id="admin-announce-segment" name="announce_segment" value={announceSegment} onChange={e => setAnnounceSegment(e.target.value)} className="input-field w-full mb-3" aria-label="Announcement audience">
-            <option value="all">All users</option>
-            <option value="verified">Verified only</option>
-          </select>
-          <button type="button" onClick={async () => { await onAnnounce(announceTitle, announceBody, announceSegment); setAnnounceTitle(''); setAnnounceBody('') }} className="px-4 py-2 rounded-xl bg-[var(--accent-purple)] text-white text-sm font-medium">
-            Send announcement
-          </button>
-        </div>
-      )}
-
-      {/* Blocked users overview */}
-      {onLoadBlocked && (
-        <div className="bg-[var(--surface)] p-6 rounded-2xl">
-          <h3 className="text-lg font-semibold mb-4">Blocked users (platform)</h3>
-          <p className="text-sm text-[var(--text-muted)] mb-3">Who blocked whom. Load to refresh.</p>
-          <button type="button" onClick={onLoadBlocked} disabled={blockedLoading} className="px-4 py-2 rounded-xl bg-[var(--surface-hover)] border border-[var(--separator)] text-sm mb-3 disabled:opacity-50">
-            {blockedLoading ? 'Loading…' : 'Load blocked list'}
-          </button>
-          {blockedUsers.length > 0 && (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {blockedUsers.slice(0, 50).map((b: Record<string, unknown>) => (
-                <div key={String(b.id)} className="text-sm py-1 border-b border-[var(--separator)]">
-                  @{String(b.blocker_username ?? b.blocker_id)} blocked @{String(b.blocked_username ?? b.blocked_id)}
-                </div>
-              ))}
-              {blockedUsers.length > 50 && <p className="text-xs text-[var(--text-muted)]">… and {blockedUsers.length - 50} more</p>}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Admin users & roles - super_admin only */}
-      {isSuperAdmin && (
-        <div className="bg-[var(--surface)] p-6 rounded-2xl">
-          <h3 className="text-lg font-semibold mb-4">Admin users & roles</h3>
-          <p className="text-sm text-[var(--text-muted)] mb-3">Assign or remove roles. Only super_admin can manage.</p>
-          {roleError && (
-            <div className="mb-3 p-3 rounded-xl bg-red-500/15 border border-red-500/40 text-red-400 text-sm flex items-center justify-between gap-2">
-              <span>{roleError}</span>
-              <button type="button" onClick={() => setRoleError(null)} className="font-medium hover:underline" aria-label="Dismiss">×</button>
-            </div>
-          )}
-          <button type="button" onClick={loadAdminUsersAndRoles} disabled={adminUsersLoading} className="px-4 py-2 rounded-xl bg-[var(--surface-hover)] border border-[var(--separator)] text-sm mb-4 disabled:opacity-50">
-            {adminUsersLoading ? 'Loading…' : 'Refresh list'}
-          </button>
-          {adminUsers.length === 0 && !adminUsersLoading ? (
-            <p className="text-sm text-[var(--text-muted)]">No admin users with roles yet. Allowlisted admins get super_admin on first login.</p>
-          ) : (
-            <div className="space-y-4">
-              {adminUsers.map((au) => (
-                <div key={au.admin_user_id} className="p-4 rounded-xl border border-[var(--separator)] bg-[var(--surface-hover)]/30">
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                    <span className="font-medium">{au.name || au.email || au.admin_user_id.slice(0, 8)}</span>
-                    <span className="text-xs text-[var(--text-muted)]">{au.admin_user_id.slice(0, 8)}…</span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {au.roles.map((r) => (
-                      <span key={r} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[var(--accent-purple)]/20 text-[var(--accent-purple)] text-sm">
-                        {r}
-                        <button
-                          type="button"
-                          disabled={roleActionLoading !== null || (r === 'super_admin' && au.admin_user_id === currentUserId)}
-                          onClick={async () => {
-                            setRoleActionLoading(au.admin_user_id + r)
-                            try {
-                              const res = await fetch(`/api/admin/admin-users/${encodeURIComponent(au.admin_user_id)}/remove-role?role_name=${encodeURIComponent(r)}`, { method: 'DELETE', credentials: 'include' })
-                              const data = await res.json().catch(() => ({}))
-                              if (res.ok) await loadAdminUsersAndRoles()
-                              else setRoleError(typeof data?.error === 'string' ? data.error : 'Failed to remove role')
-                            } finally {
-                              setRoleActionLoading(null)
-                            }
-                          }}
-                          className="ml-0.5 hover:opacity-80 disabled:opacity-40"
-                          aria-label={`Remove ${r}`}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                    <select
-                      className="input-field text-sm w-auto max-w-[140px]"
-                      defaultValue=""
-                      onChange={async (e) => {
-                        const roleName = e.target.value
-                        if (!roleName) return
-                        e.target.value = ''
-                        setRoleActionLoading(au.admin_user_id + roleName)
-                        try {
-                          const res = await fetch(`/api/admin/admin-users/${encodeURIComponent(au.admin_user_id)}/assign-role`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            credentials: 'include',
-                            body: JSON.stringify({ role_name: roleName }),
-                          })
-                          const data = await res.json().catch(() => ({}))
-                          if (res.ok) await loadAdminUsersAndRoles()
-                          else setRoleError(typeof data?.error === 'string' ? data.error : 'Failed to assign role')
-                        } finally {
-                          setRoleActionLoading(null)
-                        }
-                      }}
-                      aria-label="Assign role"
-                    >
-                      <option value="">+ Assign role</option>
-                      {rolesList.filter((ro) => !au.roles.includes(ro.name)).map((ro) => (
-                        <option key={ro.id} value={ro.name}>{ro.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="bg-[var(--surface)] p-6 rounded-2xl">
-        <div className="space-y-4 text-[var(--text-secondary)]">
-          <p>• Real-time sync: Enabled (Applications, Users, Verifications, Inbox)</p>
-          <p>• Version: Web Admin v2.0</p>
-          {setActiveTab && (
-            <button type="button" onClick={() => setActiveTab('audit')} className="text-[var(--accent-purple)] hover:underline">
-              View audit log →
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
+      requiredInput={{ placeholder: 'Reason (min 5 characters)', minLength: 5, label: 'Reason' }}
+      confirmLabel={confirmBulk.action === 'reject' ? 'Reject all' : 'Suspend all'}
+      variant="danger"
+      onConfirm={(value) => {
+        if (confirmBulk.applicationIds && confirmBulk.action && value) {
+          bulkApplicationAction(confirmBulk.applicationIds, confirmBulk.action, value)
+          setConfirmBulk({ open: false })
+        }
+      }}
+      onCancel={() => setConfirmBulk({ open: false })}
+    />
+    </>
+    </AdminErrorBoundary>
   )
-}
-
-// ============================================
-// INBOX TAB - Matching iOS InboxView
-// ============================================
-
-function InboxTab({
-  conversations, loading, onRefresh, selectedConversation, setSelectedConversation, currentUserId, senderProfiles
-}: {
-  conversations: ConversationDisplay[]
-  loading: boolean
-  onRefresh: () => void
-  selectedConversation: ConversationDisplay | null
-  setSelectedConversation: (c: ConversationDisplay | null) => void
-  currentUserId: string | null
-  senderProfiles: Record<string, { name: string; username: string }>
-}) {
-  const [search, setSearch] = useState('')
-  const [inboxTab, setInboxTab] = useState<'primary' | 'requests'>('primary')
-  
-  const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
-  
-  const searchLower = search.trim().toLowerCase()
-  const filteredConversations = !searchLower
-    ? conversations
-    : conversations.filter(c =>
-        c.otherUserName.toLowerCase().includes(searchLower) ||
-        c.otherUserUsername.toLowerCase().includes(searchLower) ||
-        c.lastMessage.toLowerCase().includes(searchLower) ||
-        (c.messages?.some(m => m.content?.toLowerCase().includes(searchLower)) ?? false)
-      )
-
-  return (
-    <div className="space-y-4">
-      {/* Inbox Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold">All Messages (Admin View)</h2>
-          <p className="text-sm text-[var(--text-secondary)]">
-            {conversations.length} conversations across all users • {totalUnread} unread
-          </p>
-        </div>
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          className="px-4 py-2 rounded-xl disabled:opacity-50 bg-[var(--accent-purple)] text-white hover:opacity-90"
-        >
-          {loading ? '↻ Loading...' : '↻ Refresh'}
-        </button>
-      </div>
-
-      {/* Primary / Requests tabs (like iOS) */}
-      <div className="flex gap-2 p-1 bg-[var(--surface)] rounded-xl">
-        <button
-          onClick={() => setInboxTab('primary')}
-          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-            inboxTab === 'primary'
-              ? 'bg-[var(--accent-purple)] text-white'
-              : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
-          }`}
-        >
-          Primary
-        </button>
-        <button
-          onClick={() => setInboxTab('requests')}
-          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-            inboxTab === 'requests'
-              ? 'bg-[var(--accent-purple)] text-white'
-              : 'text-[var(--text-secondary)] hover:text-[var(--text)]'
-          }`}
-        >
-          Requests
-        </button>
-      </div>
-
-      {/* Search (names, usernames, last message, or any message content) — Primary only */}
-      {inboxTab === 'primary' && (
-        <div className="relative">
-          <input
-            id="admin-inbox-search"
-            name="inbox-search"
-            type="text"
-            placeholder="Search by name, @username, or keyword in messages..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full px-4 py-3 pl-10 bg-[var(--surface)] border border-[var(--separator)] rounded-xl focus:border-[var(--accent-purple)] outline-none"
-            aria-label="Search conversations"
-          />
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">🔍</span>
-        </div>
-      )}
-
-      {/* Requests: Coming soon */}
-      {inboxTab === 'requests' ? (
-        <div className="text-center py-12 text-[var(--text-muted)] rounded-xl bg-[var(--surface)] border border-[var(--separator)]">
-          <div className="text-5xl mb-4">📩</div>
-          <p className="font-medium text-[var(--text-secondary)]">Requests</p>
-          <p className="text-sm mt-2">Coming soon. Request threads will appear here.</p>
-        </div>
-      ) : (
-        <>
-      {/* Conversations List */}
-      {loading && conversations.length === 0 ? (
-        <div className="text-center py-12 text-[var(--text-muted)]">
-          <div className="w-8 h-8 border-2 border-[var(--accent-purple)] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p>Loading conversations...</p>
-        </div>
-      ) : filteredConversations.length === 0 ? (
-        <div className="text-center py-12 text-[var(--text-muted)]">
-          <div className="text-5xl mb-4">💬</div>
-          <p>No conversations yet</p>
-          <p className="text-sm mt-2">Messages will appear here</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filteredConversations.map(convo => (
-            <ConversationRow
-              key={convo.threadId}
-              conversation={convo}
-              onClick={() => setSelectedConversation(convo)}
-              isSelected={selectedConversation?.threadId === convo.threadId}
-            />
-          ))}
-        </div>
-      )}
-        </>
-      )}
-
-      {/* Conversation Detail Modal */}
-      {selectedConversation && (
-        <ConversationModal
-          conversation={selectedConversation}
-          onClose={() => setSelectedConversation(null)}
-          currentUserId={currentUserId}
-          senderProfiles={senderProfiles}
-        />
-      )}
-    </div>
-  )
-}
-
-function ConversationRow({ 
-  conversation, onClick, isSelected 
-}: { 
-  conversation: ConversationDisplay
-  onClick: () => void
-  isSelected: boolean
-}) {
-  return (
-    <div
-      onClick={onClick}
-      className={`p-4 rounded-xl cursor-pointer transition-colors ${
-        isSelected 
-          ? 'bg-[var(--accent-purple)]/20 border border-[var(--accent-purple)]/50' 
-          : 'bg-[var(--surface)] hover:bg-[var(--surface-hover)]'
-      }`}
-    >
-      <div className="flex items-center gap-4">
-        <div className="relative">
-          <Avatar 
-            url={conversation.otherUserAvatar} 
-            name={conversation.otherUserName} 
-            size={52} 
-          />
-          {conversation.unreadCount > 0 && (
-            <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold">
-              {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
-            </div>
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between">
-            <p className={`font-semibold truncate ${conversation.unreadCount > 0 ? 'text-[var(--text)]' : 'text-[var(--text)]'}`}>
-              {conversation.otherUserName}
-            </p>
-            <span className="text-xs text-[var(--text-muted)] flex-shrink-0 ml-2">
-              {formatTimeAgo(conversation.lastMessageTime)}
-            </span>
-          </div>
-          <p className="text-sm text-[var(--text-secondary)] truncate">@{conversation.otherUserUsername}</p>
-          <p className={`text-sm truncate mt-1 ${conversation.unreadCount > 0 ? 'text-[var(--text)] font-medium' : 'text-[var(--text-muted)]'}`}>
-            {conversation.lastMessage}
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ConversationModal({
-  conversation, onClose, currentUserId: _currentUserId, senderProfiles
-}: {
-  conversation: ConversationDisplay
-  onClose: () => void
-  currentUserId: string | null
-  senderProfiles?: Record<string, { name: string; username: string }>
-}) {
-  // Sort messages oldest first for display
-  const sortedMessages = [...conversation.messages].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  )
-
-  // Group messages by date for better readability
-  let lastSenderId = ''
-
-  const dialogRef = useRef<HTMLDivElement>(null)
-  const handleClose = useModalFocusTrap(dialogRef, onClose)
-  return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && handleClose()} role="presentation">
-      <div ref={dialogRef} className="bg-[var(--surface)] rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col" role="dialog" aria-modal="true" aria-labelledby="conversation-modal-title" onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="p-4 border-b border-[var(--separator)] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[var(--accent-purple)] to-pink-500 flex items-center justify-center text-[var(--text)] font-bold">
-              💬
-            </div>
-            <div>
-              <p id="conversation-modal-title" className="font-semibold">{conversation.otherUserName}</p>
-              <p className="text-sm text-[var(--text-secondary)]">{conversation.otherUserUsername}</p>
-            </div>
-          </div>
-          <button 
-            onClick={handleClose} 
-            className="text-[var(--text-secondary)] hover:text-[var(--text)] text-2xl p-2"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Messages - Admin View: Show sender for each message */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {sortedMessages.length === 0 ? (
-            <div className="text-center py-8 text-[var(--text-muted)]">
-              <p>No messages in this conversation</p>
-            </div>
-          ) : (
-            sortedMessages.map((msg, idx) => {
-              const showSender = msg.sender_id !== lastSenderId
-              lastSenderId = msg.sender_id
-              const senderInfo = senderProfiles?.[msg.sender_id]
-              const isEven = idx % 2 === 0  // Alternate colors for different senders
-              
-              return (
-                <div key={msg.id} className="space-y-1">
-                  {showSender && (
-                    <p className="text-xs text-[var(--accent-purple)] font-medium ml-1">
-                      {senderInfo?.name || senderInfo?.username || `User ${msg.sender_id.slice(0, 8)}`}
-                    </p>
-                  )}
-                  <div
-                    className={`max-w-[85%] p-3 rounded-2xl ${
-                      isEven 
-                        ? 'bg-[var(--accent-purple)]/20 border border-[var(--accent-purple)]/30' 
-                        : 'bg-[var(--surface-hover)] border border-[var(--border-strong)]'
-                    }`}
-                  >
-                    {msg.media_url && (
-                      <div className="mb-2">
-                        {msg.media_type?.startsWith('image') ? (
-                          /* eslint-disable-next-line @next/next/no-img-element */
-                          <img 
-                            src={msg.media_url} 
-                            alt="Media" 
-                            className="rounded-lg max-h-60 object-cover"
-                          />
-                        ) : msg.media_type?.startsWith('video') ? (
-                          <video 
-                            src={msg.media_url} 
-                            controls 
-                            className="rounded-lg max-h-60"
-                          />
-                        ) : (
-                          <a 
-                            href={msg.media_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-[var(--verified)] underline"
-                          >
-                            📎 Attachment
-                          </a>
-                        )}
-                      </div>
-                    )}
-                    {msg.content && (
-                      <p className="break-words text-[var(--text)]">{msg.content}</p>
-                    )}
-                    <div className="flex items-center gap-2 text-xs mt-1 text-[var(--text-muted)]">
-                      <span>{new Date(msg.created_at).toLocaleString([], { 
-                        month: 'short', day: 'numeric', 
-                        hour: '2-digit', minute: '2-digit' 
-                      })}</span>
-                      <span>•</span>
-                      <span>{isMessageRead(msg) ? '✓✓ Read' : isMessageDelivered(msg) ? '✓ Delivered' : '○ Sent'}</span>
-                    </div>
-                  </div>
-                </div>
-              )
-            })
-          )}
-        </div>
-
-        {/* Footer info */}
-        <div className="p-4 border-t border-[var(--separator)] text-center text-sm text-[var(--text-muted)]">
-          Admin View • {conversation.messages.length} messages total
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ============================================
-// SKELETON LOADERS (enterprise-style)
-// ============================================
-
-function _AdminSkeletonCard() {
-  return (
-    <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-2xl p-5 shadow-[var(--shadow-soft)] animate-pulse">
-      <div className="w-10 h-10 rounded-full bg-[var(--surface-hover)] mb-3" />
-      <div className="h-6 w-20 bg-[var(--surface-hover)] rounded mb-2" />
-      <div className="h-8 w-16 bg-[var(--surface-hover)] rounded" />
-    </div>
-  )
-}
-
-function AdminSkeletonTable({ rows = 5 }: { rows?: number }) {
-  return (
-    <div className="overflow-x-auto rounded-xl border border-[var(--separator)] bg-[var(--surface)]">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-[var(--separator)]">
-            <th className="text-left p-3"><div className="h-4 w-24 bg-[var(--surface-hover)] rounded animate-pulse" /></th>
-            <th className="text-left p-3"><div className="h-4 w-20 bg-[var(--surface-hover)] rounded animate-pulse" /></th>
-            <th className="text-left p-3"><div className="h-4 w-16 bg-[var(--surface-hover)] rounded animate-pulse" /></th>
-            <th className="text-left p-3"><div className="h-4 w-20 bg-[var(--surface-hover)] rounded animate-pulse" /></th>
-          </tr>
-        </thead>
-        <tbody>
-          {Array.from({ length: rows }).map((_, i) => (
-            <tr key={i} className="border-b border-[var(--separator)]">
-              <td className="p-3"><div className="h-4 w-32 bg-[var(--surface-hover)]/80 rounded animate-pulse" /></td>
-              <td className="p-3"><div className="h-4 w-28 bg-[var(--surface-hover)]/80 rounded animate-pulse" /></td>
-              <td className="p-3"><div className="h-4 w-24 bg-[var(--surface-hover)]/80 rounded animate-pulse" /></td>
-              <td className="p-3"><div className="h-4 w-28 bg-[var(--surface-hover)]/80 rounded animate-pulse" /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-// ============================================
-// COMPONENTS
-// ============================================
-
-/** Active today card: always render the number inline so it never appears blank (avoids any StatCard/value edge case). */
-function _ActiveTodayCard({ activeUsersToday }: { activeUsersToday: number }) {
-  const n = Number.isFinite(Number(activeUsersToday)) ? Number(activeUsersToday) : 0
-  const display = String(n)
-  return (
-    <div className="bg-[var(--surface)] border border-[var(--separator)] p-5 rounded-2xl shadow-[var(--shadow-card)]">
-      <div
-        className="w-10 h-10 rounded-full flex items-center justify-center text-lg mb-3 bg-[#3B82F6]/20 text-[#2563EB]"
-        aria-hidden
-      >
-        📈
-      </div>
-      <p className="text-3xl font-bold min-h-[1.25em] tabular-nums text-[var(--text)]" aria-label={`Active today: ${display}`}>
-        {display}
-      </p>
-      <p className="text-sm text-[var(--text-secondary)] mt-1">Active today</p>
-      <p className="text-xs mt-2 text-[var(--text-muted)]">Logged in last 24h</p>
-    </div>
-  )
-}
-
-function StatCard({ title, value, icon, color, trend }: { 
-  title: string; value: number | string; icon: string; color: string; trend: string 
-}) {
-  // Always show a visible number: coerce null/undefined/'' to '0' so the card is never blank
-  const display =
-    value === undefined || value === null || value === ''
-      ? '0'
-      : String(value)
-  const visibleText = display || '0'
-  return (
-    <div className="bg-[var(--surface)] border border-[var(--separator)] p-5 rounded-2xl shadow-[var(--shadow-card)]">
-      <div 
-        className="w-10 h-10 rounded-full flex items-center justify-center text-lg mb-3"
-        style={{ backgroundColor: `${color}20`, color }}
-      >
-        {icon}
-      </div>
-      <p className="text-3xl font-bold min-h-[1.25em] tabular-nums text-[var(--text)]" style={{ color }} aria-label={`${title}: ${visibleText}`} data-stat-value={visibleText}>
-        {visibleText}
-      </p>
-      <p className="text-sm text-[var(--text-secondary)] mt-1">{title}</p>
-      <p className="text-xs mt-2 text-[var(--text-muted)]">{trend}</p>
-    </div>
-  )
-}
-
-function _MiniStat({ title, value, color }: { title: string; value: number; color: string }) {
-  return (
-    <div className="bg-[var(--surface)] border border-[var(--separator)] px-4 py-3 rounded-xl flex-shrink-0">
-      <p className="text-xs text-[var(--text-secondary)]">{title}</p>
-      <p className="text-xl font-bold" style={{ color }}>{value}</p>
-    </div>
-  )
-}
-
-function MetricPill({ label, value, color }: { label: string; value: number | string; color: string }) {
-  return (
-    <div className="bg-[var(--surface)] border border-[var(--separator)] px-4 py-3 rounded-xl">
-      <p className="text-xs text-[var(--text-muted)] uppercase tracking-wider">{label}</p>
-      <p className="text-xl font-bold mt-0.5" style={{ color }}>{value}</p>
-    </div>
-  )
-}
-
-function FunnelRow({ label, value, pct, color }: { label: string; value: number; pct: number; color: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-sm text-[var(--text)]">{label}</span>
-      <div className="flex items-center gap-3 flex-1 max-w-[200px]">
-        <div className="flex-1 h-2 bg-[var(--surface-hover)] rounded-full overflow-hidden">
-          <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: color }} />
-        </div>
-        <span className="text-sm font-semibold w-12 text-right" style={{ color }}>{value} ({pct}%)</span>
-      </div>
-    </div>
-  )
-}
-
-function QuickAction({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="p-4 bg-[var(--surface)] border border-[var(--separator)] rounded-xl shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-card)] hover:bg-[var(--surface-hover)] transition-all duration-200 text-center text-[var(--text)]"
-    >
-      <div className="text-2xl mb-2">{icon}</div>
-      <div className="text-sm">{label}</div>
-    </button>
-  )
-}
-
-function Avatar({ url, name, size }: { url: string | null; name: string; size: number }) {
-  if (url) {
-    return (
-      /* eslint-disable-next-line @next/next/no-img-element */
-      <img 
-        src={url} 
-        alt={name}
-        className="rounded-full object-cover"
-        style={{ width: size, height: size }}
-      />
-    )
-  }
-  return (
-    <div 
-      className="rounded-full bg-[var(--surface)] flex items-center justify-center text-lg"
-      style={{ width: size, height: size }}
-    >
-      {name?.[0]?.toUpperCase() || '?'}
-    </div>
-  )
-}
-
-function _ApplicationCard({
-  app,
-  onApprove,
-  onReject,
-  onWaitlist,
-  onSuspend: _onSuspend,
-  onViewDetails,
-  isLoading,
-  canAct = true,
-  claimedByMe = false,
-  claimedByOther = false,
-  onClaim,
-  onRelease,
-  claiming = false,
-}: {
-  app: Application
-  onApprove: () => void
-  onReject: () => void
-  onWaitlist: () => void
-  onSuspend: () => void
-  onViewDetails: () => void
-  isLoading: boolean
-  canAct?: boolean
-  claimedByMe?: boolean
-  claimedByOther?: boolean
-  onClaim?: () => void | Promise<void>
-  onRelease?: () => void | Promise<void>
-  claiming?: boolean
-}) {
-  const isPending = ['SUBMITTED', 'PENDING_REVIEW', 'DRAFT', 'PENDING'].includes(app.status.toUpperCase())
-
-  const statusStyles: Record<string, string> = {
-    'ACTIVE': 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
-    'APPROVED': 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
-    'PENDING': 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
-    'SUBMITTED': 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
-    'PENDING_REVIEW': 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
-    'DRAFT': 'bg-slate-500/15 text-slate-400 border border-slate-500/30',
-    'REJECTED': 'bg-red-500/15 text-red-400 border border-red-500/30',
-    'WAITLIST': 'bg-purple-500/15 text-purple-400 border border-purple-500/30',
-    'WAITLISTED': 'bg-purple-500/15 text-purple-400 border border-purple-500/30',
-    'SUSPENDED': 'bg-slate-500/15 text-slate-400 border border-slate-500/30',
-  }
-
-  const getCardStatusStyle = (status: string) => {
-    return statusStyles[status.toUpperCase()] || 'bg-slate-500/15 text-slate-400 border border-slate-500/30'
-  }
-
-  return (
-    <div
-      className="bg-[var(--surface)] border border-[var(--separator)] p-4 rounded-2xl shadow-sm hover:shadow-md hover:border-[var(--accent-purple)]/40 transition-all cursor-pointer group"
-      onClick={onViewDetails}
-    >
-      <div className="flex justify-between items-start gap-4">
-        <div className="flex gap-4 min-w-0 flex-1">
-          <div className="relative flex-shrink-0">
-            <Avatar url={app.profile_image_url} name={app.name} size={56} />
-          </div>
-          <div className="min-w-0 flex-1">
-            {/* Primary: name + status */}
-            <div className="flex flex-wrap items-center gap-2 gap-y-1.5">
-              <p className="font-semibold text-[var(--text)] text-base truncate">{app.name || 'No name'}</p>
-              <span className={`text-xs px-2.5 py-1 rounded-lg flex-shrink-0 font-medium ${getCardStatusStyle(app.status)}`}>
-                {getStatusLabel(app.status)}
-              </span>
-              {(claimedByMe || claimedByOther) && (
-                <span className="text-xs px-2.5 py-1 rounded-lg flex-shrink-0 bg-blue-500/15 text-blue-400 border border-blue-500/30 font-medium">
-                  {claimedByMe ? 'Claimed by you' : 'Claimed'}
-                </span>
-              )}
-            </div>
-            {/* Secondary: @username · email */}
-            <div className="flex items-center gap-2 mt-1.5 text-sm text-[var(--text-secondary)]">
-              <span className="font-medium">@{app.username}</span>
-              <span className="text-[var(--text-muted)]">·</span>
-              <span className="truncate">{app.email}</span>
-            </div>
-            {/* Tertiary: metadata tags */}
-            <div className="flex flex-wrap items-center gap-2 mt-2.5">
-              {app.niche && (
-                <span className="text-xs px-2 py-0.5 rounded-md bg-[var(--accent-purple)]/10 text-[var(--accent-purple)] font-medium">
-                  {app.niche}
-                </span>
-              )}
-              {app.referrer_username && (
-                <span className="text-xs text-[var(--text-muted)]">
-                  Referred by <span className="text-[var(--text-secondary)]">{app.referrer_username}</span>
-                </span>
-              )}
-              {app.follower_count != null && app.follower_count > 0 && (
-                <span className="text-xs text-[var(--text-muted)]">
-                  {app.follower_count.toLocaleString()} followers
-                </span>
-              )}
-              <span className="text-xs text-[var(--text-muted)]">
-                {app.application_date ? new Date(app.application_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {isPending && (
-          <div className="flex gap-2 flex-shrink-0 flex-wrap items-center" onClick={e => e.stopPropagation()}>
-            {!claimedByMe && !claimedByOther && onClaim && (
-              <button type="button" onClick={onClaim} disabled={claiming} className="px-3 py-2 rounded-xl bg-blue-500/15 text-blue-400 text-sm font-medium hover:bg-blue-500/25 transition-colors border border-blue-500/30 disabled:opacity-50">
-                Claim
-              </button>
-            )}
-            {claimedByMe && onRelease && (
-              <button type="button" onClick={onRelease} disabled={claiming} className="px-3 py-2 rounded-xl bg-[var(--surface-hover)] text-sm font-medium border border-[var(--separator)] hover:border-[var(--text-muted)] transition-colors disabled:opacity-50">
-                Release
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onWaitlist}
-              disabled={!canAct || isLoading}
-              className="px-3 py-2 bg-purple-500/15 text-purple-400 rounded-xl hover:bg-purple-500/25 text-sm font-medium disabled:opacity-50 transition-colors border border-purple-500/30"
-            >
-              Waitlist
-            </button>
-            <button
-              type="button"
-              onClick={onReject}
-              disabled={!canAct || isLoading}
-              className="px-3 py-2 bg-red-500/15 text-red-400 rounded-xl hover:bg-red-500/25 text-sm font-medium disabled:opacity-50 transition-colors border border-red-500/30"
-            >
-              Reject
-            </button>
-            <button
-              type="button"
-              onClick={onApprove}
-              disabled={!canAct || isLoading}
-              className="px-4 py-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 text-sm font-medium disabled:opacity-50 transition-colors shadow-sm"
-            >
-              Approve
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-const DESTRUCTIVE_REASON_MIN = 5
-
-function UserDetailModal({
-  user, onClose, onToggleVerify, onToggleBan, onDelete, canDeleteUser = true, canAnonymizeUser = true, onExportUser, onAnonymizeUser, isLoading
-}: {
-  user: User
-  onClose: () => void
-  onToggleVerify: () => void
-  onToggleBan: () => void
-  onDelete: (reason: string) => void
-  canDeleteUser?: boolean
-  canAnonymizeUser?: boolean
-  onExportUser?: (userId: string) => void | Promise<void>
-  onAnonymizeUser?: (reason: string) => void | Promise<void>
-  isLoading: boolean
-}) {
-  const dialogRef = useRef<HTMLDivElement>(null)
-  const [pendingAction, setPendingAction] = useState<'delete' | 'anonymize' | null>(null)
-  const [reasonInput, setReasonInput] = useState('')
-  const handleClose = useModalFocusTrap(dialogRef, () => {
-    setPendingAction(null)
-    setReasonInput('')
-    onClose()
-  })
-  const submitDestructive = () => {
-    const reason = reasonInput.trim()
-    if (reason.length < DESTRUCTIVE_REASON_MIN) return
-    if (pendingAction === 'delete') onDelete(reason)
-    if (pendingAction === 'anonymize' && onAnonymizeUser) onAnonymizeUser(reason)
-    setPendingAction(null)
-    setReasonInput('')
-  }
-  return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && handleClose()} role="presentation">
-      <div ref={dialogRef} className="bg-[var(--surface)] rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="user-detail-title" onClick={e => e.stopPropagation()}>
-        <div className="p-6">
-          <div className="flex justify-between items-start mb-6">
-            <h2 id="user-detail-title" className="text-xl font-bold">User Details</h2>
-            <button onClick={handleClose} className="text-[var(--text-secondary)] hover:text-[var(--text)] text-2xl" aria-label="Close">×</button>
-          </div>
-          
-          {pendingAction ? (
-            <div className="space-y-4">
-              <p className="text-[var(--text-secondary)]">
-                {pendingAction === 'delete'
-                  ? 'Permanently delete this user and all their data. This cannot be undone.'
-                  : 'Anonymize this user? Profile name/username/image will be replaced. This cannot be undone.'}
-              </p>
-              <label className="block text-sm font-medium text-[var(--text)]">
-                Reason (required, min {DESTRUCTIVE_REASON_MIN} characters)
-              </label>
-              <textarea
-                value={reasonInput}
-                onChange={e => setReasonInput(e.target.value)}
-                placeholder="e.g. GDPR erasure request"
-                rows={3}
-                className="input-field w-full resize-y"
-                aria-label="Reason"
-              />
-              <div className="flex gap-2 justify-end">
-                <button type="button" onClick={() => { setPendingAction(null); setReasonInput('') }} className="px-4 py-2 rounded-xl border border-[var(--separator)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]">
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={submitDestructive}
-                  disabled={reasonInput.trim().length < DESTRUCTIVE_REASON_MIN || isLoading}
-                  className={`px-4 py-2 rounded-xl font-medium disabled:opacity-50 ${pendingAction === 'delete' ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'}`}
-                >
-                  {pendingAction === 'delete' ? 'Delete User' : 'Anonymize'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="text-center mb-6">
-                <Avatar url={user.profile_image_url} name={user.name || '?'} size={100} />
-                <div className="mt-4 flex items-center justify-center gap-2">
-                  <h3 className="text-xl font-bold">{user.name || 'No name'}</h3>
-                  {user.is_verified && <span className="text-[var(--verified)] text-lg">✓</span>}
-                </div>
-                <p className="text-[var(--text-secondary)]">@{user.username}</p>
-              </div>
-              
-              <div className="space-y-3 mb-6">
-                <DetailRow icon="📧" label="Email" value={user.email || 'No email'} />
-                <DetailRow icon="📅" label="Joined" value={user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'} />
-              </div>
-              
-              <div className="space-y-3">
-                <button
-                  onClick={onToggleVerify}
-                  disabled={isLoading}
-                  className="w-full flex items-center gap-3 p-4 bg-[var(--surface-hover)] rounded-xl hover:bg-[var(--surface-hover)] disabled:opacity-50"
-                >
-                  <span className={user.is_verified ? 'text-[var(--verified)]' : 'text-[var(--text-secondary)]'}>
-                    {user.is_verified ? '✓' : '○'}
-                  </span>
-                  <span>{user.is_verified ? 'Remove Verification' : 'Verify User'}</span>
-                </button>
-                
-                <button
-                  onClick={onToggleBan}
-                  disabled={isLoading}
-                  className="w-full flex items-center gap-3 p-4 bg-[var(--surface-hover)] rounded-xl hover:bg-[var(--surface-hover)] disabled:opacity-50"
-                >
-                  <span className={user.is_banned ? 'text-green-400' : 'text-yellow-400'}>
-                    {user.is_banned ? '✓' : '🚫'}
-                  </span>
-                  <span>{user.is_banned ? 'Unban User' : 'Ban User'}</span>
-                </button>
-
-                {onExportUser && (
-                  <button
-                    onClick={() => onExportUser(user.id)}
-                    className="w-full flex items-center gap-3 p-4 bg-[var(--surface-hover)] rounded-xl hover:bg-[var(--surface-hover)]"
-                  >
-                    <span>📤</span>
-                    <span>Export user data (GDPR)</span>
-                  </button>
-                )}
-                {canAnonymizeUser && onAnonymizeUser && (
-                  <button
-                    onClick={() => setPendingAction('anonymize')}
-                    disabled={isLoading}
-                    className="w-full flex items-center gap-3 p-4 bg-amber-500/10 text-amber-400 rounded-xl hover:bg-amber-500/20 disabled:opacity-50"
-                  >
-                    <span>🔒</span>
-                    <span>Anonymize user</span>
-                  </button>
-                )}
-                {canDeleteUser && (
-                <button
-                  onClick={() => setPendingAction('delete')}
-                  disabled={isLoading}
-                  className="w-full flex items-center gap-3 p-4 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 disabled:opacity-50"
-                >
-                  <span>🗑️</span>
-                  <span>Delete User</span>
-                </button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function DetailRow({ icon, label, value }: { icon: string; label: string; value: string }) {
-  return (
-    <div className="flex items-center gap-3 p-3 bg-[var(--surface-hover)] rounded-xl">
-      <span>{icon}</span>
-      <div>
-        <p className="text-xs text-[var(--text-muted)]">{label}</p>
-        <p className="text-sm">{value}</p>
-      </div>
-    </div>
-  )
-}
-
-// ============================================
-// HELPERS
-// ============================================
-
-function _getStatusColor(status: string): string {
-  switch (status.toUpperCase()) {
-    case 'ACTIVE': return 'bg-green-500/20 text-green-400'
-    case 'REJECTED': return 'bg-red-500/20 text-red-400'
-    case 'WAITLISTED': return 'bg-purple-500/20 text-purple-400'
-    case 'SUSPENDED': return 'bg-orange-500/20 text-orange-400'
-    default: return 'bg-yellow-500/20 text-yellow-400'
-  }
-}
-
-function getStatusLabel(status: string): string {
-  switch (status.toUpperCase()) {
-    case 'ACTIVE': return 'Approved'
-    case 'PENDING': return 'Pending'
-    case 'SUBMITTED': return 'Pending'
-    case 'PENDING_REVIEW': return 'In Review'
-    case 'DRAFT': return 'Draft'
-    case 'REJECTED': return 'Rejected'
-    case 'WAITLISTED': return 'Waitlisted'
-    case 'SUSPENDED': return 'Suspended'
-    default: return status ? (status.charAt(0) + status.slice(1).toLowerCase()) : 'Pending'
-  }
-}
-
-function formatTimeAgo(date: Date): string {
-  const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)
-  if (seconds < 60) return 'just now'
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`
-  return `${Math.floor(seconds / 604800)}w ago`
 }

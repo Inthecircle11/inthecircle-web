@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Move app.inthecircle.co to the configured Vercel project (default: inthecircle-web-v2).
+# Move app.inthecircle.co to the configured Vercel project (default: inthecircle-web).
 # For "inthecircle web v2" set: VERCEL_PROJECT_NAME=inthecircle-web-v2 (or the exact project name/slug in Vercel).
 # Token: VERCEL_TOKEN env, or from `vercel login` auth file.
 set -e
 TEAM_ID="${TEAM_ID:-team_pPf6WSH38ILGLhFASbKqYYgL}"
-TARGET_PROJECT="${VERCEL_PROJECT_NAME:-inthecircle-web-v2}"
+TARGET_PROJECT="${VERCEL_PROJECT_NAME:-inthecircle-web}"
 DOMAIN="app.inthecircle.co"
 
 if [ -z "$VERCEL_TOKEN" ]; then

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,13 +13,14 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.resolve_reports)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
   const { id: reportId } = await params
   const supabase = getServiceRoleClient()
-  if (!supabase) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
+  if (!supabase) return adminError('Service unavailable', 500, requestId)
   const expiresAt = new Date(Date.now() + ASSIGNMENT_TTL_MINUTES * 60 * 1000).toISOString()
   const now = new Date().toISOString()
   const { data, error } = await supabase
@@ -34,17 +36,14 @@ export async function POST(
     .single()
   if (error) {
     console.error('[admin 500]', error)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    return adminError('Operation failed. Please try again.', 500, requestId)
   }
   if (!data || (data as { assigned_to: string }).assigned_to !== result.user.id) {
-    return NextResponse.json(
-      { error: 'Report already claimed by another moderator or record not found' },
-      { status: 409 }
-    )
+    return adminError('Report already claimed by another moderator or record not found', 409, requestId)
   }
-  return NextResponse.json({
+  return adminSuccess({
     ok: true,
     assigned_to: (data as { assigned_to: string }).assigned_to,
     assignment_expires_at: (data as { assignment_expires_at: string }).assignment_expires_at,
-  })
+  }, requestId)
 }

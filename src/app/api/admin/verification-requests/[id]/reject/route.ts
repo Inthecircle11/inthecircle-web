@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { writeAuditLog } from '@/lib/audit-server'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,34 +12,32 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.mutate_users)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
-  const { id: requestId } = await params
-  if (!requestId || !/^[0-9a-f-]{36}$/i.test(requestId)) {
-    return NextResponse.json({ error: 'Invalid request id' }, { status: 400 })
+  const { id: requestIdParam } = await params
+  if (!requestIdParam || !/^[0-9a-f-]{36}$/i.test(requestIdParam)) {
+    return adminError('Invalid request id', 400, requestId)
   }
 
   const supabase = getServiceRoleClient()
   if (!supabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
   }
 
   const { data: row, error: updateError } = await supabase
     .from('verification_requests')
     .update({ status: 'rejected', reviewed_at: new Date().toISOString() })
-    .eq('id', requestId)
+    .eq('id', requestIdParam)
     .eq('status', 'pending')
     .select('user_id')
     .single()
 
   if (updateError || !row) {
-    return NextResponse.json(
-      { error: 'Request not found or already reviewed' },
-      { status: 404 }
-    )
+    return adminError('Request not found or already reviewed', 404, requestId)
   }
 
   const userId = (row as { user_id: string }).user_id
@@ -46,8 +45,8 @@ export async function POST(
     action: 'verification_reject',
     target_type: 'user',
     target_id: userId,
-    details: { verification_request_id: requestId },
+    details: { verification_request_id: requestIdParam },
   })
 
-  return NextResponse.json({ ok: true })
+  return adminSuccess({ ok: true }, requestId)
 }

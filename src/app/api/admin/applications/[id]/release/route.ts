@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import { clearApplicationsCache } from '@/lib/admin-applications-cache'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,13 +12,14 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.mutate_applications)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
   const { id: applicationId } = await params
   const supabase = getServiceRoleClient()
-  if (!supabase) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
+  if (!supabase) return adminError('Service unavailable', 500, requestId)
   const { error } = await supabase
     .from('applications')
     .update({
@@ -28,8 +30,8 @@ export async function POST(
     .eq('id', applicationId)
   if (error) {
     console.error('[admin 500]', error)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    return adminError('Operation failed. Please try again.', 500, requestId)
   }
   clearApplicationsCache()
-  return NextResponse.json({ ok: true })
+  return adminSuccess({ ok: true }, requestId)
 }

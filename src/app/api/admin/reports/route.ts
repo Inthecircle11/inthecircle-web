@@ -3,19 +3,21 @@ import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import { getIdempotencyResponse, setIdempotencyResponse } from '@/lib/admin-idempotency'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
 /** GET - List reports with assignment, sort, filter. Requires read_reports. */
 export async function GET(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.read_reports)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
   const supabase = getServiceRoleClient()
   if (!supabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
   }
 
   const status = req.nextUrl.searchParams.get('status') || 'pending'
@@ -32,7 +34,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error('[admin 500]', error)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    return adminError('Operation failed. Please try again.', 500, requestId)
   }
 
   let list = (reports ?? []) as Array<Record<string, unknown>>
@@ -88,19 +90,20 @@ export async function GET(req: NextRequest) {
     reported_name: profiles[r.reported_user_id as string]?.name ?? null,
   }))
 
-  return NextResponse.json({ reports: out })
+  return adminSuccess({ reports: out }, requestId)
 }
 
 /** PATCH - Resolve or dismiss report. Requires resolve_reports. Conflict-safe: requires updated_at; 409 if changed. Idempotency-Key supported. */
 export async function PATCH(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.resolve_reports)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
   const { user } = result
   const supabase = getServiceRoleClient()
   if (!supabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
   }
 
   const idempotencyKey = req.headers.get('idempotency-key')?.trim()
@@ -108,20 +111,22 @@ export async function PATCH(req: NextRequest) {
   if (idempotencyKey) {
     const stored = await getIdempotencyResponse(supabase, idempotencyKey, user.id, action)
     if (stored) {
-      return new NextResponse(stored.body, {
+      const res = new NextResponse(stored.body, {
         status: stored.status,
         headers: { 'Content-Type': 'application/json' },
       })
+      res.headers.set('x-request-id', requestId)
+      return res
     }
   }
 
   const body = await req.json().catch(() => ({}))
   const { report_id, status, notes, updated_at } = body
   if (!report_id || !['resolved', 'dismissed'].includes(status)) {
-    return NextResponse.json({ error: 'report_id and status (resolved|dismissed) required' }, { status: 400 })
+    return adminError('report_id and status (resolved|dismissed) required', 400, requestId)
   }
   if (updated_at == null || typeof updated_at !== 'string') {
-    return NextResponse.json({ error: 'updated_at required for conflict safety' }, { status: 400 })
+    return adminError('updated_at required for conflict safety', 400, requestId)
   }
 
   const { data, error } = await supabase
@@ -139,15 +144,15 @@ export async function PATCH(req: NextRequest) {
 
   if (error) {
     console.error('[admin 500]', error)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    return adminError('Operation failed. Please try again.', 500, requestId)
   }
   if (!data) {
     const resBody = JSON.stringify({ error: 'Record changed by another moderator', code: 'CONFLICT' })
     if (idempotencyKey) await setIdempotencyResponse(supabase, idempotencyKey, user.id, action, 409, resBody)
-    return NextResponse.json({ error: 'Record changed by another moderator' }, { status: 409 })
+    return adminError('Record changed by another moderator', 409, requestId)
   }
 
   const resBody = JSON.stringify({ ok: true })
   if (idempotencyKey) await setIdempotencyResponse(supabase, idempotencyKey, user.id, action, 200, resBody)
-  return NextResponse.json({ ok: true })
+  return adminSuccess({ ok: true }, requestId)
 }

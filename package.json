@@ -16,12 +16,10 @@
     "import-waitlist": "node scripts/import-waitlist-from-csv.mjs",
     "complete-applications": "node scripts/complete-missing-applications.mjs",
     "verify-domain": "node scripts/verify-domain-ownership.mjs",
-    "vercel:check": "node scripts/verify-domain-ownership.mjs",
     "check:migrations": "node scripts/check-migrations.mjs",
     "preview": "npx vercel",
     "deploy": "node scripts/deploy.mjs",
-    "one-time-fix": "node scripts/one-time-fix-domain-and-deploy.mjs",
-    "audit:behavior": "node scripts/behavior-intelligence-audit.mjs"
+    "one-time-fix": "node scripts/one-time-fix-domain-and-deploy.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^9.0.0",
@@ -31,7 +29,6 @@
     "next": "15.5.12",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "require-in-the-middle": "^8.0.0",
     "resend": "^6.9.3"
   },
   "devDependencies": {

@@ -1,7 +1,7 @@
 /**
- * In-memory cache for admin applications list and counts.
- * Mutations (action, bulk, claim, release) should call clearApplicationsCache()
- * so the next GET returns fresh data.
+ * Admin applications cache.
+ * In-memory caching removed for serverless safety.
+ * If caching is required, add a TODO for Redis/KV and default to no cache.
  */
 
 export type ApplicationsCounts = {
@@ -13,26 +13,22 @@ export type ApplicationsCounts = {
   total: number
 }
 
-let countsCache: { at: number; counts: ApplicationsCounts } | null = null
-const appsCache = new Map<string, { at: number; data: Array<Record<string, unknown>> }>()
-
-export const COUNTS_CACHE_TTL_MS = 30_000
-export const APPS_CACHE_TTL_MS = 15_000
-
-export function getCountsCache(): typeof countsCache {
-  return countsCache
+/** No-op: cache removed. Kept for API compatibility. */
+export function getCountsCache(): { at: number; counts: ApplicationsCounts } | null {
+  return null
 }
 
-export function setCountsCache(value: typeof countsCache): void {
-  countsCache = value
+/** No-op: cache removed. */
+export function setCountsCache(_value: { at: number; counts: ApplicationsCounts } | null): void {
+  // no-op
 }
 
-export function getAppsCache(): typeof appsCache {
-  return appsCache
+/** No-op: cache removed. Returns empty Map for compatibility. */
+export function getAppsCache(): Map<string, { at: number; data: Array<Record<string, unknown>> }> {
+  return new Map()
 }
 
-/** Call after any application mutation (single action, bulk, claim, release) so next GET is fresh. */
+/** No-op: call after mutations for future cache implementation (e.g. Redis/KV). */
 export function clearApplicationsCache(): void {
-  countsCache = null
-  appsCache.clear()
+  // no-op
 }

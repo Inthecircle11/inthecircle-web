@@ -1,17 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { writeAuditLog } from '@/lib/audit-server'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
 /** GET - Read app config. Requires read_config. */
 export async function GET(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.read_config)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
   const { supabase } = result
 
   const { data, error } = await supabase
@@ -20,22 +22,23 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error('[admin 500]', error)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    return adminError('Operation failed. Please try again.', 500, requestId)
   }
 
   const config: Record<string, string> = {}
   ;(data ?? []).forEach((row: { key: string; value: string | null }) => {
     config[row.key] = row.value ?? ''
   })
-  return NextResponse.json(config)
+  return adminSuccess(config, requestId)
 }
 
 /** PATCH - Update app config. Requires manage_config. */
 export async function PATCH(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.manage_config)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
   const { supabase } = result
 
   const body = await req.json().catch(() => ({}))
@@ -47,7 +50,7 @@ export async function PATCH(req: NextRequest) {
     }
   }
   if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: 'No allowed keys to update' }, { status: 400 })
+    return adminError('No allowed keys to update', 400, requestId)
   }
 
   for (const [key, value] of Object.entries(updates)) {
@@ -56,7 +59,7 @@ export async function PATCH(req: NextRequest) {
       .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
     if (error) {
       console.error('[admin 500]', error)
-      return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+      return adminError('Operation failed. Please try again.', 500, requestId)
     }
   }
   const supabaseService = getServiceRoleClient()
@@ -69,5 +72,5 @@ export async function PATCH(req: NextRequest) {
       reason: null,
     })
   }
-  return NextResponse.json({ ok: true })
+  return adminSuccess({ ok: true }, requestId)
 }

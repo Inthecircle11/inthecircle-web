@@ -1,20 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
 /** GET - List data requests. Requires read_data_requests. */
 export async function GET(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.read_data_requests)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
   const supabase = getServiceRoleClient()
   if (!supabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
   }
 
   const { data: requests, error } = await supabase
@@ -25,7 +27,7 @@ export async function GET(req: NextRequest) {
 
   if (error) {
     console.error('[admin 500]', error)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    return adminError('Operation failed. Please try again.', 500, requestId)
   }
 
   const userIds = [...new Set((requests ?? []).map((r: { user_id: string }) => r.user_id))]
@@ -46,25 +48,26 @@ export async function GET(req: NextRequest) {
     name: profiles[r.user_id as string]?.name ?? null,
   }))
 
-  return NextResponse.json({ requests: list })
+  return adminSuccess({ requests: list }, requestId)
 }
 
 /** PATCH - Update data request status. Requires update_data_requests. Optional updated_at for conflict-safe update (409 if row changed). */
 export async function PATCH(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.update_data_requests)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
   const supabase = getServiceRoleClient()
   if (!supabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
   }
 
   const body = await req.json().catch(() => ({}))
   const { request_id, status, updated_at: clientUpdatedAt } = body
   if (!request_id || !['pending', 'completed', 'failed'].includes(status)) {
-    return NextResponse.json({ error: 'request_id and status (pending|completed|failed) required' }, { status: 400 })
+    return adminError('request_id and status (pending|completed|failed) required', 400, requestId)
   }
 
   const now = new Date().toISOString()
@@ -84,13 +87,10 @@ export async function PATCH(req: NextRequest) {
 
   if (error) {
     console.error('[admin 500]', error)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    return adminError('Operation failed. Please try again.', 500, requestId)
   }
   if (useOptimisticLock && (!updatedRows || updatedRows.length === 0)) {
-    return NextResponse.json(
-      { error: 'Record changed by another user. Refresh and try again.' },
-      { status: 409 }
-    )
+    return adminError('Record changed by another user. Refresh and try again.', 409, requestId)
   }
-  return NextResponse.json({ ok: true })
+  return adminSuccess({ ok: true }, requestId)
 }

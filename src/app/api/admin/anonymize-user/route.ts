@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import {
@@ -7,6 +7,7 @@ import {
 } from '@/lib/audit-server'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import { requiresApproval, createApprovalRequest } from '@/lib/admin-approval'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,33 +15,31 @@ const REASON_MIN_LENGTH = 5
 
 /** POST - Anonymize user. Requires anonymize_users. If approval required, returns 202 and request_id. */
 export async function POST(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.anonymize_users)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
   const { user, supabase } = result
 
   const body = await req.json().catch(() => ({}))
   const userId = body.user_id
   const rawReason = body.reason != null ? String(body.reason).trim() : ''
   if (!userId) {
-    return NextResponse.json({ error: 'user_id required' }, { status: 400 })
+    return adminError('user_id required', 400, requestId)
   }
   if (rawReason.length < REASON_MIN_LENGTH) {
-    return NextResponse.json(
-      { error: `reason required (min ${REASON_MIN_LENGTH} characters)` },
-      { status: 400 }
-    )
+    return adminError(`reason required (min ${REASON_MIN_LENGTH} characters)`, 400, requestId)
   }
 
   const serviceSupabase = getServiceRoleClient()
   if (!serviceSupabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
   }
 
   if (requiresApproval('user_anonymize', { user_id: userId })) {
     const permForbidden = requirePermission(result, ADMIN_PERMISSIONS.request_approval)
-    if (permForbidden) return permForbidden
+    if (permForbidden) return adminErrorFromResponse(permForbidden, requestId)
     const created = await createApprovalRequest(
       serviceSupabase,
       req,
@@ -52,20 +51,16 @@ export async function POST(req: NextRequest) {
       rawReason
     )
     if ('error' in created) {
-      return NextResponse.json({ error: created.error }, { status: 500 })
+      return adminError(created.error, 500, requestId)
     }
-    return NextResponse.json(
-      { approval_required: true, request_id: created.id },
-      { status: 202 }
-    )
+    return adminSuccess({ approval_required: true, request_id: created.id }, requestId, 202)
   }
 
   const rateErr = await checkDestructiveRateLimit(supabase, user.id, 'user_anonymize', 1)
   if (rateErr) {
-    return NextResponse.json(
-      { error: rateErr },
-      { status: 429, headers: { 'Retry-After': '3600' } }
-    )
+    const res = adminError(rateErr, 429, requestId)
+    res.headers.set('Retry-After', '3600')
+    return res
   }
 
   const anonymizedName = `Anonymized ${userId.slice(0, 8)}`
@@ -85,7 +80,7 @@ export async function POST(req: NextRequest) {
 
   if (profileError) {
     console.error('[admin 500]', profileError)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    return adminError('Operation failed. Please try again.', 500, requestId)
   }
 
   await writeAuditLog(supabase, req, user, {
@@ -96,8 +91,8 @@ export async function POST(req: NextRequest) {
     reason: rawReason.slice(0, 500),
   })
 
-  return NextResponse.json({
+  return adminSuccess({
     ok: true,
     message: 'Profile anonymized. For full GDPR deletion use Delete User or a dedicated RPC.',
-  })
+  }, requestId)
 }

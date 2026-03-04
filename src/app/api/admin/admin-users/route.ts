@@ -1,24 +1,26 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import { getServiceRoleClient } from '@/lib/supabase-service'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
 /** GET - List admin users with their roles. Requires manage_roles. */
 export async function GET(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.manage_roles)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
   const supabase = getServiceRoleClient()
-  if (!supabase) return NextResponse.json({ error: 'Service unavailable' }, { status: 500 })
+  if (!supabase) return adminError('Service unavailable', 500, requestId)
   const { data: assignments, error } = await supabase
     .from('admin_user_roles')
     .select('admin_user_id, admin_roles(id, name)')
   if (error) {
     console.error('[admin 500]', error)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    return adminError('Operation failed. Please try again.', 500, requestId)
   }
   const byUser = new Map<string, string[]>()
   for (const row of assignments ?? []) {
@@ -46,5 +48,5 @@ export async function GET(req: NextRequest) {
     name: profiles[id]?.name ?? null,
     roles: byUser.get(id) ?? [],
   }))
-  return NextResponse.json({ admin_users })
+  return adminSuccess({ admin_users }, requestId)
 }

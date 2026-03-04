@@ -1,35 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import { computeSnapshotSignature } from '@/lib/audit-verify'
 import { checkSnapshotRateLimit } from '@/lib/admin-snapshot-rate-limit'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
 /** POST - Create or update daily audit snapshot (HMAC of latest row_hash). Requires read_audit. Phase 14.5: 5 req/min per admin. */
 export async function POST(req: NextRequest) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.read_audit)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
   const rateLimitErr = checkSnapshotRateLimit(result.user.id)
   if (rateLimitErr) {
-    return NextResponse.json({ error: rateLimitErr }, { status: 429 })
+    return adminError(rateLimitErr, 429, requestId)
   }
 
   const secret = process.env.ADMIN_AUDIT_SNAPSHOT_SECRET
   if (!secret) {
-    return NextResponse.json(
-      { error: 'ADMIN_AUDIT_SNAPSHOT_SECRET not set' },
-      { status: 500 }
-    )
+    return adminError('ADMIN_AUDIT_SNAPSHOT_SECRET not set', 500, requestId)
   }
 
   const supabase = getServiceRoleClient()
   if (!supabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
   }
 
   const { data: lastRow, error: fetchErr } = await supabase
@@ -41,10 +40,7 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (fetchErr || !lastRow) {
-    return NextResponse.json(
-      { error: 'No audit rows with row_hash found', details: fetchErr?.message },
-      { status: 404 }
-    )
+    return adminError('No audit rows with row_hash found', 404, requestId)
   }
 
   const lastRowHash = (lastRow as { row_hash: string }).row_hash
@@ -65,8 +61,8 @@ export async function POST(req: NextRequest) {
 
   if (upsertErr) {
     console.error('[admin 500]', upsertErr)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    return adminError('Operation failed. Please try again.', 500, requestId)
   }
 
-  return NextResponse.json({ ok: true, snapshot_date: today })
+  return adminSuccess({ ok: true, snapshot_date: today }, requestId)
 }

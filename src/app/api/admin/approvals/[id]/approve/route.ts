@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import { writeAuditLog } from '@/lib/audit-server'
 import { executeApprovedAction } from '@/lib/admin-approval'
+import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,19 +13,20 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
-  if ('response' in result) return result.response
+  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
   const forbidden = requirePermission(result, ADMIN_PERMISSIONS.approve_approval)
-  if (forbidden) return forbidden
+  if (forbidden) return adminErrorFromResponse(forbidden, requestId)
 
   const { id } = await params
   if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
-    return NextResponse.json({ error: 'Invalid approval id' }, { status: 400 })
+    return adminError('Invalid approval id', 400, requestId)
   }
 
   const supabase = getServiceRoleClient()
   if (!supabase) {
-    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
+    return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
   }
 
   const now = new Date().toISOString()
@@ -36,21 +38,15 @@ export async function POST(
     .single()
 
   if (fetchErr || !row) {
-    return NextResponse.json({ error: 'Approval request not found' }, { status: 404 })
+    return adminError('Approval request not found', 404, requestId)
   }
 
   const r = row as Record<string, unknown>
   if (r.status !== 'pending') {
-    return NextResponse.json(
-      { error: 'Request is not pending' },
-      { status: 400 }
-    )
+    return adminError('Request is not pending', 400, requestId)
   }
   if (r.requested_by === result.user.id) {
-    return NextResponse.json(
-      { error: 'Approver cannot be the same as requester' },
-      { status: 400 }
-    )
+    return adminError('Approver cannot be the same as requester', 400, requestId)
   }
   if (new Date(String(r.expires_at)) < new Date()) {
     await supabase
@@ -63,20 +59,14 @@ export async function POST(
       target_id: id,
       details: { action: r.action, target_type: r.target_type, target_id: r.target_id },
     })
-    return NextResponse.json(
-      { error: 'Request has expired' },
-      { status: 400 }
-    )
+    return adminError('Request has expired', 400, requestId)
   }
 
   const payload = (r.payload as Record<string, unknown>) ?? {}
   const action = String(r.action)
   const execErr = await executeApprovedAction(supabase, action, payload)
   if (execErr.error) {
-    return NextResponse.json(
-      { error: `Execution failed: ${execErr.error}` },
-      { status: 500 }
-    )
+    return adminError(`Execution failed: ${execErr.error}`, 500, requestId)
   }
 
   await writeAuditLog(supabase, req, result.user, {
@@ -102,13 +92,10 @@ export async function POST(
 
   if (updateErr) {
     console.error('[admin 500]', updateErr)
-    return NextResponse.json({ error: 'Operation failed. Please try again.' }, { status: 500 })
+    return adminError('Operation failed. Please try again.', 500, requestId)
   }
   if (!updatedRows || updatedRows.length === 0) {
-    return NextResponse.json(
-      { error: 'Request was already approved or is no longer pending' },
-      { status: 409 }
-    )
+    return adminError('Request was already approved or is no longer pending', 409, requestId)
   }
 
   await writeAuditLog(supabase, req, result.user, {
@@ -118,5 +105,5 @@ export async function POST(
     details: { action, target_type: r.target_type, target_id: r.target_id },
   })
 
-  return NextResponse.json({ ok: true, id })
+  return adminSuccess({ ok: true, id }, requestId)
 }
