@@ -109,7 +109,7 @@ export function SettingsTab({
       if (res.ok && Array.isArray(data.sessions)) {
         setAdminSessions(data.sessions)
       } else if (res.status === 403) {
-        setAdminSessionsError('You don't have permission to view active sessions.')
+        setAdminSessionsError('You do not have permission to view active sessions.')
         setAdminSessions([])
         on403?.()
       } else {
@@ -162,7 +162,7 @@ export function SettingsTab({
       <div className="bg-[var(--surface)] p-6 rounded-2xl">
         <h3 className="text-lg font-semibold mb-4">Active Sessions</h3>
         <p className="text-sm text-[var(--text-muted)] mb-3">
-          Admin sessions for this account. Revoke any session you don't recognize.
+          Admin sessions for this account. Revoke any session you do not recognize.
         </p>
         <button
           type="button"
@@ -227,7 +227,7 @@ export function SettingsTab({
                         const data = await res.json().catch(() => ({}))
                         if (res.ok) void loadAdminSessions()
                         else if (res.status === 403 && showToast)
-                          showToast("You don't have permission to revoke sessions.", 'error')
+                          showToast("You do not have permission to revoke sessions.", 'error')
                         else if (showToast)
                           showToast((data?.error as string) || 'Failed to revoke session', 'error')
                       } finally {
