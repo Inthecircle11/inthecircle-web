@@ -64,6 +64,7 @@ export interface ApplicationsTabProps {
   applicationsPageSize: number
   onApplicationsPageChange: (page: number) => void
   applicationsLoading?: boolean
+  applicationsCountsError?: boolean
   onApprove: (id: string, updated_at?: string) => void
   onReject: (id: string, updated_at?: string) => void
   onWaitlist: (id: string, updated_at?: string) => void
@@ -98,6 +99,7 @@ export function ApplicationsTab({
   applicationsPageSize,
   onApplicationsPageChange,
   applicationsLoading = false,
+  applicationsCountsError,
   onApprove,
   onReject,
   onWaitlist,
