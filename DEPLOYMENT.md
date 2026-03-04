@@ -64,15 +64,15 @@ This ensures the domain is only on inthecircle-web and deploys the correct code 
    - Then push to `main` to redeploy (or run `vercel deploy --prod` in an emergency).
 
 2. **Admin panel returns 404**
-   - If **ADMIN_BASE_PATH** is set in Vercel (Environment Variables), then **/admin** is disabled and only the secret URL works (e.g. `https://app.inthecircle.co/YourSecretPath`).
+   - If **ADMIN_BASE_PATH** is set, you can use either the secret URL or **/admin**; direct **/admin** is allowed by default. To hide **/admin** again, set **ADMIN_DISABLE_DIRECT_ACCESS=true** in Vercel.
    - **Wrong URL (404):** Using a **slash** in the path (e.g. `.../K7x2mN9pQ4/T1vW6yB0cD3eF8gH2jL5n`) often causes 404. Use the **exact** path with **no slash** and with the letter **r** (e.g. `.../K7x2mN9pQ4rT1vW6yB0cD3eF8gH2jL5n`). The app now redirects the common “slash instead of r” typo to the correct URL.
    - **To use /admin again:** In Vercel → inthecircle-web → Settings → Environment Variables, **delete** `ADMIN_BASE_PATH` (or leave it empty), then redeploy. After that, https://app.inthecircle.co/admin will work again.
-   - Optional: set **ADMIN_ALLOW_DIRECT_ACCESS=true** in Vercel so that **/admin** works even when ADMIN_BASE_PATH is set (lets you use both the secret URL and /admin until you remove ADMIN_BASE_PATH).
+   - Optional: set **ADMIN_ALLOW_DIRECT_ACCESS=true** in Vercel (legacy; direct /admin is now allowed by default when ADMIN_BASE_PATH is set).
 
 3. **Seeing a different admin panel (e.g. "Connect project" / Supabase URL screen instead of the real one)**
    - The **real** admin (inthecircle-web) shows: gate password (if set) → **"Inthecircle Admin"** sign-in (email + password) → full panel (Dashboard, Applications, Users, etc.). It never asks for "Supabase project URL" or "anon key".
    - If you see a "Connect project" or "Enter your Supabase project URL and anon key" screen, the domain **app.inthecircle.co** is currently pointing at a **different Vercel project** (e.g. another app named "inthecircle"). That project serves a different admin UI.
-   - **Fix:** In Vercel Dashboard, remove **app.inthecircle.co** from every project except **inthecircle-web**. Then add **app.inthecircle.co** to **inthecircle-web** if it’s missing. Redeploy inthecircle-web by pushing to **`main`** (or run `vercel deploy --prod` from this repo in an emergency). (e.g. `https://app.inthecircle.co/K7x2mN9pQ4rT1vW6yB0cD3eF8gH2jL5n`) and **https://app.inthecircle.co/admin** will serve the correct admin panel.
+   - **Fix:** In Vercel Dashboard, remove **app.inthecircle.co** from every project except **inthecircle-web-v2**. Then add **app.inthecircle.co** to **inthecircle-web-v2** if it’s missing. Redeploy by pushing to **`main`** Then https://app.inthecircle.co/admin and the obscure URL will serve the correct admin panel.
 
 ## DNS (Cloudflare) and auth — is it safe?
 

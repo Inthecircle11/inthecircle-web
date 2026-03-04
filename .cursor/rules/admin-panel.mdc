@@ -20,7 +20,7 @@ globs: src/app/admin/**/*
 
 ## Obscure admin path (optional)
 
-When **ADMIN_BASE_PATH** is set in env, middleware rewrites that path to the admin panel and returns 404 for direct `/admin`. The obscure path is also rewritten in `next.config.ts` at build time (middleware cannot read env at runtime on Vercel). Do not remove this logic from `src/middleware.ts`; use `getAdminBase()` from `@/lib/admin` for client redirects so the obscure path works.
+When **ADMIN_BASE_PATH** is set in env, middleware rewrites that path to the admin panel. Direct **/admin** is allowed by default; set **ADMIN_DISABLE_DIRECT_ACCESS=true** to 404 /admin. The obscure path is also rewritten in `next.config.ts` at build time. Do not remove this logic from `src/middleware.ts`; use `getAdminBase()` from `@/lib/admin` for client redirects so the obscure path works.
 
 ## Why this prevents 404s
 

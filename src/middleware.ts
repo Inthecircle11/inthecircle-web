@@ -18,8 +18,8 @@ function addRequestId(request: NextRequest): NextResponse | null {
 }
 
 /**
- * When ADMIN_BASE_PATH is set, only that path serves the admin panel.
- * Direct /admin and /admin/* return 404. Use a LONG random string (24+ chars) for security.
+ * When ADMIN_BASE_PATH is set, the obscure path still rewrites to /admin.
+ * Direct /admin is allowed by default; set ADMIN_DISABLE_DIRECT_ACCESS=true to 404 /admin.
  * Optional ADMIN_ALLOWED_IPS: comma-separated IPs; only those can reach admin.
  * Note: middleware cannot read runtime env on Vercel; obscure path is handled by next.config rewrites.
  */
@@ -78,11 +78,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.rewrite(url, { request: { headers } })
   }
 
-  // When ADMIN_BASE_PATH is set, direct /admin is normally 404. Allow it if ADMIN_ALLOW_DIRECT_ACCESS=true (recovery).
+  // When ADMIN_BASE_PATH is set, direct /admin was previously 404. Now allow /admin by default
+  // so the new panel is always reachable; set ADMIN_DISABLE_DIRECT_ACCESS=true to hide /admin again.
   if (pathname === '/admin' || pathname.startsWith('/admin/')) {
-    const allowDirect = process.env.ADMIN_ALLOW_DIRECT_ACCESS === 'true'
+    const hideDirect = process.env.ADMIN_DISABLE_DIRECT_ACCESS === 'true'
     const hasInternalHeader = request.headers.get(ADMIN_HEADER) === basePath
-    if (!hasInternalHeader && !allowDirect) {
+    if (!hasInternalHeader && hideDirect) {
       return new NextResponse(null, { status: 404 })
     }
   }
