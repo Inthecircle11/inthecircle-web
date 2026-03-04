@@ -42,6 +42,9 @@ jobs:
       - name: Migration safety check
         run: npm run check:migrations
 
+      - name: Check for smart quotes in source
+        run: node scripts/check-smart-quotes.mjs
+
       - name: Build
         run: npm run build
         env:

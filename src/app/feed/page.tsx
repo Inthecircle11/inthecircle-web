@@ -293,7 +293,7 @@ export default function FeedPage() {
             <p className="text-[var(--text-secondary)] mb-10 max-w-sm mx-auto text-callout leading-relaxed">
               {activeFilter !== 'all' 
                 ? `No ${filters.find(f => f.id === activeFilter)?.label.toLowerCase()} intents yet. Be the first to share!`
-                : 'Share what you’re looking for—meetups, collabs, or questions—and connect with creators.'
+                : 'Share what you're looking for—meetups, collabs, or questions—and connect with creators.'
               }
             </p>
             <button

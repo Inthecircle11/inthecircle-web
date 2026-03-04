@@ -1,5 +1,13 @@
 # Deployment – Inthecircle Web
 
+## Prevent deployment failures
+
+Recent Vercel failures were caused by: (1) type errors (e.g. prop passed but not in interface), (2) smart/curly quotes in source, (3) `package-lock.json` out of sync with `package.json`. To avoid this:
+
+- **Run before pushing to `main`:** `npm run ci:local` (typecheck + build with placeholder env). Fix any errors before pushing.
+- **Require CI before merge:** In GitHub, enable branch protection for `main` and require the **CI** status check to pass. See [docs/BRANCH_PROTECTION.md](docs/BRANCH_PROTECTION.md) and [docs/DEPLOYMENT_FAILURE_ROOT_CAUSES.md](docs/DEPLOYMENT_FAILURE_ROOT_CAUSES.md).
+- **Lockfile:** After changing `package.json`, run `npm install` and commit the updated `package-lock.json`.
+
 ## Production URL
 
 - **App:** https://app.inthecircle.co  
@@ -39,6 +47,24 @@ If your production project in Vercel is named **inthecircle web v2** (or **inthe
 ## Prevent domain mix-up
 
 Run `npm run verify-domain` (uses token from `vercel login` or `VERCEL_TOKEN`). It checks that **app.inthecircle.co** is only on the expected project (default **inthecircle-web**; set `VERCEL_PROJECT_NAME` if you use e.g. **inthecircle-web-v2**). If another project has the domain, it exits with an error and tells you how to fix it.
+
+### Move domain without CLI (Dashboard only)
+
+If `npx vercel login` fails (e.g. `vc: command not found`) or the script gets 403:
+
+1. Go to [vercel.com](https://vercel.com) and sign in.
+2. For **every project that is not inthecircle-web-v2** (e.g. inthecircle, inthecircle-web): **Settings → Domains** → remove **app.inthecircle.co** if listed.
+3. Open project **inthecircle-web-v2** → **Settings → Domains** → add **app.inthecircle.co** if missing.
+4. Open **https://app.inthecircle.co/admin** in an incognito window to confirm the new admin.
+
+**Using a token instead of login:** Create a token at [vercel.com/account/tokens](https://vercel.com/account/tokens), then run (use straight quotes, no smart quotes):
+
+```bash
+cd "/Users/ahmedkhalifa/Documents/macbook pro m4 VIPP/Inthecircle/inthecircle-web"
+VERCEL_TOKEN=your_token_here VERCEL_PROJECT_NAME=inthecircle-web-v2 ./scripts/move-domain-to-inthecircle-web.sh
+```
+
+Replace `your_token_here` with the token value.
 
 ## All from CLI (no dashboard)
 

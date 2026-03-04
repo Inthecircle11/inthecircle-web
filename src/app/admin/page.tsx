@@ -72,7 +72,7 @@ const ISO_TO_COUNTRY_NAME: Record<string, string> = {
   RU: 'Russia', UA: 'Ukraine', GR: 'Greece', PT: 'Portugal', SE: 'Sweden', NO: 'Norway', CH: 'Switzerland', AT: 'Austria',
   MA: 'Morocco', DZ: 'Algeria', TN: 'Tunisia', KE: 'Kenya', GH: 'Ghana',
 }
-// Cities often entered without country — map to country ISO so they don’t show as “countries”
+// Cities often entered without country — map to country ISO so they don't show as "countries"
 const CITY_TO_COUNTRY_ISO: Record<string, string> = {
   dubai: 'AE', sharjah: 'AE', 'abu dhabi': 'AE', ajman: 'AE', 'ras al khaimah': 'AE', fujairah: 'AE', 'umm al quwain': 'AE', 'al ain': 'AE',
   cairo: 'EG', alexandria: 'EG', giza: 'EG',
@@ -95,7 +95,7 @@ function parseLocation(raw: string): { country: string; countryCode: string; cit
   let countryPart = parts[parts.length - 1] ?? ''
   let cityPart = parts.length > 1 ? parts.slice(0, -1).join(', ') : ''
   const key = countryPart.toLowerCase().replace(/\s+/g, ' ')
-  // Single part (e.g. "Dubai", "Sharjah") → treat as city if it’s a known city, not a country
+  // Single part (e.g. "Dubai", "Sharjah") → treat as city if it's a known city, not a country
   if (parts.length === 1) {
     const cityKey = key
     const countryFromCity = CITY_TO_COUNTRY_ISO[cityKey]
@@ -2045,12 +2045,21 @@ export default function AdminPanel() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg)] text-[var(--text)] p-6">
         <div className="w-full max-w-md animate-fade-in">
           <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--accent-purple)]/20 text-[var(--accent-purple)] text-xs font-semibold mb-4">
+              New admin panel · inthecircle-web
+            </div>
             <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-[var(--surface)] border border-[var(--separator)] flex items-center justify-center p-2">
               <Logo size="lg" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">Admin access</h1>
             <p className="text-[var(--text-secondary)] text-[15px] mt-2">
               Enter the gate password to continue to the admin panel.
+            </p>
+            <p className="text-[var(--text-muted)] text-[13px] mt-3">
+              This is the new Inthecircle Admin. After you continue, you'll sign in with your admin email, then see the dashboard (Overview, Applications, Users, etc.). Prefer a shorter URL? Use <a href="/admin" className="text-[var(--accent-purple)] hover:underline font-medium">app.inthecircle.co/admin</a>.
+            </p>
+            <p className="text-[var(--text-muted)] text-[12px] mt-4">
+              If after signing in you don't see a left sidebar with Overview, Applications, Users — hard refresh (Cmd+Shift+R or Ctrl+Shift+R) or open in an incognito window to avoid cached files.
             </p>
           </div>
           <form onSubmit={submitGatePassword} className="space-y-4">
