@@ -78,12 +78,22 @@ export async function GET(req: NextRequest) {
     .from('applications')
     .select('*')
     .order('submitted_at', { ascending: true })
-    .range(offset, offset + limit - 1)
 
   if (statusParam !== 'all') {
     const dbStatuses = statusMap[statusParam] || [statusParam.toUpperCase()]
     appsQuery = appsQuery.in('status', dbStatuses)
   }
+
+  // Apply assignment filter in DB so pagination is over the filtered set (fixes "No applications found" when filter would otherwise leave 0 of first 50)
+  if (filter === 'unassigned') {
+    appsQuery = appsQuery.or(`assigned_to.is.null,assignment_expires_at.lt.${now.toISOString()}`)
+  } else if (filter === 'assigned_to_me') {
+    appsQuery = appsQuery
+      .eq('assigned_to', result.user.id)
+      .gte('assignment_expires_at', now.toISOString())
+  }
+
+  appsQuery = appsQuery.range(offset, offset + limit - 1)
 
   const { data: appsData, error: appsError } = await appsQuery
 
@@ -145,13 +155,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  if (filter === 'unassigned') {
-    list = list.filter((a) => a.assigned_to == null || (a.assignment_expires_at && new Date(a.assignment_expires_at as string) < now))
-  } else if (filter === 'assigned_to_me') {
-    const currentUserId = result.user.id
-    list = list.filter((a) => a.assigned_to === currentUserId && a.assignment_expires_at && new Date(a.assignment_expires_at as string) >= now)
-  }
-
+  // Assignment filter is applied in the DB query above; list is already filtered
   const priority = (submittedAt: string | null) => {
     if (!submittedAt) return 3
     const age = now.getTime() - new Date(submittedAt).getTime()
