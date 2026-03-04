@@ -12,7 +12,10 @@ export function useGate() {
   const checkGate = useCallback(() => {
     let cancelled = false
     const timeoutId = setTimeout(() => {
-      if (!cancelled) setGateUnlocked(true)
+      if (!cancelled) {
+        setGateUnlocked(false)
+        setGateError('Gate check timed out. Check your connection and try again.')
+      }
     }, 10000)
     fetch('/api/admin/gate', { credentials: 'include' })
       .then(async (res) => {
@@ -29,7 +32,8 @@ export function useGate() {
       .catch(() => {
         if (!cancelled) {
           clearTimeout(timeoutId)
-          setGateUnlocked(true)
+          setGateUnlocked(false)
+          setGateError('Could not reach gate. Check your connection and try again.')
         }
       })
     return () => {

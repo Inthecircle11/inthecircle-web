@@ -310,6 +310,8 @@ export default function AdminPanel() {
   const APPLICATIONS_PAGE_SIZE = 50
   const [users, setUsers] = useState<User[]>([])
   const [usersTotalCount, setUsersTotalCount] = useState<number | null>(null)
+  const [usersPage, setUsersPage] = useState(1)
+  const USERS_PAGE_SIZE = 50
   const [profilesWithDemographics, setProfilesWithDemographics] = useState<{ id: string; location: string | null; niche: string | null }[]>([])
   const [pendingVerifications, setPendingVerifications] = useState<VerificationRequest[]>([])
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
@@ -544,8 +546,9 @@ export default function AdminPanel() {
     checkAdminAccess()
   }, [gateUnlocked]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Deployment identity check: ensure we're on inthecircle-web (not wrong project)
+  // Deployment identity check: ensure we're on inthecircle-web (runs after auth so endpoint can require admin)
   useEffect(() => {
+    if (!authorized) return
     let cancelled = false
     fetch('/api/admin/identity', { credentials: 'include' })
       .then(async (res) => {
@@ -558,7 +561,7 @@ export default function AdminPanel() {
       })
       .catch(() => { if (!cancelled) setWrongDeployment(true) })
     return () => { cancelled = true }
-  }, [])
+  }, [authorized])
 
   // Load inbox only when Inbox tab is active (keeps initial load fast)
   useEffect(() => {
@@ -676,7 +679,10 @@ export default function AdminPanel() {
   useEffect(() => {
     let cancelled = false
     const timeoutId = setTimeout(() => {
-      if (!cancelled) setGateUnlocked(true)
+      if (!cancelled) {
+        setGateUnlocked(false)
+        setGateError('Gate check timed out. Check your connection and try again.')
+      }
     }, 10000)
     fetch('/api/admin/gate', { credentials: 'include' })
       .then(async (res) => {
@@ -693,7 +699,8 @@ export default function AdminPanel() {
       .catch(() => {
         if (!cancelled) {
           clearTimeout(timeoutId)
-          setGateUnlocked(true)
+          setGateUnlocked(false)
+          setGateError('Could not reach gate. Check your connection and try again.')
         }
       })
     return () => { cancelled = true; clearTimeout(timeoutId) }
@@ -897,9 +904,9 @@ export default function AdminPanel() {
       }
     }
 
-    const fetchUsersAndProfiles = async (): Promise<{ users: User[]; profiles: { id: string; location: string | null; niche: string | null }[]; total: number }> => {
+    const fetchUsersAndProfiles = async (page = 1, limit = 50): Promise<{ users: User[]; profiles: { id: string; location: string | null; niche: string | null }[]; total: number }> => {
       try {
-        const res = await fetch('/api/admin/users', { credentials: 'include' })
+        const res = await fetch(`/api/admin/users?page=${page}&limit=${limit}`, { credentials: 'include' })
         if (!res.ok) return { users: [], profiles: [], total: 0 }
         const json = await res.json()
         const { data } = parseAdminResponse<{ users?: User[]; total?: number }>(res, json)
@@ -1067,7 +1074,7 @@ export default function AdminPanel() {
       if (tab === 'overview') {
         const [appResult, usersAndProfiles] = await Promise.all([
           fetchApplications(sort, filter, 1, APPLICATIONS_PAGE_SIZE, statusFilter),
-          fetchUsersAndProfiles(),
+          fetchUsersAndProfiles(1, USERS_PAGE_SIZE),
         ])
         if (loadIdRef.current !== loadId) return
         if (!appResult.permissionDenied) {
@@ -1110,11 +1117,8 @@ export default function AdminPanel() {
           setApplicationsCountsError(!!appResult.countsError)
         }
       } else if (tab === 'users') {
-        const usersAndProfiles = await fetchUsersAndProfiles()
+        // Users are loaded by the loadUsers(usersPage) effect when activeTab === 'users'
         if (loadIdRef.current !== loadId) return
-        setUsers(usersAndProfiles.users)
-        setProfilesWithDemographics(usersAndProfiles.profiles)
-        setUsersTotalCount(usersAndProfiles.total)
       } else if (tab === 'dashboard') {
         const [activityList, pendingVerificationsList, engagement, reportsAndData] = await Promise.all([
           fetchVerificationActivity(),
@@ -1151,6 +1155,40 @@ export default function AdminPanel() {
       if (options?.skipOverview && activeTab === 'applications') setApplicationsLoading(false)
     }
   }, [appSort, appAssignmentFilter, appFilter, applicationsPage, activeTab, handle403])
+
+  // Load users for the current page when on Users tab (pagination)
+  const loadUsers = useCallback(async (page: number) => {
+    try {
+      const res = await fetch(`/api/admin/users?page=${page}&limit=${USERS_PAGE_SIZE}`, { credentials: 'include' })
+      if (!res.ok) return
+      const json = await res.json()
+      const { data } = parseAdminResponse<{ users?: User[]; total?: number }>(res, json)
+      if (!data?.users) return
+      setUsers((data.users || []).map((u: User & { location?: string | null; niche?: string | null }) => ({
+        id: u.id,
+        name: u.name,
+        username: u.username,
+        email: u.email,
+        profile_image_url: u.profile_image_url,
+        is_verified: u.is_verified,
+        is_banned: u.is_banned,
+        created_at: u.created_at,
+      })) as User[])
+      setProfilesWithDemographics((data.users || []).map((u: { id: string; location?: string | null; niche?: string | null }) => ({
+        id: u.id,
+        location: u.location ?? null,
+        niche: u.niche ?? null,
+      })))
+      setUsersTotalCount(typeof data.total === 'number' ? data.total : data.users?.length ?? 0)
+    } catch (e) {
+      console.error('loadUsers error:', e)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!authorized || activeTab !== 'users') return
+    loadUsers(usersPage)
+  }, [authorized, activeTab, usersPage, loadUsers])
 
   // When role changes, if current tab is no longer visible, switch to first visible tab (Phase 11)
   useEffect(() => {
@@ -2591,6 +2629,10 @@ export default function AdminPanel() {
         {activeTab === 'users' && (
           <UsersTab
             users={users}
+            usersTotalCount={usersTotalCount ?? 0}
+            usersPage={usersPage}
+            usersPageSize={USERS_PAGE_SIZE}
+            onUsersPageChange={(p) => setUsersPage(p)}
             onToggleVerify={toggleVerification}
             onToggleBan={toggleBan}
             onDelete={deleteUser}

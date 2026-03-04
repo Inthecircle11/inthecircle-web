@@ -6,9 +6,10 @@ import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } f
 
 export const dynamic = 'force-dynamic'
 
+const DEFAULT_LIMIT = 50
 const MAX_USERS = 500
 
-/** GET - List users (profiles). Requires read_users. */
+/** GET - List users (profiles). Requires read_users. Supports pagination: ?page=1&limit=50 */
 export async function GET(req: NextRequest) {
   const requestId = getAdminRequestId(req)
   const result = await requireAdmin(req)
@@ -19,12 +20,16 @@ export async function GET(req: NextRequest) {
   const supabase = getServiceRoleClient()
   if (!supabase) return adminError('Server missing SUPABASE_SERVICE_ROLE_KEY', 500, requestId)
 
+  const page = Math.max(1, Number(req.nextUrl.searchParams.get('page')) || 1)
+  const limit = Math.min(MAX_USERS, Math.max(1, Number(req.nextUrl.searchParams.get('limit')) || DEFAULT_LIMIT))
+  const offset = (page - 1) * limit
+
   const [listResult, countResult] = await Promise.all([
     supabase
       .from('profiles')
       .select('id, name, username, email, profile_image_url, is_verified, is_banned, created_at, location, niche')
       .order('created_at', { ascending: false })
-      .limit(MAX_USERS),
+      .range(offset, offset + limit - 1),
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
   ])
 
@@ -49,5 +54,5 @@ export async function GET(req: NextRequest) {
   }))
 
   const total = totalCount != null && !countResult.error ? totalCount : list.length
-  return adminSuccess({ users: list, total }, requestId)
+  return adminSuccess({ users: list, total, page, limit }, requestId)
 }

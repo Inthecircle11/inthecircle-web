@@ -67,7 +67,9 @@ export async function GET(req: NextRequest) {
   if (dateFrom) query = query.gte('created_at', dateFrom)
   if (dateTo) query = query.lte('created_at', dateTo)
   if (actionParam) {
-    query = query.ilike('action', `%${actionParam.replace(/%/g, '\\%')}%`)
+    // Escape ILIKE wildcards: % and _ (Postgres)
+    const escaped = actionParam.replace(/%/g, '\\%').replace(/_/g, '\\_')
+    query = query.ilike('action', `%${escaped}%`)
   }
 
   const cap = format === 'csv' ? Math.min(limit, MAX_CSV_ROWS) : limit

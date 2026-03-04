@@ -57,6 +57,10 @@ export type UserFilter = 'all' | 'verified' | 'banned' | 'new_7d'
 
 export interface UsersTabProps {
   users: User[]
+  usersTotalCount?: number
+  usersPage?: number
+  usersPageSize?: number
+  onUsersPageChange?: (page: number) => void
   onToggleVerify: (id: string, current: boolean) => void
   onToggleBan: (id: string, current: boolean) => void
   onDelete: (id: string, reason: string) => void
@@ -71,6 +75,10 @@ export interface UsersTabProps {
 
 export function UsersTab({
   users,
+  usersTotalCount = 0,
+  usersPage = 1,
+  usersPageSize = 50,
+  onUsersPageChange,
   onToggleVerify,
   onToggleBan,
   onDelete,
@@ -140,7 +148,9 @@ export function UsersTab({
         ))}
       </div>
 
-      <div className="text-sm text-[var(--text-muted)]">Users ({filteredUsers.length})</div>
+      <div className="text-sm text-[var(--text-muted)]">
+        Users {usersTotalCount > 0 ? `(${filteredUsers.length} on this page, ${usersTotalCount} total)` : `(${filteredUsers.length})`}
+      </div>
 
       <div className="space-y-3">
         {filteredUsers.map((user) => (
@@ -167,6 +177,30 @@ export function UsersTab({
           </div>
         ))}
       </div>
+
+      {onUsersPageChange && usersPageSize > 0 && usersTotalCount > usersPageSize && (
+        <div className="flex items-center justify-center gap-4 pt-4">
+          <button
+            type="button"
+            onClick={() => onUsersPageChange(usersPage - 1)}
+            disabled={usersPage <= 1}
+            className="px-4 py-2 text-sm bg-[var(--surface)] border border-[var(--separator)] rounded-lg disabled:opacity-30"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-[var(--text-muted)]">
+            Page {usersPage} of {Math.max(1, Math.ceil(usersTotalCount / usersPageSize))}
+          </span>
+          <button
+            type="button"
+            onClick={() => onUsersPageChange(usersPage + 1)}
+            disabled={usersPage >= Math.ceil(usersTotalCount / usersPageSize)}
+            className="px-4 py-2 text-sm bg-[var(--surface)] border border-[var(--separator)] rounded-lg disabled:opacity-30"
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {selectedUser && (
         <UserDetailModal
