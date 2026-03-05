@@ -1901,13 +1901,13 @@ export default function AdminPanel() {
 
   const getFilterCount = (filter: AppFilter) => {
     // Use stats from API (global counts from admin_get_application_counts RPC) for all filters
-    // stats.total is the true total, applicationsTotal is just for the current page
-    if (filter === 'all') return stats.total > 0 ? stats.total : applicationsTotal
-    if (filter === 'pending') return stats.pending
-    if (filter === 'approved') return stats.approved
-    if (filter === 'rejected') return stats.rejected
-    if (filter === 'waitlisted') return stats.waitlisted
-    if (filter === 'suspended') return stats.suspended
+    const s = stats ?? { total: 0, pending: 0, approved: 0, rejected: 0, waitlisted: 0, suspended: 0 }
+    if (filter === 'all') return s.total > 0 ? s.total : (applicationsTotal ?? 0)
+    if (filter === 'pending') return s.pending ?? 0
+    if (filter === 'approved') return s.approved ?? 0
+    if (filter === 'rejected') return s.rejected ?? 0
+    if (filter === 'waitlisted') return s.waitlisted ?? 0
+    if (filter === 'suspended') return s.suspended ?? 0
     return 0
   }
 
@@ -2284,7 +2284,7 @@ export default function AdminPanel() {
   const navItems: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'overview', label: 'Overview', icon: <NavIconLayout /> },
     { id: 'dashboard', label: 'Dashboard', icon: <NavIconChart /> },
-    { id: 'applications', label: 'Applications', icon: <NavIconUser />, badge: stats.pending > 0 ? stats.pending : undefined },
+    { id: 'applications', label: 'Applications', icon: <NavIconUser />, badge: (stats?.pending ?? 0) > 0 ? (stats?.pending ?? 0) : undefined },
     { id: 'users', label: 'Users', icon: <NavIconUsers /> },
     { id: 'verifications', label: 'Verifications', icon: <NavIconCheck />, badge: pendingVerifications.length > 0 ? pendingVerifications.length : undefined },
     { id: 'inbox', label: 'Inbox', icon: <NavIconMessage />, badge: conversations.reduce((sum, c) => sum + c.unreadCount, 0) || undefined },

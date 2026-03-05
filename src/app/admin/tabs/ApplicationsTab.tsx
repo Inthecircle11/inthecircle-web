@@ -112,7 +112,8 @@ export function ApplicationsTab({
   onRelease,
   currentUserId,
 }: ApplicationsTabProps) {
-  const totalPages = Math.max(1, Math.ceil(applicationsTotal / applicationsPageSize))
+  const safePageSize = Math.max(1, applicationsPageSize || 50)
+  const totalPages = Math.max(1, Math.ceil((applicationsTotal ?? 0) / safePageSize))
   const statusLabel = (s: string) => {
     const u = (s || '').toUpperCase()
     if (u === 'ACTIVE' || u === 'APPROVED') return 'Approved'
@@ -179,9 +180,9 @@ export function ApplicationsTab({
       {!applicationsLoading && applications.length === 0 && (
         <div className="text-center py-16 text-[var(--text-muted)]">
           <div>No applications found</div>
-          {applicationsTotal > 0 && (
+          {(applicationsTotal ?? 0) > 0 && (
             <p className="mt-2 text-sm max-w-md mx-auto">
-              Counts show {applicationsTotal} application(s). If this persists, ensure migration{' '}
+              Counts show {Number(applicationsTotal)} application(s). If this persists, ensure migration{' '}
               <code className="text-xs bg-[var(--surface)] px-1 rounded">20260305000001_admin_get_applications_page.sql</code> is applied.
             </p>
           )}

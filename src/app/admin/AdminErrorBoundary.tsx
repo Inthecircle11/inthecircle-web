@@ -5,6 +5,7 @@ import React from 'react'
 interface State {
   hasError: boolean
   requestId?: string
+  errorMessage?: string
 }
 
 /** Catches render errors in admin UI and shows fallback with Retry. */
@@ -17,14 +18,13 @@ export class AdminErrorBoundary extends React.Component<
     this.state = { hasError: false, requestId: props.requestId }
   }
 
-  static getDerivedStateFromError(): State {
-    return { hasError: true }
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, errorMessage: error?.message }
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('AdminErrorBoundary:', error, info)
-    }
+    // Log in all environments so DevTools can show the real error
+    console.error('AdminErrorBoundary caught:', error?.message ?? error, info?.componentStack)
   }
 
   render() {
@@ -36,6 +36,11 @@ export class AdminErrorBoundary extends React.Component<
             <p className="text-sm text-[var(--text-muted)] mb-4">
               The admin panel encountered an error. You can try reloading the page.
             </p>
+            {this.state.errorMessage && (
+              <p className="text-xs text-[var(--text-muted)] mb-2 font-mono break-all" aria-live="polite">
+                {this.state.errorMessage}
+              </p>
+            )}
             {this.state.requestId && (
               <p className="text-xs text-[var(--text-muted)] mb-4 font-mono" aria-label="Request ID">
                 Request ID: {this.state.requestId}
