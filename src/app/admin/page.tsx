@@ -354,6 +354,7 @@ export default function AdminPanel() {
   const [refreshing, setRefreshing] = useState(false)
   const [applicationsLoading, setApplicationsLoading] = useState(false)
   const [applicationsCountsError, setApplicationsCountsError] = useState(false)
+  const [applicationsMigration, setApplicationsMigration] = useState<{ error: string; detail?: string; sql?: string } | null>(null)
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
@@ -880,7 +881,17 @@ export default function AdminPanel() {
       page: number = 1,
       limit: number = 50,
       appStatus?: AppFilter
-    ): Promise<{ apps: Application[]; total: number; counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number } | null; countsError?: boolean; permissionDenied?: boolean }> => {
+    ): Promise<{
+      apps: Application[]
+      total: number
+      counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number } | null
+      countsError?: boolean
+      permissionDenied?: boolean
+      migrationRequired?: boolean
+      migrationError?: string
+      migrationDetail?: string
+      migrationSql?: string
+    }> => {
       try {
         const params = new URLSearchParams()
         params.set('page', String(page))
@@ -891,7 +902,19 @@ export default function AdminPanel() {
         const q = params.toString()
         const res = await fetch(`/api/admin/applications?${q}`, { credentials: 'include', cache: 'no-store' })
         if (res.status === 403) return { apps: [], total: 0, counts: null, permissionDenied: true }
-        const json = await res.json().catch(() => ({}))
+        const json = await res.json().catch(() => ({})) as { ok?: boolean; error?: string; detail?: string; migration_sql?: string }
+        if (res.status === 503 && json.error) {
+          return {
+            apps: [],
+            total: 0,
+            counts: null,
+            permissionDenied: false,
+            migrationRequired: true,
+            migrationError: json.error,
+            migrationDetail: json.detail,
+            migrationSql: json.migration_sql,
+          }
+        }
         const { data } = parseAdminResponse<{ applications?: Application[]; total?: number; counts?: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number } }>(res, json)
         if (!res.ok || !data) return { apps: [], total: 0, counts: null, permissionDenied: false }
         const apps = (data.applications ?? []) as Application[]
@@ -1100,7 +1123,18 @@ export default function AdminPanel() {
         const page = options?.applicationsPage ?? applicationsPage
         const appResult = await fetchApplications(sort, filter, page, APPLICATIONS_PAGE_SIZE, statusFilter)
         if (loadIdRef.current !== loadId) return
-        if (!appResult.permissionDenied) {
+        if (appResult.permissionDenied) {
+          setApplicationsMigration(null)
+        } else if (appResult.migrationRequired) {
+          setApplications(appResult.apps)
+          setApplicationsTotal(appResult.total)
+          setApplicationsMigration({
+            error: appResult.migrationError ?? 'Database migration required',
+            detail: appResult.migrationDetail,
+            sql: appResult.migrationSql,
+          })
+        } else {
+          setApplicationsMigration(null)
           setApplications(appResult.apps)
           setApplicationsTotal(appResult.total)
           setApplicationsPage(prev => Math.min(prev, Math.max(1, Math.ceil(appResult.total / APPLICATIONS_PAGE_SIZE))))
@@ -2570,6 +2604,7 @@ export default function AdminPanel() {
             filter={appFilter}
             setFilter={setAppFilter}
             getFilterCount={getFilterCount}
+            applicationsMigration={applicationsMigration}
             onStatusFilterChange={(f) => {
               setApplicationsPage(1)
               setAppFilter(f)

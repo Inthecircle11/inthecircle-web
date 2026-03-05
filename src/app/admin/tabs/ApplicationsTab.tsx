@@ -84,6 +84,7 @@ export interface ApplicationsTabProps {
   selectedAppIds?: Set<string>
   setSelectedAppIds?: React.Dispatch<React.SetStateAction<Set<string>>>
   onBulkAction?: (ids: string[], action: 'approve' | 'reject' | 'waitlist' | 'suspend') => void
+  applicationsMigration?: { error: string; detail?: string; sql?: string } | null
 }
 
 export function ApplicationsTab({
@@ -100,6 +101,7 @@ export function ApplicationsTab({
   onApplicationsPageChange,
   applicationsLoading = false,
   applicationsCountsError: _applicationsCountsError,
+  applicationsMigration,
   onApprove,
   onReject,
   onWaitlist,
@@ -135,6 +137,34 @@ export function ApplicationsTab({
 
   return (
     <div className="space-y-6">
+      {applicationsMigration && (
+        <div className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-4 space-y-3">
+          <h3 className="font-semibold text-[var(--text)]">Applications list requires a database migration</h3>
+          <p className="text-sm text-[var(--text-muted)]">{applicationsMigration.error}</p>
+          {applicationsMigration.detail && (
+            <p className="text-xs font-mono text-[var(--text-muted)]">Reason: {applicationsMigration.detail}</p>
+          )}
+          {applicationsMigration.sql && (
+            <div className="space-y-2">
+              <p className="text-sm text-[var(--text-muted)]">Run this in Supabase Dashboard → SQL Editor → New query, then click Run:</p>
+              <div className="relative">
+                <pre className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--separator)] text-xs overflow-x-auto max-h-48 overflow-y-auto font-mono text-[var(--text)] whitespace-pre-wrap break-all">
+                  {applicationsMigration.sql}
+                </pre>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (applicationsMigration?.sql) void navigator.clipboard.writeText(applicationsMigration.sql)
+                  }}
+                  className="absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded bg-[var(--accent-purple)] text-white hover:opacity-90"
+                >
+                  Copy SQL
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h2 className="text-xl font-semibold text-[var(--text)]">Applications</h2>
         <button

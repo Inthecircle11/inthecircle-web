@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
@@ -87,7 +87,45 @@ export async function GET(req: NextRequest) {
     appsData = rpcRows as Array<Record<string, unknown>>
   }
 
-  // Fallback: direct table select (used when RPC does not exist yet or fails)
+  // When RPC fails, don't use direct select (it often returns 0 rows due to RLS). Return 503 with migration instructions.
+  if (appsData === null && rpcError) {
+    const migrationSql = `-- Run in Supabase SQL Editor (Dashboard → SQL Editor → New query)
+CREATE OR REPLACE FUNCTION public.admin_get_applications_page(
+  p_status text DEFAULT 'all',
+  p_filter text DEFAULT 'all',
+  p_assigned_to uuid DEFAULT NULL,
+  p_limit int DEFAULT 50,
+  p_offset int DEFAULT 0
+)
+RETURNS SETOF applications
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT a.* FROM applications a
+  WHERE (CASE p_status WHEN 'all' THEN true WHEN 'pending' THEN upper(trim(coalesce(a.status::text, ''))) IN ('SUBMITTED', 'PENDING_REVIEW', 'DRAFT', 'PENDING') WHEN 'approved' THEN upper(trim(coalesce(a.status::text, ''))) IN ('ACTIVE', 'APPROVED') WHEN 'rejected' THEN upper(trim(coalesce(a.status::text, ''))) = 'REJECTED' WHEN 'waitlisted' THEN upper(trim(coalesce(a.status::text, ''))) IN ('WAITLISTED', 'WAITLIST') WHEN 'waitlist' THEN upper(trim(coalesce(a.status::text, ''))) IN ('WAITLISTED', 'WAITLIST') WHEN 'suspended' THEN upper(trim(coalesce(a.status::text, ''))) = 'SUSPENDED' ELSE true END)
+    AND (CASE p_filter WHEN 'all' THEN true WHEN 'unassigned' THEN (a.assigned_to IS NULL OR a.assignment_expires_at < now()) WHEN 'assigned_to_me' THEN a.assigned_to = p_assigned_to AND a.assignment_expires_at >= now() ELSE true END)
+  ORDER BY a.submitted_at ASC NULLS LAST
+  LIMIT greatest(1, least(coalesce(p_limit, 50), 200)) OFFSET greatest(0, coalesce(p_offset, 0));
+END;
+$$;`
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'Applications list requires a database migration.',
+        code: 'APPLICATIONS_MIGRATION_REQUIRED',
+        detail: rpcError.message,
+        migration_sql: migrationSql,
+        request_id: requestId,
+      },
+      { status: 503, headers: { 'x-request-id': requestId ?? '' } }
+    )
+  }
+
+  // Fallback: direct table select (only when RPC succeeded but returned non-array, or RPC not called)
   if (appsData === null) {
     let appsQuery = supabase
       .from('applications')
@@ -117,9 +155,6 @@ export async function GET(req: NextRequest) {
       return adminError('Failed to fetch applications', 500, requestId)
     }
     appsData = (directData ?? []) as Array<Record<string, unknown>>
-    if (rpcError) {
-      console.warn(`[${requestId}] admin_get_applications_page failed (${rpcError.message}), using direct select. Apply migration 20260305000001_admin_get_applications_page.sql to fix "list empty but counts show".`)
-    }
   }
 
   const rowCount = (appsData ?? []).length
