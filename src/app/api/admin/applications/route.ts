@@ -74,39 +74,57 @@ export async function GET(req: NextRequest) {
     suspended: ['SUSPENDED'],
   }
 
-  let appsQuery = supabase
-    .from('applications')
-    .select('*')
-    .order('submitted_at', { ascending: true })
-
-  if (statusParam !== 'all') {
-    const dbStatuses = statusMap[statusParam] || [statusParam.toUpperCase()]
-    appsQuery = appsQuery.in('status', dbStatuses)
+  // Prefer RPC so list uses same SECURITY DEFINER context as counts (avoids "counts show N but list empty" when RLS/context differs)
+  let appsData: Array<Record<string, unknown>> | null = null
+  const { data: rpcRows, error: rpcError } = await supabase.rpc('admin_get_applications_page', {
+    p_status: statusParam,
+    p_filter: filter,
+    p_assigned_to: filter === 'assigned_to_me' ? result.user.id : null,
+    p_limit: limit,
+    p_offset: offset,
+  })
+  if (!rpcError && Array.isArray(rpcRows)) {
+    appsData = rpcRows as Array<Record<string, unknown>>
   }
 
-  // Apply assignment filter in DB so pagination is over the filtered set (fixes "No applications found" when filter would otherwise leave 0 of first 50)
-  if (filter === 'unassigned') {
-    // PostgREST or: (condition1,condition2). Use .is() for null; .lt. for timestamp.
-    const orClause = `(assigned_to.is.null,assignment_expires_at.lt.${now.toISOString()})`
-    appsQuery = appsQuery.or(orClause)
-  } else if (filter === 'assigned_to_me') {
-    appsQuery = appsQuery
-      .eq('assigned_to', result.user.id)
-      .gte('assignment_expires_at', now.toISOString())
-  }
+  // Fallback: direct table select (used when RPC does not exist yet or fails)
+  if (appsData === null) {
+    let appsQuery = supabase
+      .from('applications')
+      .select('*')
+      .order('submitted_at', { ascending: true })
 
-  appsQuery = appsQuery.range(offset, offset + limit - 1)
+    if (statusParam !== 'all') {
+      const dbStatuses = statusMap[statusParam] || [statusParam.toUpperCase()]
+      appsQuery = appsQuery.in('status', dbStatuses)
+    }
 
-  const { data: appsData, error: appsError } = await appsQuery
+    if (filter === 'unassigned') {
+      const orClause = `(assigned_to.is.null,assignment_expires_at.lt.${now.toISOString()})`
+      appsQuery = appsQuery.or(orClause)
+    } else if (filter === 'assigned_to_me') {
+      appsQuery = appsQuery
+        .eq('assigned_to', result.user.id)
+        .gte('assignment_expires_at', now.toISOString())
+    }
 
-  if (appsError) {
-    console.error(`[${requestId}] applications query error:`, appsError.message, { filter, statusParam, page, limit })
-    return adminError('Failed to fetch applications', 500, requestId)
+    appsQuery = appsQuery.range(offset, offset + limit - 1)
+
+    const { data: directData, error: appsError } = await appsQuery
+
+    if (appsError) {
+      console.error(`[${requestId}] applications query error:`, appsError.message, { filter, statusParam, page, limit })
+      return adminError('Failed to fetch applications', 500, requestId)
+    }
+    appsData = (directData ?? []) as Array<Record<string, unknown>>
+    if (rpcError) {
+      console.warn(`[${requestId}] admin_get_applications_page failed (${rpcError.message}), using direct select. Apply migration 20260305000001_admin_get_applications_page.sql to fix "list empty but counts show".`)
+    }
   }
 
   const rowCount = (appsData ?? []).length
   if (rowCount === 0 && counts.total > 0 && filter === 'all' && statusParam === 'all') {
-    console.warn(`[${requestId}] applications query returned 0 rows but counts.total=${counts.total} (filter=all, status=all)`)
+    console.warn(`[${requestId}] applications query returned 0 rows but counts.total=${counts.total} (filter=all, status=all). Ensure admin_get_applications_page RPC is applied and RLS allows list to match counts.`)
   }
 
   const userIds = [...new Set((appsData ?? []).map((a: Record<string, unknown>) => a.user_id).filter(Boolean) as string[])]
@@ -217,8 +235,10 @@ export async function GET(req: NextRequest) {
     if (key in counts) total = counts[key]
   }
 
+  const listEmptyButCountsPositive = rowCount === 0 && counts.total > 0 && filter === 'all' && statusParam === 'all'
+
   return adminSuccess(
-    { applications, total, page, limit, counts },
+    { applications, total, page, limit, counts, ...(listEmptyButCountsPositive ? { listEmptyButCountsPositive: true } : {}) },
     requestId
   )
 }
