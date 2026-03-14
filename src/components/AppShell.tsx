@@ -86,7 +86,7 @@ export default function AppShell({
   const [signingOut, setSigningOut] = useState(false)
 
   // Public routes that don't require auth
-  const publicRoutes = ['/', '/login', '/signup', '/success', '/forgot-password', '/update-password']
+  const publicRoutes = ['/', '/login', '/signup', '/success', '/forgot-password', '/update-password', '/delete-account']
   const isPublicRoute = publicRoutes.includes(pathname || '')
 
   // Admin route: /admin or obscure path (e.g. /K7x2mN9pQ4rT1vW6yB0cD3eF8gH2jL5n) — don't redirect to signup, show admin login instead
@@ -297,9 +297,11 @@ export default function AppShell({
   // This ensures server-rendered props (like initialEmail) are preserved during hydration
   if (loading && !isPublicRoute) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
-        <div className="text-center">
-          <div className="w-10 h-10 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg)]">
+        <div className="flex flex-col items-center gap-4">
+          <Logo size="md" />
+          <p className="text-xl font-bold tracking-tight gradient-text">inthecircle</p>
+          <div className="w-10 h-10 border-2 border-[var(--accent-purple)] border-t-transparent rounded-full animate-spin" aria-hidden />
           <p className="text-[var(--text-muted)] text-sm font-medium">Loading...</p>
         </div>
       </div>
