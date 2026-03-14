@@ -1,7 +1,7 @@
 /** App Store URL - set NEXT_PUBLIC_APP_STORE_URL in env to override */
 export const APP_STORE_URL =
   process.env.NEXT_PUBLIC_APP_STORE_URL ||
-  'https://apps.apple.com/app/in-the-circle/id123456789'
+  'https://apps.apple.com/us/app/inthecircle-creator-network/id6758384054'
 
 /** Play Store URL - set NEXT_PUBLIC_PLAY_STORE_URL in env to override */
 export const PLAY_STORE_URL =
