@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
@@ -50,10 +50,7 @@ export async function GET(req: NextRequest) {
 
   let counts: { pending: number; approved: number; rejected: number; waitlisted: number; suspended: number; total: number }
   const { data: countsData, error: countsError } = await supabase.rpc('admin_get_application_counts').single()
-  if (countsError || !countsData) {
-    if (countsError) console.error(`[${requestId}]`, countsError.message)
-    counts = { pending: 0, approved: 0, rejected: 0, waitlisted: 0, suspended: 0, total: 0 }
-  } else {
+  if (!countsError && countsData) {
     const cd = countsData as { pending?: number; approved?: number; rejected?: number; waitlisted?: number; suspended?: number; total?: number }
     counts = {
       pending: Number(cd.pending) || 0,
@@ -62,6 +59,19 @@ export async function GET(req: NextRequest) {
       waitlisted: Number(cd.waitlisted) || 0,
       suspended: Number(cd.suspended) || 0,
       total: Number(cd.total) || 0,
+    }
+  } else {
+    // Fallback: use admin_get_application_stats (exists in backend)
+    const { data: statsData } = await supabase.rpc('admin_get_application_stats')
+    const row = Array.isArray(statsData) ? statsData[0] : statsData
+    const r = row as { total?: number; pending?: number; approved?: number; rejected?: number; waitlisted?: number; suspended?: number } | null
+    counts = {
+      total: Number(r?.total ?? 0),
+      pending: Number(r?.pending ?? 0),
+      approved: Number(r?.approved ?? 0),
+      rejected: Number(r?.rejected ?? 0),
+      waitlisted: Number(r?.waitlisted ?? 0),
+      suspended: Number(r?.suspended ?? 0),
     }
   }
 
@@ -74,7 +84,7 @@ export async function GET(req: NextRequest) {
     suspended: ['SUSPENDED'],
   }
 
-  // Prefer RPC so list uses same SECURITY DEFINER context as counts (avoids "counts show N but list empty" when RLS/context differs)
+  // Prefer admin_get_applications_page when available; fallback to backend admin_get_applications / admin_get_applications_filtered or direct table.
   let appsData: Array<Record<string, unknown>> | null = null
   const { data: rpcRows, error: rpcError } = await supabase.rpc('admin_get_applications_page', {
     p_status: statusParam,
@@ -87,45 +97,44 @@ export async function GET(req: NextRequest) {
     appsData = rpcRows as Array<Record<string, unknown>>
   }
 
-  // When RPC fails, don't use direct select (it often returns 0 rows due to RLS). Return 503 with migration instructions.
+  // Fallback when admin_get_applications_page is missing: use backend admin_get_applications_filtered or admin_get_applications
   if (appsData === null && rpcError) {
-    const migrationSql = `-- Run in Supabase SQL Editor (Dashboard → SQL Editor → New query)
-CREATE OR REPLACE FUNCTION public.admin_get_applications_page(
-  p_status text DEFAULT 'all',
-  p_filter text DEFAULT 'all',
-  p_assigned_to uuid DEFAULT NULL,
-  p_limit int DEFAULT 50,
-  p_offset int DEFAULT 0
-)
-RETURNS SETOF applications
-LANGUAGE plpgsql
-SECURITY DEFINER
-STABLE
-SET search_path = public
-AS $$
-BEGIN
-  RETURN QUERY
-  SELECT a.* FROM applications a
-  WHERE (CASE p_status WHEN 'all' THEN true WHEN 'pending' THEN upper(trim(coalesce(a.status::text, ''))) IN ('SUBMITTED', 'PENDING_REVIEW', 'DRAFT', 'PENDING') WHEN 'approved' THEN upper(trim(coalesce(a.status::text, ''))) IN ('ACTIVE', 'APPROVED') WHEN 'rejected' THEN upper(trim(coalesce(a.status::text, ''))) = 'REJECTED' WHEN 'waitlisted' THEN upper(trim(coalesce(a.status::text, ''))) IN ('WAITLISTED', 'WAITLIST') WHEN 'waitlist' THEN upper(trim(coalesce(a.status::text, ''))) IN ('WAITLISTED', 'WAITLIST') WHEN 'suspended' THEN upper(trim(coalesce(a.status::text, ''))) = 'SUSPENDED' ELSE true END)
-    AND (CASE p_filter WHEN 'all' THEN true WHEN 'unassigned' THEN (a.assigned_to IS NULL OR a.assignment_expires_at < now()) WHEN 'assigned_to_me' THEN a.assigned_to = p_assigned_to AND a.assignment_expires_at >= now() ELSE true END)
-  ORDER BY a.submitted_at ASC NULLS LAST
-  LIMIT greatest(1, least(coalesce(p_limit, 50), 200)) OFFSET greatest(0, coalesce(p_offset, 0));
-END;
-$$;`
-    return NextResponse.json(
-      {
-        ok: false,
-        error: 'Applications list requires a database migration.',
-        code: 'APPLICATIONS_MIGRATION_REQUIRED',
-        detail: rpcError.message,
-        migration_sql: migrationSql,
-        request_id: requestId,
-      },
-      { status: 503, headers: { 'x-request-id': requestId ?? '' } }
-    )
+    const statusesForFilter =
+      statusParam === 'all'
+        ? null
+        : (statusMap[statusParam] ?? [statusParam.toUpperCase()])
+    if (filter === 'all') {
+      const { data: filteredRows, error: filteredErr } = await supabase.rpc('admin_get_applications_filtered', {
+        p_statuses: statusesForFilter,
+        p_user_type: null,
+        p_category: null,
+        p_date_from: null,
+        p_date_to: null,
+        p_follower_min: null,
+        p_follower_max: null,
+        p_search: null,
+        p_limit: limit,
+        p_offset: offset,
+      })
+      if (!filteredErr && Array.isArray(filteredRows)) {
+        appsData = filteredRows as Array<Record<string, unknown>>
+      }
+    }
+    if (appsData === null) {
+      const { data: listRows, error: listErr } = await supabase.rpc('admin_get_applications', {
+        p_limit: limit,
+        p_offset: offset,
+      })
+      if (!listErr && Array.isArray(listRows)) {
+        let list = listRows as Array<Record<string, unknown>>
+        if (statusParam !== 'all') {
+          const statusSet = new Set((statusMap[statusParam] ?? [statusParam.toUpperCase()]).map((s) => s.toUpperCase()))
+          list = list.filter((a) => statusSet.has(String(a?.status ?? '').toUpperCase()))
+        }
+        appsData = list
+      }
+    }
   }
-
-  // Fallback: direct table select (only when RPC succeeded but returned non-array, or RPC not called)
   if (appsData === null) {
     let appsQuery = supabase
       .from('applications')
@@ -165,9 +174,12 @@ $$;`
   const userIds = [...new Set((appsData ?? []).map((a: Record<string, unknown>) => a.user_id).filter(Boolean) as string[])]
   const profilesMap: Record<string, Record<string, unknown>> = {}
   if (userIds.length > 0) {
-    const cols = 'id, name, username, email, profile_image_url, bio, niche, phone'
+    const cols = 'id, name, username, email, profile_image_url, niche, phone'
     const { data: profilesData, error: profilesError } = await supabase.from('profiles').select(cols).in('id', userIds)
-    if (profilesError) return adminError('Failed to load profiles', 500, requestId)
+    if (profilesError) {
+      console.error(`[${requestId}] profiles query error:`, profilesError.message)
+      return adminError('Failed to load profiles', 500, requestId)
+    }
     if (profilesData?.length) {
       for (const p of profilesData as Array<Record<string, unknown>>) {
         const key = String(p.id ?? '').toLowerCase()
