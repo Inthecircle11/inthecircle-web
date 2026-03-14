@@ -92,5 +92,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/|api/|auth/|favicon|icon\\.svg|.*\\.).*)', '/api/admin/:path*'],
+  // Exclude static assets, api, auth, and public routes like /delete-account (Play Console data deletion URL).
+  matcher: ['/((?!_next/|api/|auth/|favicon|icon\\.svg|delete-account|.*\\.).*)', '/api/admin/:path*'],
 }
