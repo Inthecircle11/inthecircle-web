@@ -86,7 +86,7 @@ export default function AppShell({
   const [signingOut, setSigningOut] = useState(false)
 
   // Public routes that don't require auth
-  const publicRoutes = ['/', '/login', '/signup', '/success', '/forgot-password', '/update-password', '/delete-account']
+  const publicRoutes = ['/', '/login', '/signup', '/success', '/forgot-password', '/update-password', '/delete-account', '/safety-standards']
   const isPublicRoute = publicRoutes.includes(pathname || '')
 
   // Admin route: /admin or obscure path (e.g. /K7x2mN9pQ4rT1vW6yB0cD3eF8gH2jL5n) — don't redirect to signup, show admin login instead
