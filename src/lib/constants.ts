@@ -1,7 +1,9 @@
-/** App Store URL - set NEXT_PUBLIC_APP_STORE_URL in env to override */
+/** App Store URL - set NEXT_PUBLIC_APP_STORE_URL in env to override (ignore old placeholder) */
+const APP_STORE_DEFAULT = 'https://apps.apple.com/us/app/inthecircle-creator-network/id6758384054'
 export const APP_STORE_URL =
-  process.env.NEXT_PUBLIC_APP_STORE_URL ||
-  'https://apps.apple.com/us/app/inthecircle-creator-network/id6758384054'
+  (process.env.NEXT_PUBLIC_APP_STORE_URL && !process.env.NEXT_PUBLIC_APP_STORE_URL.includes('id123456789'))
+    ? process.env.NEXT_PUBLIC_APP_STORE_URL
+    : APP_STORE_DEFAULT
 
 /** Play Store URL - set NEXT_PUBLIC_PLAY_STORE_URL in env to override */
 export const PLAY_STORE_URL =
