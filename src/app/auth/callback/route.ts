@@ -10,6 +10,12 @@ export async function GET(request: Request) {
   const next = searchParams.get('next') ?? '/feed'
   const base = APP_ORIGIN || new URL(request.url).origin
 
+  // Supabase may return ?error= directly (e.g. expired OTP, access_denied)
+  const errorParam = searchParams.get('error')
+  if (errorParam) {
+    return NextResponse.redirect(`${base}/forgot-password?error=link_expired`)
+  }
+
   if (code) {
     const supabase = await createServerSupabaseClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
@@ -18,5 +24,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${base}/signup?error=auth_callback`)
+  return NextResponse.redirect(`${base}/forgot-password?error=link_expired`)
 }

@@ -22,5 +22,8 @@ export default async function ForgotPasswordPage({ searchParams }: PageProps) {
     }
   }
 
-  return <ForgotPasswordForm initialEmail={initialEmail} />
+  const errorParam = params?.error
+  const linkExpired = errorParam === 'link_expired' || errorParam === 'access_denied'
+
+  return <ForgotPasswordForm initialEmail={initialEmail} linkExpired={linkExpired} />
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
@@ -98,35 +98,6 @@ export default function SignUp() {
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<Step>('basic')
   const [isPasswordVisible, setIsPasswordVisible] = useState(false)
-
-  // Handle auth errors and recovery tokens in hash
-  const [authError, setAuthError] = useState<{ code: string; description: string } | null>(null)
-  
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.location.hash) {
-      const fullHash = window.location.hash
-      const hash = fullHash.substring(1)
-      const params = new URLSearchParams(hash)
-      const type = params.get('type')
-      const error = params.get('error')
-      const errorCode = params.get('error_code')
-      const errorDescription = params.get('error_description')
-      
-      // Handle expired/invalid reset links
-      if (error === 'access_denied' || errorCode === 'otp_expired') {
-        setAuthError({
-          code: errorCode || error || 'expired',
-          description: errorDescription || 'Your reset link has expired'
-        })
-        return
-      }
-      
-      if (type === 'recovery') {
-        // This is a password reset link - redirect to update-password with the hash
-        window.location.replace(`${window.location.origin}/update-password${fullHash}`)
-      }
-    }
-  }, [])
 
   // Basic Info
   const [name, setName] = useState('')
@@ -327,31 +298,6 @@ export default function SignUp() {
     if (!username || username === generateUsername(name)) {
       setUsername(generateUsername(value))
     }
-  }
-
-  // Show expired link error page
-  if (authError) {
-    return (
-      <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-[var(--bg)]">
-        <div className="max-w-md w-full text-center animate-fade-in">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-red-500/20 flex items-center justify-center text-3xl">
-            ⏱️
-          </div>
-          <h1 className="text-2xl font-bold mb-4 text-[var(--text)]">Link Expired</h1>
-          <p className="text-[var(--text-secondary)] mb-8">
-            {authError.description.replace(/\+/g, ' ')}
-          </p>
-          <Link href="/forgot-password" className="btn-primary inline-block w-full text-center py-4">
-            Request new reset link
-          </Link>
-          <p className="mt-6 text-center text-sm text-[var(--text-secondary)]">
-            <Link href="/" className="text-[var(--accent)] hover:underline font-medium">
-              ← Back to home
-            </Link>
-          </p>
-        </div>
-      </main>
-    )
   }
 
   return (

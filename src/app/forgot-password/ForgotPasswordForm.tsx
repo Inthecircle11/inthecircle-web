@@ -9,9 +9,9 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
-type Props = { initialEmail: string }
+type Props = { initialEmail: string; linkExpired?: boolean }
 
-export function ForgotPasswordForm({ initialEmail }: Props) {
+export function ForgotPasswordForm({ initialEmail, linkExpired = false }: Props) {
   const [email, setEmail] = useState(initialEmail)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -87,6 +87,12 @@ export function ForgotPasswordForm({ initialEmail }: Props) {
             ? "We'll send you a one-time link. When you click it, you'll go straight to set your new password — no need to enter your email again."
             : "Enter your email and we'll send you a link to reset your password"}
         </p>
+
+        {linkExpired && (
+          <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-yellow-400 text-sm">
+            Your reset link has expired or was already used. Request a new one below.
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">

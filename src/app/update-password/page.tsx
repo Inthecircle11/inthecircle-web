@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { Logo } from '@/components/Logo'
@@ -20,10 +19,9 @@ function getMobilePlatform(): 'ios' | 'android' | null {
   return null
 }
 
-/** After password reset: try to open native app, then fall back to store (iOS/Android) or webapp feed. */
+/** After password reset: try to open native app, then fall back to store (iOS/Android) or show success state. */
 function redirectToAppOrStore(
-  router: ReturnType<typeof useRouter>,
-  webFallbackPath: string
+  onDesktopSuccess: () => void
 ) {
   const platform = getMobilePlatform()
   const appUrl = APP_DEEP_LINK_PASSWORD_RESET
@@ -44,20 +42,18 @@ function redirectToAppOrStore(
     return
   }
 
-  // Desktop or other: stay on webapp
-  router.push(webFallbackPath)
+  // Desktop: show inline success state (middleware blocks /feed for non-app routes)
+  onDesktopSuccess()
 }
 
 function UpdatePasswordForm() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const next = searchParams.get('next') || '/feed'
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasSession, setHasSession] = useState<boolean | null>(null)
   const [processingToken, setProcessingToken] = useState(true)
+  const [success, setSuccess] = useState(false)
 
   useEffect(() => {
     async function handleAuth() {
@@ -115,12 +111,31 @@ function UpdatePasswordForm() {
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password })
       if (updateError) throw updateError
-      redirectToAppOrStore(router, next)
+      redirectToAppOrStore(() => setSuccess(true))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update password')
     } finally {
       setLoading(false)
     }
+  }
+
+  if (success) {
+    return (
+      <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-[var(--bg)]">
+        <div className="max-w-md w-full text-center animate-fade-in">
+          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-green-500/20 flex items-center justify-center text-3xl">
+            ✓
+          </div>
+          <h1 className="text-2xl font-bold mb-4 text-[var(--text)]">Password updated!</h1>
+          <p className="text-[var(--text-secondary)] mb-8">
+            Your password has been changed. Open the app to sign in with your new password.
+          </p>
+          <Link href="/download" className="btn-primary inline-block w-full text-center py-4">
+            Get the app
+          </Link>
+        </div>
+      </main>
+    )
   }
 
   // Show loading while processing token from hash
