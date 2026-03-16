@@ -165,7 +165,12 @@ export async function GET(req: NextRequest) {
   let activeSessions = null
   if (hasPermission(result.roles as AdminRoleName[], ADMIN_PERMISSIONS.active_sessions)) {
     const { data: sessionsData } = await supabase.rpc('get_active_sessions', { active_minutes: 15 })
-    if (sessionsData && Array.isArray(sessionsData) && sessionsData.length > 0) {
+    if (sessionsData && Array.isArray(sessionsData)) {
+      if (sessionsData.length === 0) {
+        // RPC worked but nobody is active right now — return an explicit empty result
+        // so the UI can show "No one active" instead of "Loading…"
+        activeSessions = { count: 0, users: [], minutes: 15 }
+      } else {
       const list = sessionsData as Array<{ user_id: string; email: string | null; last_active_at: string }>
       // Deduplicate by user_id: get_active_sessions returns one row per session, so a user
       // on two devices appears twice. Keep the most-recent session (list is ordered DESC).
@@ -194,8 +199,9 @@ export async function GET(req: NextRequest) {
         })),
         minutes: 15,
       }
-    }
-  }
+      }  // end else (sessions.length > 0)
+    }  // end if (sessionsData is array)
+  }  // end if (hasPermission active_sessions)
 
   const payload = {
     stats: {
