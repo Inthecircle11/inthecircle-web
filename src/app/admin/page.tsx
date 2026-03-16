@@ -2614,7 +2614,7 @@ export default function AdminPanel() {
         )}
         {activeTab === 'applications' && (
           <ApplicationsTab
-            applications={filteredApps}
+            applications={applications}
             allApplications={applications}
             stats={stats}
             filter={appFilter}
