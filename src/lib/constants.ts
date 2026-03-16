@@ -10,6 +10,10 @@ export const PLAY_STORE_URL =
   process.env.NEXT_PUBLIC_PLAY_STORE_URL ||
   'https://play.google.com/store/apps/details?id=com.inthecircle.app'
 
+/** Deep link to open the native app (e.g. after password reset). App can handle path to show appropriate screen. */
+export const APP_DEEP_LINK_SCHEME = 'inthecircle'
+export const APP_DEEP_LINK_PASSWORD_RESET = `${APP_DEEP_LINK_SCHEME}://auth/password-reset`
+
 /** Canonical site URL for SEO (sitemap, Open Graph, canonical). Set NEXT_PUBLIC_SITE_URL in production. */
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||

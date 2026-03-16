@@ -5,6 +5,48 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { Logo } from '@/components/Logo'
+import {
+  APP_DEEP_LINK_PASSWORD_RESET,
+  APP_STORE_URL,
+  PLAY_STORE_URL,
+} from '@/lib/constants'
+
+/** Detect mobile platform for redirecting to the correct app/store. */
+function getMobilePlatform(): 'ios' | 'android' | null {
+  if (typeof window === 'undefined' || !window.navigator?.userAgent) return null
+  const ua = window.navigator.userAgent.toLowerCase()
+  if (/iphone|ipad|ipod/.test(ua)) return 'ios'
+  if (/android/.test(ua)) return 'android'
+  return null
+}
+
+/** After password reset: try to open native app, then fall back to store (iOS/Android) or webapp feed. */
+function redirectToAppOrStore(
+  router: ReturnType<typeof useRouter>,
+  webFallbackPath: string
+) {
+  const platform = getMobilePlatform()
+  const appUrl = APP_DEEP_LINK_PASSWORD_RESET
+
+  if (platform === 'ios' || platform === 'android') {
+    // Try to open the app first
+    window.location.href = appUrl
+    // If app doesn't open (user still on page), send to the correct store after a short delay
+    const storeUrl = platform === 'ios' ? APP_STORE_URL : PLAY_STORE_URL
+    const timeoutId = setTimeout(() => {
+      window.location.href = storeUrl
+    }, 2000)
+    // Cancel store redirect if the app opened (page hidden)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') clearTimeout(timeoutId)
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange, { once: true })
+    return
+  }
+
+  // Desktop or other: stay on webapp
+  router.push(webFallbackPath)
+}
 
 function UpdatePasswordForm() {
   const router = useRouter()
@@ -73,7 +115,7 @@ function UpdatePasswordForm() {
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password })
       if (updateError) throw updateError
-      router.push(next)
+      redirectToAppOrStore(router, next)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update password')
     } finally {

@@ -27,8 +27,25 @@ export function middleware(request: NextRequest) {
   const requestIdResponse = addRequestId(request)
   if (requestIdResponse) return requestIdResponse
 
-  const basePath = process.env.ADMIN_BASE_PATH?.trim()
   const pathname = request.nextUrl.pathname
+
+  // Only allow: download, reset-password flow, and admin panel. Everything else → download.
+  const allowedPaths = new Set([
+    '/download',
+    '/forgot-password',
+    '/update-password',
+  ])
+  const isAdmin = pathname === '/admin' || pathname.startsWith('/admin/')
+  const isAllowed =
+    allowedPaths.has(pathname) ||
+    isAdmin
+  if (!isAllowed) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/download'
+    return NextResponse.redirect(url, 302)
+  }
+
+  const basePath = process.env.ADMIN_BASE_PATH?.trim()
 
   if (!basePath || pathname.length < 2) {
     return NextResponse.next()
