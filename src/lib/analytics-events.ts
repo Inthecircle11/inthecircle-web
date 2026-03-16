@@ -12,6 +12,7 @@ export const APP_EVENTS = {
   app_open: 'app_open',
   session_start: 'session_start',
   session_end: 'session_end',
+  session_heartbeat: 'session_heartbeat',
   login: 'login',
   logout: 'logout',
 

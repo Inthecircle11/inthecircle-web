@@ -205,7 +205,7 @@ export function startSession(userType: UserType): void {
   trackEvent(eventName, { userType, metadata: { new_session: expired } })
   if (expired) {
     queue.push({
-      event_name: 'session_heartbeat',
+      event_name: APP_EVENTS.session_heartbeat,
       user_type: userType,
       metadata: { session_id: sessionId },
     })

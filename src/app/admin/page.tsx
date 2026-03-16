@@ -1055,11 +1055,11 @@ export default function AdminPanel() {
     }
 
     if (!options?.skipOverview) {
-      // Run overview, tab data, and Active today in parallel so both metrics have independent sources
-      const [overviewRes, , activeTodayFromApi] = await Promise.all([
+      // overview-stats already computes activeToday internally via the same RPC, so no need
+      // to fire a separate fetchActiveToday() in parallel on the happy path.
+      const [overviewRes] = await Promise.all([
         fetchOverviewStats(),
         loadTabData(activeTab, thisLoadId),
-        fetchActiveToday(),
       ])
       if (loadIdRef.current !== thisLoadId) return
       const overview = overviewRes
@@ -1073,25 +1073,33 @@ export default function AdminPanel() {
         setActiveUsersToday(0)
         setOverviewCounts(null)
       } else if (overview) {
-        setStats(overview.stats)
-        setActiveSessions(overview.activeSessions)
+        setStats(overview.stats ?? { total: 0, pending: 0, approved: 0, rejected: 0, waitlisted: 0, suspended: 0 })
+        setActiveSessions(
+          overview.activeSessions != null
+            ? { ...overview.activeSessions, users: overview.activeSessions.users ?? [] }
+            : null
+        )
         if (overview.overviewCounts) {
           setOverviewCounts(overview.overviewCounts)
           setTotalThreadCount(overview.overviewCounts.totalThreadCount)
           setTotalMessageCount(overview.overviewCounts.totalMessageCount)
         }
-        // Active today: dedicated endpoint first, then overview, then concurrent active count (15m) as fallback
-        const activeTodayValue =
-          activeTodayFromApi ??
-          (overview.activeToday != null ? overview.activeToday : null) ??
-          (overview.activeSessions?.count != null ? overview.activeSessions.count : null) ??
-          0
-        setActiveUsersToday(activeTodayValue)
+        // Active today: use overview's activeToday (already fetched from same RPC internally).
+        // Do NOT fall back to activeSessions.count — that is a 15-minute concurrent count,
+        // a completely different metric that would silently show wrong data.
+        setActiveUsersToday(overview.activeToday ?? 0)
       } else {
-        // Overview failed or timed out; we still have activeTodayFromApi from parallel fetch
-        const activeSessionsData = await fetchActiveSessions()
-        setActiveSessions(activeSessionsData)
-        setActiveUsersToday(activeTodayFromApi ?? (activeSessionsData?.count ?? 0))
+        // Overview failed entirely — fetch active-today and active-sessions as separate fallbacks
+        const [activeTodayFallback, activeSessionsData] = await Promise.all([
+          fetchActiveToday(),
+          fetchActiveSessions(),
+        ])
+        setActiveSessions(
+          activeSessionsData != null
+            ? { ...activeSessionsData, users: activeSessionsData.users ?? [] }
+            : null
+        )
+        setActiveUsersToday(activeTodayFallback ?? 0)
       }
     }
 
@@ -1118,8 +1126,8 @@ export default function AdminPanel() {
           }
           setApplicationsCountsError(!!appResult.countsError)
         }
-        setUsers(usersAndProfiles.users)
-        setProfilesWithDemographics(usersAndProfiles.profiles)
+        setUsers(usersAndProfiles.users ?? [])
+        setProfilesWithDemographics(usersAndProfiles.profiles ?? [])
         setUsersTotalCount(usersAndProfiles.total)
       } else if (tab === 'applications') {
         const page = options?.applicationsPage ?? applicationsPage
@@ -1163,8 +1171,8 @@ export default function AdminPanel() {
           fetchReportsAndDataRequests(),
         ])
         if (loadIdRef.current !== loadId) return
-        setRecentActivity(activityList)
-        setPendingVerifications(pendingVerificationsList)
+        setRecentActivity(activityList ?? [])
+        setPendingVerifications(pendingVerificationsList ?? [])
         setTotalThreadCount(engagement.threadCount)
         setTotalMessageCount(engagement.messageCount)
         if (reportsAndData.reports.length) setReports(reportsAndData.reports)
@@ -2229,26 +2237,22 @@ export default function AdminPanel() {
         return
       }
       setLoginLoading(true)
-      const supabase = createClient()
       try {
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: loginPassword })
-        if (signInError) {
-          setLoginError(signInError.message)
-          setLoginLoading(false)
-          return
-        }
-        const res = await fetch('/api/admin/check', { credentials: 'include' })
+        const res = await fetch('/api/admin/sign-in', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email, password: loginPassword }),
+        })
         const json = await res.json().catch(() => ({}))
-        const { data } = parseAdminResponse<{ authorized?: boolean }>(res, json)
-        if (!data?.authorized) {
-          await supabase.auth.signOut()
-          setLoginError('This account is not authorized to access the admin panel.')
-          setLoginLoading(false)
+        if (res.ok && json.ok) {
+          await checkAdminAccess()
           return
         }
-        await checkAdminAccess()
+        setLoginError(typeof json.error === 'string' ? json.error : 'Something went wrong. Please try again.')
       } catch {
         setLoginError('Something went wrong. Please try again.')
+      } finally {
         setLoginLoading(false)
       }
     }
@@ -2554,7 +2558,7 @@ export default function AdminPanel() {
             newUsersLast30d={newUsersLast30d}
             growthRateWoW={growthRateWoW}
             activeUsersToday={activeUsersToday}
-            activeSessions={activeSessions}
+            activeSessions={activeSessions != null ? { ...activeSessions, users: activeSessions.users ?? [] } : null}
             totalThreads={totalThreads}
             totalMessages={totalMessages}
             avgMessagesPerUser={avgMessagesPerUser}
