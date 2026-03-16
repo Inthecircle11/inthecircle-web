@@ -880,7 +880,8 @@ export default function AdminPanel() {
       filter?: string,
       page: number = 1,
       limit: number = 50,
-      appStatus?: AppFilter
+      appStatus?: AppFilter,
+      search?: string
     ): Promise<{
       apps: Application[]
       total: number
@@ -899,6 +900,7 @@ export default function AdminPanel() {
         if (sort) params.set('sort', sort)
         if (filter) params.set('filter', filter)
         if (appStatus && appStatus !== 'all') params.set('status', appStatus)
+        if (search?.trim()) params.set('search', search.trim())
         const q = params.toString()
         const res = await fetch(`/api/admin/applications?${q}`, { credentials: 'include', cache: 'no-store' })
         if (res.status === 403) return { apps: [], total: 0, counts: null, permissionDenied: true }
@@ -1096,12 +1098,12 @@ export default function AdminPanel() {
     async function loadTabData(tab: Tab, loadId: number) {
       if (tab === 'overview') {
         const [appResult, usersAndProfiles] = await Promise.all([
-          fetchApplications(sort, filter, 1, APPLICATIONS_PAGE_SIZE, statusFilter),
+          fetchApplications(sort, filter, 1, APPLICATIONS_PAGE_SIZE, statusFilter, appSearch),
           fetchUsersAndProfiles(1, USERS_PAGE_SIZE),
         ])
         if (loadIdRef.current !== loadId) return
         if (!appResult.permissionDenied) {
-          setApplications(appResult.apps)
+          setApplications(appResult.apps ?? [])
           setApplicationsTotal(appResult.total)
           setApplicationsPage(prev => Math.min(prev, Math.max(1, Math.ceil(appResult.total / APPLICATIONS_PAGE_SIZE))))
           if (appResult.counts) {
@@ -1121,12 +1123,12 @@ export default function AdminPanel() {
         setUsersTotalCount(usersAndProfiles.total)
       } else if (tab === 'applications') {
         const page = options?.applicationsPage ?? applicationsPage
-        const appResult = await fetchApplications(sort, filter, page, APPLICATIONS_PAGE_SIZE, statusFilter)
+        const appResult = await fetchApplications(sort, filter, page, APPLICATIONS_PAGE_SIZE, statusFilter, appSearch)
         if (loadIdRef.current !== loadId) return
         if (appResult.permissionDenied) {
           setApplicationsMigration(null)
         } else if (appResult.migrationRequired) {
-          setApplications(appResult.apps)
+          setApplications(appResult.apps ?? [])
           setApplicationsTotal(appResult.total)
           setApplicationsMigration({
             error: appResult.migrationError ?? 'Database migration required',
@@ -1135,7 +1137,7 @@ export default function AdminPanel() {
           })
         } else {
           setApplicationsMigration(null)
-          setApplications(appResult.apps)
+          setApplications(appResult.apps ?? [])
           setApplicationsTotal(appResult.total)
           setApplicationsPage(prev => Math.min(prev, Math.max(1, Math.ceil(appResult.total / APPLICATIONS_PAGE_SIZE))))
           if (appResult.counts) {
@@ -1188,7 +1190,7 @@ export default function AdminPanel() {
       }
       if (options?.skipOverview && activeTab === 'applications') setApplicationsLoading(false)
     }
-  }, [appSort, appAssignmentFilter, appFilter, applicationsPage, activeTab, handle403])
+  }, [appSort, appAssignmentFilter, appFilter, applicationsPage, activeTab, appSearch, handle403])
 
   // Load users for the current page when on Users tab (pagination)
   const loadUsers = useCallback(async (page: number) => {
@@ -1253,6 +1255,15 @@ export default function AdminPanel() {
     applicationsEmptyRefetchDone.current = true
     loadData(undefined, { skipOverview: true })
   }, [authorized, activeTab, applications.length, stats.total, applicationsLoading, loadData])
+
+  // Refetch applications when search term changes (server-side search by email/name/username)
+  useEffect(() => {
+    if (!authorized || activeTab !== 'applications') return
+    const t = setTimeout(() => {
+      loadData(undefined, { skipOverview: true })
+    }, 300)
+    return () => clearTimeout(t)
+  }, [appSearch, authorized, activeTab, loadData])
 
   // Log admin action for audit trail (fire-and-forget). Pass reason for destructive actions.
   async function logAudit(
@@ -1690,7 +1701,7 @@ export default function AdminPanel() {
     try {
       const updated_at_by_id: Record<string, string> = {}
       applicationIds.forEach((id) => {
-        const app = applications.find((a) => a.id === id)
+        const app = applicationsSafe.find((a) => a.id === id)
         if (app?.updated_at != null && String(app.updated_at).trim()) {
           updated_at_by_id[id] = String(app.updated_at).trim()
         }
@@ -1913,7 +1924,8 @@ export default function AdminPanel() {
     return ['DRAFT', 'SUBMITTED', 'PENDING_REVIEW', 'PENDING'].includes(status.toUpperCase())
   }
 
-  const filteredAppsByStatus = appFilter === 'all' ? applications : applications.filter(a => {
+  const applicationsSafe = applications ?? []
+  const filteredAppsByStatus = appFilter === 'all' ? applicationsSafe : applicationsSafe.filter(a => {
     const status = a.status.toUpperCase()
     if (appFilter === 'pending') return isPendingStatus(status)
     if (appFilter === 'approved') return status === 'ACTIVE'
@@ -1972,11 +1984,11 @@ export default function AdminPanel() {
   const bannedUsersCount = users.filter(u => u.is_banned).length
   const totalThreads = totalThreadCount ?? conversations.length
   const totalMessages = totalMessageCount ?? conversations.reduce((sum, c) => sum + (c.messages?.length ?? 0), 0)
-  const appsTotal = stats.total || applications.length
+  const appsTotal = stats.total || applicationsSafe.length
   const approvalRate = appsTotal > 0 ? Math.round((stats.approved / appsTotal) * 100) : 0
   const rejectionRate = appsTotal > 0 ? Math.round((stats.rejected / appsTotal) * 100) : 0
   const verificationRate = totalUsers > 0 ? Math.round((verifiedUsersCount / totalUsers) * 100) : 0
-  const nicheCounts = applications.reduce<Record<string, number>>((acc, a) => {
+  const nicheCounts = applicationsSafe.reduce<Record<string, number>>((acc, a) => {
     const n = (a.niche || 'Other').trim()
     acc[n] = (acc[n] || 0) + 1
     return acc
@@ -2002,7 +2014,7 @@ export default function AdminPanel() {
     return days
   })()
   const maxSignupsInWeek = Math.max(1, ...signupsByDay.map(d => d.count))
-  const appsSubmittedThisWeek = applications.filter(a => {
+  const appsSubmittedThisWeek = applicationsSafe.filter(a => {
     const d = new Date(a.application_date)
     const weekAgo = new Date(now)
     weekAgo.setDate(weekAgo.getDate() - 7)
@@ -2064,7 +2076,7 @@ export default function AdminPanel() {
     .slice(0, 8)
   const usersWithNicheSet = profilesWithDemographics.filter(p => (p.niche || '').trim()).length
   const nicheSetPct = totalUsers > 0 ? Math.round((usersWithNicheSet / totalUsers) * 100) : 0
-  const referrerCounts = applications.reduce<Record<string, number>>((acc, a) => {
+  const referrerCounts = applicationsSafe.reduce<Record<string, number>>((acc, a) => {
     const r = (a.referrer_username || '').trim() || 'None'
     acc[r] = (acc[r] || 0) + 1
     return acc
@@ -2105,7 +2117,7 @@ export default function AdminPanel() {
   const growthRateWoW = lastWeekSignups > 0 ? Math.round(((thisWeekSignups - lastWeekSignups) / lastWeekSignups) * 100) : (thisWeekSignups > 0 ? 100 : 0)
   const avgMessagesPerUser = totalUsers > 0 ? (totalMessages / totalUsers).toFixed(1) : '0'
   const _usersWithAtLeastOneMessage = totalThreads > 0 ? '—' : '0'
-  const applicationsApprovedLast7d = overviewCounts?.applicationsApprovedLast7d ?? applications.filter(a => {
+  const applicationsApprovedLast7d = overviewCounts?.applicationsApprovedLast7d ?? applicationsSafe.filter(a => {
     const status = (a.status || '').toUpperCase()
     if (status !== 'ACTIVE') return false
     const appDate = new Date(a.application_date)
@@ -2113,7 +2125,7 @@ export default function AdminPanel() {
     weekAgo.setDate(weekAgo.getDate() - 7)
     return appDate > weekAgo
   }).length
-  const applicationsSubmittedLast7d = overviewCounts?.applicationsSubmittedLast7d ?? applications.filter(a => {
+  const applicationsSubmittedLast7d = overviewCounts?.applicationsSubmittedLast7d ?? applicationsSafe.filter(a => {
     const appDate = new Date(a.application_date)
     const weekAgo = new Date(now)
     weekAgo.setDate(weekAgo.getDate() - 7)
@@ -2668,7 +2680,7 @@ export default function AdminPanel() {
             onBulkAction={bulkApplicationAction}
             onExportCsv={() => {
               const headers = ['id', 'user_id', 'name', 'username', 'email', 'niche', 'status', 'application_date', 'referrer_username', 'instagram_username', 'follower_count']
-              const rows = applications.map(a => [a.id, a.user_id, a.name ?? '', a.username ?? '', a.email ?? '', a.niche ?? '', (a.status ?? '').toUpperCase(), a.application_date ?? '', a.referrer_username ?? '', a.instagram_username ?? '', a.follower_count ?? ''])
+              const rows = applicationsSafe.map(a => [a.id, a.user_id, a.name ?? '', a.username ?? '', a.email ?? '', a.niche ?? '', (a.status ?? '').toUpperCase(), a.application_date ?? '', a.referrer_username ?? '', a.instagram_username ?? '', a.follower_count ?? ''])
               downloadCSV(`applications_export_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows)
             }}
             actionLoading={actionLoading}

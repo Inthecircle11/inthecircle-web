@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
   const statusParam = rawStatus === 'waitlisted' ? 'waitlist' : rawStatus
   const pageParam = params.get('page')
   const limitParam = params.get('limit')
+  const searchParam = params.get('search')?.trim() || null
   const page = Math.max(1, parseInt(pageParam || '1', 10) || 1)
   const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(limitParam || String(DEFAULT_LIMIT), 10) || DEFAULT_LIMIT))
   const now = new Date()
@@ -92,6 +93,7 @@ export async function GET(req: NextRequest) {
     p_assigned_to: filter === 'assigned_to_me' ? result.user.id : null,
     p_limit: limit,
     p_offset: offset,
+    p_search: searchParam,
   })
   if (!rpcError && Array.isArray(rpcRows)) {
     appsData = rpcRows as Array<Record<string, unknown>>
@@ -280,6 +282,17 @@ export async function GET(req: NextRequest) {
     const countsKey = statusParam === 'waitlist' ? 'waitlisted' : statusParam
     const key = countsKey as keyof typeof counts
     if (key in counts) total = counts[key]
+  }
+  // When searching, use the search total so pagination and "No applications found" are correct.
+  if (searchParam) {
+    const { data: searchTotalData } = await supabase.rpc('admin_get_applications_search_total', {
+      p_status: statusParam,
+      p_filter: filter,
+      p_assigned_to: filter === 'assigned_to_me' ? result.user.id : null,
+      p_search: searchParam,
+    })
+    const n = Array.isArray(searchTotalData) ? searchTotalData[0] : searchTotalData
+    if (typeof n === 'number') total = n
   }
 
   const listEmptyButCountsPositive = rowCount === 0 && counts.total > 0 && filter === 'all' && statusParam === 'all'
