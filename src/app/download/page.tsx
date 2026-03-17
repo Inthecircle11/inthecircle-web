@@ -4,11 +4,23 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { APP_STORE_URL, PLAY_STORE_URL } from '@/lib/constants'
 
+/** If the URL hash contains Supabase recovery tokens, we're a password-reset link that landed on /download. */
+function hasRecoveryHash(): boolean {
+  if (typeof window === 'undefined' || !window.location.hash) return false
+  const params = new URLSearchParams(window.location.hash.substring(1))
+  return params.get('type') === 'recovery' && !!params.get('access_token')
+}
+
 export default function DownloadPage() {
   const [redirected, setRedirected] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    // Password reset link: Supabase may redirect to /download with tokens in hash. Send user to set password.
+    if (hasRecoveryHash()) {
+      window.location.replace(`/update-password${window.location.hash}`)
+      return
+    }
     const ua = window.navigator.userAgent.toLowerCase()
     const isAndroid = /android/i.test(ua)
     const isIOS = /iphone|ipad|ipod/i.test(ua)

@@ -4,47 +4,6 @@ import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { Logo } from '@/components/Logo'
-import {
-  APP_DEEP_LINK_PASSWORD_RESET,
-  APP_STORE_URL,
-  PLAY_STORE_URL,
-} from '@/lib/constants'
-
-/** Detect mobile platform for redirecting to the correct app/store. */
-function getMobilePlatform(): 'ios' | 'android' | null {
-  if (typeof window === 'undefined' || !window.navigator?.userAgent) return null
-  const ua = window.navigator.userAgent.toLowerCase()
-  if (/iphone|ipad|ipod/.test(ua)) return 'ios'
-  if (/android/.test(ua)) return 'android'
-  return null
-}
-
-/** After password reset: try to open native app, then fall back to store (iOS/Android) or show success state. */
-function redirectToAppOrStore(
-  onDesktopSuccess: () => void
-) {
-  const platform = getMobilePlatform()
-  const appUrl = APP_DEEP_LINK_PASSWORD_RESET
-
-  if (platform === 'ios' || platform === 'android') {
-    // Try to open the app first
-    window.location.href = appUrl
-    // If app doesn't open (user still on page), send to the correct store after a short delay
-    const storeUrl = platform === 'ios' ? APP_STORE_URL : PLAY_STORE_URL
-    const timeoutId = setTimeout(() => {
-      window.location.href = storeUrl
-    }, 2000)
-    // Cancel store redirect if the app opened (page hidden)
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') clearTimeout(timeoutId)
-    }
-    document.addEventListener('visibilitychange', onVisibilityChange, { once: true })
-    return
-  }
-
-  // Desktop: show inline success state (middleware blocks /feed for non-app routes)
-  onDesktopSuccess()
-}
 
 function UpdatePasswordForm() {
   const [password, setPassword] = useState('')
@@ -111,7 +70,7 @@ function UpdatePasswordForm() {
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password })
       if (updateError) throw updateError
-      redirectToAppOrStore(() => setSuccess(true))
+      setSuccess(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update password')
     } finally {
@@ -128,11 +87,16 @@ function UpdatePasswordForm() {
           </div>
           <h1 className="text-2xl font-bold mb-4 text-[var(--text)]">Password updated!</h1>
           <p className="text-[var(--text-secondary)] mb-8">
-            Your password has been changed. Open the app to sign in with your new password.
+            Your password has been changed. You can sign in with your new password.
           </p>
-          <Link href="/download" className="btn-primary inline-block w-full text-center py-4">
-            Get the app
-          </Link>
+          <div className="flex flex-col gap-3">
+            <Link href="/" className="btn-primary inline-block w-full text-center py-4">
+              Back to home
+            </Link>
+            <Link href="/download" className="text-[var(--text-secondary)] hover:text-[var(--accent)] text-sm font-medium">
+              Get the app
+            </Link>
+          </div>
         </div>
       </main>
     )
