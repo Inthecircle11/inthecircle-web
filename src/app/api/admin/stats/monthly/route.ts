@@ -33,8 +33,8 @@ export async function GET(req: NextRequest) {
     
     const { data: apps, error } = await supabase
       .from('applications')
-      .select('created_at, status')
-      .gte('created_at', startDate.toISOString())
+      .select('submitted_at, status')
+      .gte('submitted_at', startDate.toISOString())
     
     if (error) throw error
     
@@ -50,8 +50,8 @@ export async function GET(req: NextRequest) {
     }
     
     // Count applications
-    apps?.forEach((app: { created_at: string; status: string }) => {
-      const d = new Date(app.created_at)
+    apps?.forEach((app: { submitted_at: string; status: string }) => {
+      const d = new Date(app.submitted_at)
       const monthKey = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`
       const entry = monthMap.get(monthKey)
       if (entry) {

@@ -33,8 +33,8 @@ export async function GET(req: NextRequest) {
     
     const { data: apps, error: appsError } = await supabase
       .from('applications')
-      .select('created_at, status')
-      .gte('created_at', startDate.toISOString())
+      .select('submitted_at, status')
+      .gte('submitted_at', startDate.toISOString())
     
     if (appsError) throw appsError
     
@@ -47,8 +47,8 @@ export async function GET(req: NextRequest) {
       dateMap.set(dateStr, { total: 0, approved: 0, rejected: 0 })
     }
     
-    apps?.forEach((app: { created_at: string; status: string }) => {
-      const dateStr = app.created_at.split('T')[0]
+    apps?.forEach((app: { submitted_at: string; status: string }) => {
+      const dateStr = app.submitted_at.split('T')[0]
       const entry = dateMap.get(dateStr)
       if (entry) {
         entry.total++
@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
     cachedTrend = { at: Date.now(), days, body }
     return NextResponse.json(body)
   } catch (e: any) {
-    console.error('Trend data error:', e)
+    console.error('[TREND ERROR]', e?.message, e?.code, e?.details, JSON.stringify(e))
     return NextResponse.json({ ok: false, error: e.message || 'Failed to fetch trend data' }, { status: 500 })
   }
 }
