@@ -95,7 +95,7 @@ const APP_FILTER_OPTIONS = [
   { value: 'pending', label: 'Pending' },
   { value: 'approved', label: 'Approved' },
   { value: 'rejected', label: 'Rejected' },
-  { value: 'waitlisted', label: 'Waitlisted' },
+  { value: 'waitlist', label: 'Waitlisted' },
 ] as const
 
 interface UserRow {
@@ -1631,11 +1631,11 @@ export default function AdminV3Page() {
                     ) : (
                       applications.map((app) => {
                         const rawStatus = (app.status || 'pending').toLowerCase()
-                        const st = rawStatus === 'active' ? 'approved' : rawStatus
+                        const st = rawStatus
                         const isPending = ['pending', 'submitted', 'pending_review', 'draft'].includes(rawStatus)
                         const isApproved = st === 'approved'
                         const isRejected = st === 'rejected'
-                        const isWaitlisted = st === 'waitlisted'
+                        const isWaitlisted = st === 'waitlist'
                         const name = app.name || app.username || '?'
                         const accountType = (app.account_type || (app as { type?: string }).type || '').toLowerCase()
                         return (
@@ -1674,7 +1674,7 @@ export default function AdminV3Page() {
                             <td style={{ fontSize: 11, color: 'var(--t3)' }}>{app.niche || '—'}</td>
                             <td>
                               <span className={`badge ${isApproved ? 'ba' : isRejected ? 'br' : isWaitlisted ? 'bw' : 'bp'}`}>
-                                {st}
+                                {st === 'waitlist' ? 'Waitlist' : st.charAt(0).toUpperCase() + st.slice(1)}
                               </span>
                             </td>
                             <td style={{ fontSize: 11, color: 'var(--t3)' }}>{fmtDate(app.application_date)}</td>
