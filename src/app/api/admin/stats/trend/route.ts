@@ -28,73 +28,46 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const { data, error } = await supabase.rpc('admin_get_trend_data', { days_param: days })
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - days)
     
-    if (error) {
-      console.error('Trend RPC error, falling back to direct query:', error)
-      // Fallback to direct query
-      const startDate = new Date()
-      startDate.setDate(startDate.getDate() - days)
-      
-      const { data: apps, error: appsError } = await supabase
-        .from('applications')
-        .select('created_at, status')
-        .gte('created_at', startDate.toISOString())
-      
-      if (appsError) throw appsError
-      
-      // Group by date
-      const dateMap = new Map<string, { total: number; approved: number; rejected: number }>()
-      
-      // Fill all dates with zeros
-      for (let i = 0; i < days; i++) {
-        const d = new Date()
-        d.setDate(d.getDate() - (days - 1 - i))
-        const dateStr = d.toISOString().split('T')[0]
-        dateMap.set(dateStr, { total: 0, approved: 0, rejected: 0 })
-      }
-      
-      // Count applications
-      apps?.forEach((app: { created_at: string; status: string }) => {
-        const dateStr = app.created_at.split('T')[0]
-        const entry = dateMap.get(dateStr)
-        if (entry) {
-          entry.total++
-          if (app.status === 'APPROVED' || app.status === 'ACTIVE') entry.approved++
-          if (app.status === 'REJECTED') entry.rejected++
-        }
-      })
-      
-      // Format dates
-      const trendData = Array.from(dateMap.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([dateStr, counts]) => {
-          const d = new Date(dateStr + 'T00:00:00Z')
-          const month = d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
-          const day = d.getUTCDate()
-          return {
-            date: `${month} ${day.toString().padStart(2, '0')}`,
-            ...counts,
-          }
-        })
-      
-      const body = { ok: true, data: trendData, cached_at: new Date().toISOString() }
-      cachedTrend = { at: Date.now(), days, body }
-      return NextResponse.json(body)
+    const { data: apps, error: appsError } = await supabase
+      .from('applications')
+      .select('created_at, status')
+      .gte('created_at', startDate.toISOString())
+    
+    if (appsError) throw appsError
+    
+    const dateMap = new Map<string, { total: number; approved: number; rejected: number }>()
+    
+    for (let i = 0; i < days; i++) {
+      const d = new Date()
+      d.setDate(d.getDate() - (days - 1 - i))
+      const dateStr = d.toISOString().split('T')[0]
+      dateMap.set(dateStr, { total: 0, approved: 0, rejected: 0 })
     }
     
-    // Format RPC data
-    const trendData = (data || []).map((row: { date: string; total: number; approved: number; rejected: number }) => {
-      const d = new Date(row.date + 'T00:00:00Z')
-      const month = d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
-      const day = d.getUTCDate()
-      return {
-        date: `${month} ${day.toString().padStart(2, '0')}`,
-        total: row.total || 0,
-        approved: row.approved || 0,
-        rejected: row.rejected || 0,
+    apps?.forEach((app: { created_at: string; status: string }) => {
+      const dateStr = app.created_at.split('T')[0]
+      const entry = dateMap.get(dateStr)
+      if (entry) {
+        entry.total++
+        if (app.status === 'APPROVED' || app.status === 'ACTIVE') entry.approved++
+        if (app.status === 'REJECTED') entry.rejected++
       }
     })
+    
+    const trendData = Array.from(dateMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([dateStr, counts]) => {
+        const d = new Date(dateStr + 'T00:00:00Z')
+        const month = d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
+        const day = d.getUTCDate()
+        return {
+          date: `${month} ${day.toString().padStart(2, '0')}`,
+          ...counts,
+        }
+      })
     
     const body = { ok: true, data: trendData, cached_at: new Date().toISOString() }
     cachedTrend = { at: Date.now(), days, body }

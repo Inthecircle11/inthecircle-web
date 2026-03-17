@@ -26,23 +26,20 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const { data: apps, error } = await supabase
-      .from('applications')
+    const { data: profiles, error } = await supabase
+      .from('profiles')
       .select('niche')
-      .in('status', ['APPROVED', 'ACTIVE'])
       .not('niche', 'is', null)
       .neq('niche', '')
     
     if (error) throw error
     
-    // Count niches
     const nicheMap = new Map<string, number>()
-    apps?.forEach((app: { niche: string }) => {
-      const niche = app.niche || 'Not specified'
+    profiles?.forEach((p: { niche: string }) => {
+      const niche = p.niche || 'Not specified'
       nicheMap.set(niche, (nicheMap.get(niche) || 0) + 1)
     })
     
-    // Sort and take top 10
     const nicheData = Array.from(nicheMap.entries())
       .map(([niche, count]) => ({ niche, count }))
       .sort((a, b) => b.count - a.count)
