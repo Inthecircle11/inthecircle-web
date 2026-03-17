@@ -1,29 +1,14 @@
-import * as Sentry from '@sentry/nextjs'
+/**
+ * Client-side instrumentation.
+ * Sentry init disabled here to avoid loading the feedback/instrument bundle that uses
+ * deprecated zustand default export. Server/edge Sentry (instrumentation.ts) unchanged.
+ * To re-enable client Sentry, uncomment the block below and add back the Sentry import.
+ */
+// import * as Sentry from '@sentry/nextjs'
 
-const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
+// const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
+// if (process.env.NODE_ENV === 'production' && dsn) {
+//   Sentry.init({ dsn, ... })
+// }
 
-// Only enable in production when DSN is set.
-// defaultIntegrations: false + explicit integrations to avoid loading Feedback/Replay (they pull in deprecated zustand).
-if (process.env.NODE_ENV === 'production' && dsn) {
-  Sentry.init({
-    dsn,
-    sendDefaultPii: false,
-    defaultIntegrations: false,
-    integrations: [
-      Sentry.browserTracingIntegration(),
-      Sentry.browserApiErrorsIntegration(),
-      Sentry.globalHandlersIntegration(),
-      Sentry.httpContextIntegration(),
-    ],
-    beforeSend(event) {
-      if (event.request?.headers) {
-        const { headers: _h, ...rest } = event.request
-        return { ...event, request: rest }
-      }
-      return event
-    },
-  })
-}
-
-// Required by @sentry/nextjs for client-side navigation instrumentation
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart
+export const onRouterTransitionStart = () => {}
