@@ -56,6 +56,7 @@ async function main() {
         headers: {
           Accept: 'application/vnd.github+json',
           Authorization: `Bearer ${token}`,
+          'User-Agent': 'inthecircle-web-branch-protection',
           'X-GitHub-Api-Version': '2022-11-28',
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(body),

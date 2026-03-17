@@ -304,7 +304,11 @@ export default function AdminV3Page() {
   const showToast = useCallback((msg: string, type: 'ok' | 'err' | 'info' = 'info') => {
     const id = ++toastIdRef.current
     setToasts((prev) => [...prev, { id, msg, type }])
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3800)
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id))
+      })
+    }, 3800)
   }, [])
 
   // Debug: surface unhandled promise rejections (RPC/auth/fetch errors)
@@ -533,8 +537,10 @@ export default function AdminV3Page() {
           showToast(err, 'err')
         } else if (res.ok) {
           showToast(action === 'approve' ? 'Application approved' : action === 'reject' ? 'Application rejected' : 'Application waitlisted', 'ok')
-          void loadApplications()
-          void loadOverview()
+          requestAnimationFrame(() => {
+            void loadApplications()
+            void loadOverview()
+          })
         } else if (res.status === 409) {
           const msg = 'Record changed by another moderator. Refresh and try again.'
           setError(msg)
@@ -544,7 +550,7 @@ export default function AdminV3Page() {
         setError('Request failed')
         showToast('Request failed', 'err')
       }
-      setActionLoadingId(null)
+      requestAnimationFrame(() => setActionLoadingId(null))
     },
     [loadApplications, loadOverview, showToast]
   )

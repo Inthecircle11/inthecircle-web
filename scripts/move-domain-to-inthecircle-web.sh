@@ -15,7 +15,7 @@ if [ -z "$VERCEL_TOKEN" ]; then
   ")
 fi
 if [ -z "$VERCEL_TOKEN" ]; then
-  echo "Error: Run  vercel login  first, or set VERCEL_TOKEN (from https://vercel.com/account/tokens)"
+  echo "Error: Run  npx vercel login  first, or set VERCEL_TOKEN (from https://vercel.com/account/tokens)"
   exit 1
 fi
 
@@ -27,7 +27,7 @@ for OLD in inthecircle inthecircle-web; do
     -H "Content-Type: application/json")
   HTTP_CODE=$(echo "$RESP" | tail -n 1)
   if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
-    echo "Auth failed (code $HTTP_CODE). Run  vercel login  again or set VERCEL_TOKEN from https://vercel.com/account/tokens"
+    echo "Auth failed (code $HTTP_CODE). Run  npx vercel login  again or set VERCEL_TOKEN from https://vercel.com/account/tokens"
     echo "Or fix in Dashboard: https://vercel.com → each project → Settings → Domains → remove $DOMAIN from every project except $TARGET_PROJECT."
     exit 1
   fi
@@ -41,7 +41,7 @@ RESP2=$(curl -s -w "\n%{http_code}" -X POST "https://api.vercel.com/v10/projects
   -d "{\"name\": \"${DOMAIN}\"}")
 HTTP_CODE2=$(echo "$RESP2" | tail -n 1)
 if [ "$HTTP_CODE2" = "401" ] || [ "$HTTP_CODE2" = "403" ]; then
-  echo "Auth failed (code $HTTP_CODE2). Run  vercel login  again or use Dashboard to add $DOMAIN to $TARGET_PROJECT."
+  echo "Auth failed (code $HTTP_CODE2). Run  npx vercel login  again or use Dashboard to add $DOMAIN to $TARGET_PROJECT."
   exit 1
 fi
 

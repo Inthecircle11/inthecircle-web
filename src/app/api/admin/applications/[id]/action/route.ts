@@ -24,6 +24,10 @@ export async function POST(
       console.error('[action route] missing application id in params')
       return adminError('Missing application id', 400, requestId)
     }
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(applicationId)) {
+      return adminError('Invalid application id format', 400, requestId)
+    }
     const body = await req.json().catch(() => ({}))
     const { action, updated_at } = body
     if (!action || !['approve', 'reject', 'waitlist', 'suspend'].includes(action)) {
@@ -80,7 +84,11 @@ export async function POST(
           console.error('[action route] triggerWelcomeEmailForApplication (non-fatal):', e)
         }
       }
-      clearApplicationsCache()
+      try {
+        clearApplicationsCache()
+      } catch (e) {
+        console.error('[action route] clearApplicationsCache (non-fatal):', e)
+      }
       return adminSuccess({ ok: true }, requestId)
     }
 
@@ -104,7 +112,11 @@ export async function POST(
         console.error('[action route] triggerWelcomeEmailForApplication (non-fatal):', e)
       }
     }
-    clearApplicationsCache()
+    try {
+      clearApplicationsCache()
+    } catch (e) {
+      console.error('[action route] clearApplicationsCache (non-fatal):', e)
+    }
     return adminSuccess({ ok: true }, requestId)
   } catch (err: unknown) {
     const ex = err as { message?: string }

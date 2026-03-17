@@ -1,6 +1,9 @@
 import type { Metadata } from 'next'
 import { BuildVersionLog } from './BuildVersionLog'
 
+/** Force dynamic so admin is never statically cached. */
+export const dynamic = 'force-dynamic'
+
 /** Canonical admin: https://app.inthecircle.co/admin (or /ADMIN_BASE_PATH when set). */
 export const metadata: Metadata = {
   title: 'Admin – Inthecircle',

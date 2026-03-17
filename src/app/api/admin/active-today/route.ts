@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     const raw = (data as { active_count?: number | string }).active_count
     count = typeof raw === 'number' ? Math.max(0, Math.floor(raw)) : typeof raw === 'string' ? Math.max(0, parseInt(raw, 10) || 0) : 0
   } else {
-    if (error) console.error(`[${requestId}]`, error.message)
+    if (error) console.warn(`[${requestId}] admin_get_active_today_count:`, error.message, '(using fallback)')
     const { data: rows } = await supabase.rpc('get_active_sessions', { active_minutes: 24 * 60 })
     const list = (rows ?? []) as Array<{ user_id: string }>
     count = new Set(list.map((r) => r.user_id)).size
