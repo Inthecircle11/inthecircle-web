@@ -100,7 +100,7 @@ export default function AdminV3Page() {
   const [adminEmail, setAdminEmail] = useState('')
   const [governanceScore, setGovernanceScore] = useState<number | null>(null)
 
-  const showToast = useCallback((msg: string, type: 'ok' | 'err' | 'info' = 'info') => {
+  const _showToast = useCallback((msg: string, type: 'ok' | 'err' | 'info' = 'info') => {
     const id = ++toastIdRef.current
     setToasts((prev) => [...prev, { id, msg, type }])
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3800)
@@ -178,7 +178,7 @@ export default function AdminV3Page() {
       setError('Failed to verify session')
     }
     setLoading(false)
-  }, [])
+  }, [loadOverview])
 
   useEffect(() => {
     if (gateUnlocked !== true) return
@@ -276,7 +276,7 @@ export default function AdminV3Page() {
           body: JSON.stringify({ email, password: loginPassword }),
         })
         const json = await res.json().catch(() => ({}))
-        const { data, error: err } = parseAdminResponse(res, json)
+        const { data: _data, error: err } = parseAdminResponse(res, json)
         if (err) {
           setLoginError(err)
         } else if (res.ok) {

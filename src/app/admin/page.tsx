@@ -1943,7 +1943,7 @@ export default function AdminPanel() {
     return true
   })
   const searchLower = appSearch.trim().toLowerCase()
-  const filteredApps = searchLower
+  const _filteredApps = searchLower
     ? filteredAppsByStatus.filter(a =>
         (a.name?.toLowerCase() ?? '').includes(searchLower) ||
         (a.username?.toLowerCase() ?? '').includes(searchLower) ||

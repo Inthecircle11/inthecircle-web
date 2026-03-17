@@ -44,6 +44,8 @@ function useModalFocusTrap(
     }
     el.addEventListener('keydown', handleKey)
     return () => el.removeEventListener('keydown', handleKey)
+    // dialogRef is a ref object — its identity is stable and intentionally excluded
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose])
   return useCallback(() => {
     savedFocusRef.current?.focus()
@@ -548,7 +550,7 @@ function ApplicationDetailModal({
   onApprove,
   onReject,
   onWaitlist,
-  onSuspend,
+  onSuspend: _onSuspend,
   isLoading,
   canAct = true,
 }: {
