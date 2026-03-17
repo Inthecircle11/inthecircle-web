@@ -1933,7 +1933,7 @@ export default function AdminV3Page() {
                             <tr><th>Metric</th><th>Value</th><th>Level</th><th>Created</th><th>Actions</th></tr>
                           </thead>
                           <tbody>
-                            {riskData.open_escalations.map((e) => (
+                            {(riskData.open_escalations ?? []).map((e) => (
                               <tr key={e.id}>
                                 <td>{e.metric_name}</td>
                                 <td>{e.metric_value}</td>
