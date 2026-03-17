@@ -44,7 +44,21 @@ export async function POST(
       return adminError('Service unavailable (missing SUPABASE_SERVICE_ROLE_KEY)', 500, requestId)
     }
 
-    const newStatus = action === 'approve' ? 'ACTIVE' : action === 'reject' ? 'REJECTED' : action === 'waitlist' ? 'WAITLISTED' : 'SUSPENDED'
+    // DB constraint applications_status_check: use lowercase values. To confirm allowed values, run in Supabase SQL Editor:
+    //   SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid = 'applications'::regclass AND conname = 'applications_status_check';
+    const newStatus =
+      action === 'approve'
+        ? 'active'
+        : action === 'reject'
+          ? 'rejected'
+          : action === 'waitlist'
+            ? 'waitlisted'
+            : action === 'suspend'
+              ? 'suspended'
+              : null
+    if (newStatus === null) {
+      return adminError('Invalid action', 400, requestId)
+    }
 
     const payload: Record<string, unknown> = { status: newStatus, updated_at: new Date().toISOString() }
     const { error } = await supabase.from('applications').update(payload).eq('id', applicationId).select('id')
