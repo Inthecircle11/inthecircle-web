@@ -178,7 +178,9 @@ export default function AdminV3Page() {
       setError('Failed to verify session')
     }
     setLoading(false)
-  }, [loadOverview])
+    // loadOverview is defined below; omit to avoid "used before declaration"
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (gateUnlocked !== true) return
