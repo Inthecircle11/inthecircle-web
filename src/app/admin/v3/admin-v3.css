@@ -1294,3 +1294,76 @@
     transform: translateX(-100%);
   }
 }
+
+/* Table & form utilities for wired panels */
+.admin-v3 .admin-v3-input {
+  background: var(--s2);
+  border: 1px solid var(--sep);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.admin-v3 .admin-v3-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--sep);
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+.admin-v3 .admin-v3-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.admin-v3 .admin-v3-table th,
+.admin-v3 .admin-v3-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--sep);
+}
+.admin-v3 .admin-v3-table thead th {
+  background: var(--sfh);
+  color: var(--t2);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.admin-v3 .admin-v3-table tbody tr:hover {
+  background: var(--sfh);
+}
+.admin-v3 .admin-v3-muted {
+  color: var(--t3);
+  font-style: italic;
+}
+.admin-v3 .admin-v3-pagination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.admin-v3 .admin-v3-btn {
+  background: var(--ap);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.admin-v3 .admin-v3-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.admin-v3 .admin-v3-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.admin-v3 .admin-v3-btn-sm {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.admin-v3 .admin-v3-btn-danger {
+  background: var(--err);
+}
+.admin-v3 .admin-v3-btn-danger:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
