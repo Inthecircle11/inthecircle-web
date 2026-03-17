@@ -67,7 +67,7 @@ const nextConfig: NextConfig = {
       base && base.length > 0
         ? [
             { source: `/${base}`, destination: '/admin' },
-            { source: `/${base}/:path*`, destination: '/admin/:path*' },
+            { source: `/${base}/:path*`, destination: "/admin/:path*" },
           ]
         : []
     // Favicon: serve from public/favicon.ico (no rewrite). Ensures GET /favicon.ico returns 200.
