@@ -5,6 +5,7 @@ import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import { triggerWelcomeEmailForApplication } from '@/lib/trigger-welcome-email'
 import { clearApplicationsCache } from '@/lib/admin-applications-cache'
 import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
+import { writeAuditLog } from '@/lib/audit-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,6 +66,16 @@ export async function POST(
     if (error) {
       console.error('[action route] direct update error:', JSON.stringify(error))
       return adminError((error as { message?: string }).message ?? 'Operation failed. Please try again.', 500, requestId)
+    }
+    try {
+      await writeAuditLog(supabase, req, result.user, {
+        action: 'application_status_change',
+        target_type: 'application',
+        target_id: applicationId,
+        details: { new_status: newStatus, action },
+      })
+    } catch (e) {
+      console.error('[action route] writeAuditLog (non-fatal):', e)
     }
     if (action === 'approve') {
       try {
