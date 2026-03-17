@@ -5,7 +5,7 @@ import { getServiceRoleClient } from '@/lib/supabase-service'
 
 export const dynamic = 'force-dynamic'
 
-const CACHE_TTL_MS = 10 * 60 * 1000 // 10 minutes
+const CACHE_TTL_MS = 10 * 60 * 1000
 let cachedNiches: { at: number; body: Record<string, unknown> } | null = null
 
 /** GET - Top niches for approved members */

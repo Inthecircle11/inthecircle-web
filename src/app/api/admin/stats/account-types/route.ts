@@ -5,7 +5,7 @@ import { getServiceRoleClient } from '@/lib/supabase-service'
 
 export const dynamic = 'force-dynamic'
 
-const CACHE_TTL_MS = 10 * 60 * 1000 // 10 minutes
+const CACHE_TTL_MS = 10 * 60 * 1000
 let cachedAccountTypes: { at: number; body: Record<string, unknown> } | null = null
 
 /** GET - Creator vs brand split for approved members */

@@ -5,7 +5,7 @@ import { getServiceRoleClient } from '@/lib/supabase-service'
 
 export const dynamic = 'force-dynamic'
 
-const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+const CACHE_TTL_MS = 5 * 60 * 1000
 let cachedTrend: { at: number; days: number; body: Record<string, unknown> } | null = null
 
 /** GET - Daily application trend for last N days */
