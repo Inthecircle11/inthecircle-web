@@ -61,7 +61,11 @@ export async function POST(
     }
 
     console.log('[action] applicationId:', applicationId)
-    const payload: Record<string, unknown> = { status: newStatus, updated_at: new Date().toISOString() }
+    const payload: Record<string, unknown> = {
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+      status_changed_by_admin_id: result.user.id,
+    }
     const { error } = await supabase.from('applications').update(payload).eq('id', applicationId).select('id')
     if (error) {
       console.error('[action route] direct update error:', JSON.stringify(error))
