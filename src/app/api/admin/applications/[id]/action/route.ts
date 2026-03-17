@@ -65,31 +65,34 @@ export async function POST(
       })
       if (error) {
         const code = (error as { code?: string }).code
-        const msg =
-          code === '42883'
-            ? 'Database function missing. Run Supabase migrations (admin_application_action_v2).'
-            : code === 'PGRST301'
+        if (code === '42883') {
+          console.warn('[action route] admin_application_action_v2 missing — using fallback update')
+        } else {
+          const msg =
+            code === 'PGRST301'
               ? 'Invalid application id or record not found.'
               : (error as { message?: string }).message ?? 'Operation failed. Please try again.'
-        console.error('[action route] admin_application_action_v2 RPC error:', JSON.stringify(error))
-        return adminError(msg, 500, requestId)
+          console.error('[action route] admin_application_action_v2 RPC error:', JSON.stringify(error))
+          return adminError(msg, 500, requestId)
+        }
+      } else if (row != null) {
+        if (action === 'approve') {
+          try {
+            void triggerWelcomeEmailForApplication(supabase, applicationId)
+          } catch (e) {
+            console.error('[action route] triggerWelcomeEmailForApplication (non-fatal):', e)
+          }
+        }
+        try {
+          clearApplicationsCache()
+        } catch (e) {
+          console.error('[action route] clearApplicationsCache (non-fatal):', e)
+        }
+        return adminSuccess({ ok: true }, requestId)
       }
-      if (row == null) {
+      if (!error && row == null) {
         return adminError('Record changed by another moderator', 409, requestId)
       }
-      if (action === 'approve') {
-        try {
-          void triggerWelcomeEmailForApplication(supabase, applicationId)
-        } catch (e) {
-          console.error('[action route] triggerWelcomeEmailForApplication (non-fatal):', e)
-        }
-      }
-      try {
-        clearApplicationsCache()
-      } catch (e) {
-        console.error('[action route] clearApplicationsCache (non-fatal):', e)
-      }
-      return adminSuccess({ ok: true }, requestId)
     }
 
     const hasCol = await hasUpdatedAtColumn(supabase)

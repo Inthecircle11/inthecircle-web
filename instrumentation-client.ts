@@ -7,6 +7,14 @@ if (process.env.NODE_ENV === 'production' && dsn) {
   Sentry.init({
     dsn,
     sendDefaultPii: false,
+    replaysSessionSampleRate: 0,
+    replaysOnErrorSampleRate: 0,
+    integrations(integrations) {
+      return integrations.filter((i) => {
+        const n = (i.name ?? '').toLowerCase()
+        return !n.includes('feedback') && !n.includes('replay')
+      })
+    },
     beforeSend(event) {
       // Do not send sensitive data: drop request headers that may contain auth
       if (event.request?.headers) {
