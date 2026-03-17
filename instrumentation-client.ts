@@ -2,21 +2,20 @@ import * as Sentry from '@sentry/nextjs'
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
 
-// Only enable in production when DSN is set
+// Only enable in production when DSN is set.
+// defaultIntegrations: false + explicit integrations to avoid loading Feedback/Replay (they pull in deprecated zustand).
 if (process.env.NODE_ENV === 'production' && dsn) {
   Sentry.init({
     dsn,
     sendDefaultPii: false,
-    replaysSessionSampleRate: 0,
-    replaysOnErrorSampleRate: 0,
-    integrations(integrations) {
-      return integrations.filter((i) => {
-        const n = (i.name ?? '').toLowerCase()
-        return !n.includes('feedback') && !n.includes('replay')
-      })
-    },
+    defaultIntegrations: false,
+    integrations: [
+      Sentry.browserTracingIntegration(),
+      Sentry.browserApiErrorsIntegration(),
+      Sentry.globalHandlersIntegration(),
+      Sentry.httpContextIntegration(),
+    ],
     beforeSend(event) {
-      // Do not send sensitive data: drop request headers that may contain auth
       if (event.request?.headers) {
         const { headers: _h, ...rest } = event.request
         return { ...event, request: rest }

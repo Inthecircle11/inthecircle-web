@@ -63,19 +63,7 @@ export async function POST(
         p_updated_at: resolvedUpdatedAt,
         p_action: action,
       })
-      if (error) {
-        const code = (error as { code?: string }).code
-        if (code === '42883') {
-          console.warn('[action route] admin_application_action_v2 missing — using fallback update')
-        } else {
-          const msg =
-            code === 'PGRST301'
-              ? 'Invalid application id or record not found.'
-              : (error as { message?: string }).message ?? 'Operation failed. Please try again.'
-          console.error('[action route] admin_application_action_v2 RPC error:', JSON.stringify(error))
-          return adminError(msg, 500, requestId)
-        }
-      } else if (row != null) {
+      if (!error && row != null) {
         if (action === 'approve') {
           try {
             void triggerWelcomeEmailForApplication(supabase, applicationId)
@@ -93,6 +81,7 @@ export async function POST(
       if (!error && row == null) {
         return adminError('Record changed by another moderator', 409, requestId)
       }
+      console.warn('[action route] RPC error, using fallback update:', (error as { code?: string; message?: string }).code, (error as { message?: string }).message)
     }
 
     const hasCol = await hasUpdatedAtColumn(supabase)
