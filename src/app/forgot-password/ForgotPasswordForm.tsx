@@ -34,7 +34,7 @@ export function ForgotPasswordForm({ initialEmail, linkExpired = false }: Props)
           : ''
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-        redirectTo: `${appOrigin}/auth/callback?next=/update-password`,
+        redirectTo: `${appOrigin}/update-password`,
       })
       if (resetError) throw resetError
       setSent(true)

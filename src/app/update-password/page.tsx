@@ -17,35 +17,56 @@ function UpdatePasswordForm() {
   useEffect(() => {
     async function handleAuth() {
       const supabase = createClient()
-      
-      // Check if there's a hash fragment with access_token (from direct reset link)
+
+      // PKCE flow: Supabase redirects to /update-password?code=xxx after verifying the reset link.
+      if (typeof window !== 'undefined') {
+        const searchParams = new URLSearchParams(window.location.search)
+        const code = searchParams.get('code')
+        if (code) {
+          const { error: codeError } = await supabase.auth.exchangeCodeForSession(code)
+          if (!codeError) {
+            // Clean the code out of the URL so refresh doesn't re-exchange
+            window.history.replaceState(null, '', window.location.pathname)
+            setHasSession(true)
+            setProcessingToken(false)
+            return
+          }
+          // If code exchange fails (expired/used), send to forgot-password
+          window.location.replace('/forgot-password?error=link_expired')
+          return
+        }
+      }
+
+      // Implicit flow: Supabase sends tokens in the URL hash (#access_token=…&type=recovery)
       if (typeof window !== 'undefined' && window.location.hash) {
         const hash = window.location.hash.substring(1)
         const params = new URLSearchParams(hash)
         const accessToken = params.get('access_token')
         const refreshToken = params.get('refresh_token')
         const type = params.get('type')
+
+        // Error in hash (e.g. expired link)
+        const errorCode = params.get('error_code')
+        if (errorCode || params.get('error')) {
+          window.location.replace('/forgot-password?error=link_expired')
+          return
+        }
         
         if (accessToken && refreshToken && type === 'recovery') {
-          // Set the session from the hash tokens
           const { error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           })
-          
           if (!sessionError) {
-            // Clear the hash from URL for cleaner display
-            window.history.replaceState(null, '', window.location.pathname + window.location.search)
+            window.history.replaceState(null, '', window.location.pathname)
             setHasSession(true)
             setProcessingToken(false)
             return
-          } else {
-            console.error('[update-password] Failed to set session from hash:', sessionError.message)
           }
         }
       }
       
-      // Fallback: check if user already has a session
+      // Fallback: check if user already has a valid session
       const { data } = await supabase.auth.getUser()
       setHasSession(!!data.user)
       setProcessingToken(false)
