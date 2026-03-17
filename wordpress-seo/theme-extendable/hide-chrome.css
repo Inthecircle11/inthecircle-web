@@ -1,0 +1,33 @@
+/* Hide default header and footer on ITC custom pages */
+body.page-template-page-itc-landing .site-header,
+body.page-template-page-itc-landing header.site-header,
+body.page-template-page-itc-landing #masthead,
+body.page-template-page-itc-landing .site-footer,
+body.page-template-page-itc-landing footer.site-footer,
+body.page-template-page-itc-landing #colophon,
+body.page-template-page-itc-landing #site-navigation {
+  display: none !important;
+}
+
+/* Also hide for any page containing .itc-page or .itc-legal */
+body:has(.itc-page) .site-header,
+body:has(.itc-page) #masthead,
+body:has(.itc-page) .site-footer,
+body:has(.itc-page) #colophon,
+body:has(.itc-legal) .site-header,
+body:has(.itc-legal) #masthead,
+body:has(.itc-legal) .site-footer,
+body:has(.itc-legal) #colophon {
+  display: none !important;
+}
+
+/* Remove default padding/margin on main content area for these pages */
+body:has(.itc-page) main,
+body:has(.itc-page) #primary,
+body:has(.itc-page) #content,
+body:has(.itc-legal) main,
+body:has(.itc-legal) #primary,
+body:has(.itc-legal) #content {
+  padding: 0 !important;
+  margin: 0 !important;
+}

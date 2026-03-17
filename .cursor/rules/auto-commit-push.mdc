@@ -1,0 +1,21 @@
+---
+description: After code changes, commit and push to main automatically unless user says otherwise
+alwaysApply: true
+---
+
+# Auto Commit and Push
+
+After completing code changes that affect behavior or assets:
+
+- **Commit and push automatically** to **`main`**. Do not ask "should I commit?" or "ready to push?" — just do it.
+- **Exception:** If the user explicitly says "don't commit", "don't push", "no deployment", or similar, do not commit or push.
+
+## When to commit and push
+
+- After fixing bugs, adding features, or changing config that should go live.
+- After the project builds successfully (fix build/lint errors first if needed).
+
+## When to skip
+
+- User said not to.
+- Changes are only temporary, notes, or local-only and the user did not ask to ship them.

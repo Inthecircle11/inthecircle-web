@@ -1529,7 +1529,7 @@ export default function AdminV3Page() {
   const totalApps = stats ? stats.total : 0
   const pendingCount = stats?.pending ?? 0
 
-  const isStale = lastUpd && (Date.now() - lastUpd.getTime() > 5 * 60 * 1000)
+  const isStale = lastUpd && (Date.now() - lastUpd.getTime() > 10 * 1000)
 
   return (
     <div className="admin-v3">
