@@ -57,6 +57,8 @@ export async function GET(req: NextRequest) {
       churnRes,
       dailyAggRes,
       insightsRes,
+      dailySignupsRes,
+      dowActivityRes,
     ] = await Promise.all([
       supabase.rpc('analytics_get_dau_wau_mau', { p_days: days }),
       supabase.rpc('analytics_get_stickiness', { p_date: new Date().toISOString().slice(0, 10) }),
@@ -84,6 +86,10 @@ export async function GET(req: NextRequest) {
       }),
       supabase.from('analytics_daily_aggregates').select('date, user_type, metric_name, metric_value').gte('date', new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)).order('date', { ascending: false }).limit(200),
       supabase.rpc('analytics_generate_insights', { p_days: days }),
+      // Daily signups for last 30 days
+      supabase.from('applications').select('created_at').gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString()),
+      // Day of week activity pattern
+      supabase.from('applications').select('created_at'),
     ])
 
     const dauWauMau = (dauWauMauRes.data ?? []) as Array<{ date: string; dau: number; wau: number; mau: number }>
@@ -92,6 +98,31 @@ export async function GET(req: NextRequest) {
     const avgDurationRow = Array.isArray(avgDurationRes.data) && avgDurationRes.data[0] ? (avgDurationRes.data[0] as { avg_seconds?: number }) : null
     const sessionsPerUserRow = Array.isArray(sessionsPerUserRes.data) && sessionsPerUserRes.data[0] ? (sessionsPerUserRes.data[0] as { sessions_per_user?: number }) : null
     const inactiveRow = Array.isArray(inactiveRes.data) && inactiveRes.data[0] ? (inactiveRes.data[0] as { inactive_count?: number }) : null
+
+    // Process daily signups
+    const dailySignupsMap = new Map<string, number>()
+    const dailySignupsApps = dailySignupsRes.data ?? []
+    dailySignupsApps.forEach((app: { created_at: string }) => {
+      const dateStr = app.created_at.split('T')[0]
+      dailySignupsMap.set(dateStr, (dailySignupsMap.get(dateStr) || 0) + 1)
+    })
+    const daily_signups = Array.from(dailySignupsMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, count]) => ({ date, count }))
+
+    // Process day of week activity
+    const dowMap = new Map<number, number>()
+    const dowApps = dowActivityRes.data ?? []
+    dowApps.forEach((app: { created_at: string }) => {
+      const d = new Date(app.created_at)
+      const dow = d.getUTCDay()
+      dowMap.set(dow, (dowMap.get(dow) || 0) + 1)
+    })
+    const dowNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    const dow_activity = Array.from({ length: 7 }, (_, i) => ({
+      day: dowNames[i],
+      count: dowMap.get(i) || 0,
+    }))
 
     const body = {
       overview: {
@@ -107,6 +138,8 @@ export async function GET(req: NextRequest) {
           : { period1_active: 0, period2_active: 0, churned: 0 },
       },
       dauWauMau: dauWauMau.slice(0, 30),
+      daily_signups,
+      dow_activity,
       featureUsage: (featureUsageRes.data ?? []) as Array<{ feature_name: string; event_name: string; unique_users: number; total_events: number }>,
       adminProductivity: (adminProductivityRes.data ?? []) as Array<{ admin_user_id: string; event_count: number; session_count: number; unique_days: number }>,
       adminTabUsage: (adminTabRes.data ?? []) as Array<{ feature_name: string; event_count: number; unique_admins: number }>,

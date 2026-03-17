@@ -6,8 +6,8 @@ import type { AdminRoleName } from '@/lib/admin-rbac'
 
 export const dynamic = 'force-dynamic'
 
-/** Cache TTL: 30 seconds for overview stats (balance between freshness and performance). Keyed by active_sessions permission so cache is not shared across permission boundaries. */
-const CACHE_TTL_MS = 30_000
+/** Cache TTL: 3 minutes for overview stats (balance between freshness and performance). Keyed by active_sessions permission so cache is not shared across permission boundaries. */
+const CACHE_TTL_MS = 3 * 60 * 1000
 const overviewCacheMap = new Map<string, { at: number; body: Record<string, unknown> }>()
 
 /** GET - Ultra-fast overview stats using single RPC call. */
@@ -21,9 +21,10 @@ export async function GET(req: NextRequest) {
   const cacheKey = `overview:${canViewActiveSessions}`
   const cached = overviewCacheMap.get(cacheKey)
 
-  // Return cached data if fresh (30s TTL); cache is keyed by permission so activeSessions is never leaked
+  // Return cached data if fresh (3 min TTL); cache is keyed by permission so activeSessions is never leaked
   if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
-    const res = NextResponse.json(cached.body)
+    const body = { ...cached.body, cached_at: new Date(cached.at).toISOString() }
+    const res = NextResponse.json(body)
     res.headers.set('X-Cache', 'HIT')
     return res
   }
@@ -203,11 +204,64 @@ export async function GET(req: NextRequest) {
     }  // end if (sessionsData is array)
   }  // end if (hasPermission active_sessions)
 
+  // Additional stats for charts and metrics dashboard
+  const additionalStatsResults = await Promise.allSettled([
+    supabase.from('user_reports').select('*', { count: 'exact', head: true }).or('status.eq.open,status.is.null'),
+    supabase.from('applications').select('*', { count: 'exact', head: true }).gte('created_at', iso7d),
+    supabase.from('applications').select('*', { count: 'exact', head: true }).gte('created_at', iso30d),
+    supabase.from('admin_approval_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_verified', false),
+    supabase.from('intents').select('*', { count: 'exact', head: true }).in('status', ['matched', 'connected']),
+  ])
+
+  const openReportsRes = additionalStatsResults[0].status === 'fulfilled' ? (additionalStatsResults[0].value.count ?? 0) : 0
+  const signups7dRes = additionalStatsResults[1].status === 'fulfilled' ? (additionalStatsResults[1].value.count ?? 0) : 0
+  const signups30dRes = additionalStatsResults[2].status === 'fulfilled' ? (additionalStatsResults[2].value.count ?? 0) : 0
+  const pendingApprovalsRes = additionalStatsResults[3].status === 'fulfilled' ? (additionalStatsResults[3].value.count ?? 0) : 0
+  const pendingVerificationsRes = additionalStatsResults[4].status === 'fulfilled' ? (additionalStatsResults[4].value.count ?? 0) : 0
+  const connectionsRes = additionalStatsResults[5].status === 'fulfilled' ? (additionalStatsResults[5].value.count ?? 0) : 0
+
+  const totalApplications = Number(parsed.stats?.total) || 0
+  const approved = Number(parsed.stats?.approved) || 0
+  const approvalRate = totalApplications > 0 ? Math.round((approved / totalApplications) * 1000) / 10 : 0
+
   const payload = {
+    // Application counts by status
+    total_applications: totalApplications,
+    approved,
+    pending: Number(parsed.stats?.pending) || 0,
+    rejected: Number(parsed.stats?.rejected) || 0,
+    waitlisted: Number(parsed.stats?.waitlisted) || 0,
+    suspended: Number(parsed.stats?.suspended) || 0,
+    
+    // Member stats
+    verified_members: Number(parsed.overview?.verifiedCount) || 0,
+    
+    // Activity
+    active_today: activeToday ?? 0,
+    
+    // Reports
+    open_reports: openReportsRes,
+    
+    // Signups
+    signups_7d: signups7dRes,
+    signups_30d: signups30dRes,
+    
+    // Approval rate
+    approval_rate: approvalRate,
+    
+    // Connections
+    connections_total: connectionsRes,
+    
+    // Pending items
+    pending_approvals: pendingApprovalsRes,
+    pending_verifications: pendingVerificationsRes,
+    
+    // Legacy fields (keep for backward compatibility)
     stats: {
-      total: Number(parsed.stats?.total) || 0,
+      total: totalApplications,
       pending: Number(parsed.stats?.pending) || 0,
-      approved: Number(parsed.stats?.approved) || 0,
+      approved,
       rejected: Number(parsed.stats?.rejected) || 0,
       waitlisted: Number(parsed.stats?.waitlisted) || 0,
       suspended: Number(parsed.stats?.suspended) || 0,
@@ -227,7 +281,8 @@ export async function GET(req: NextRequest) {
     },
   }
 
-  const body = { ok: true as const, data: payload }
+  const cachedAt = new Date().toISOString()
+  const body = { ok: true as const, data: payload, cached_at: cachedAt }
   overviewCacheMap.set(cacheKey, { at: Date.now(), body })
   const res = NextResponse.json(body)
   res.headers.set('X-Cache', 'MISS')

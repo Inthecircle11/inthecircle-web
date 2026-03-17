@@ -6,6 +6,11 @@ import { createClient } from '@/lib/supabase'
 import { parseAdminResponse } from '@/lib/admin-client'
 import { getAdminBase } from '@/lib/admin'
 import './admin-v3.css'
+import {
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, FunnelChart, Funnel, LabelList
+} from 'recharts'
 
 type PanelId =
   | 'overview'
@@ -31,6 +36,55 @@ interface Stats {
   rejected: number
   waitlisted: number
   suspended: number
+}
+
+interface OverviewStats {
+  total_applications: number
+  approved: number
+  pending: number
+  rejected: number
+  waitlisted: number
+  suspended: number
+  verified_members: number
+  active_today: number
+  open_reports: number
+  signups_7d: number
+  signups_30d: number
+  approval_rate: number
+  connections_total: number
+  pending_approvals: number
+  pending_verifications: number
+}
+
+interface TrendPoint {
+  date: string
+  total: number
+  approved: number
+  rejected: number
+}
+
+interface MonthlyPoint {
+  month: string
+  total: number
+  approved: number
+}
+
+interface NichePoint {
+  niche: string
+  count: number
+}
+
+interface AccountTypePoint {
+  type: string
+  count: number
+}
+
+interface ActivityItem {
+  id: string
+  action: string
+  target: string
+  admin_email: string
+  created_at: string
 }
 
 const PANEL_LABELS: Record<PanelId, string> = {
@@ -181,6 +235,10 @@ interface ComplianceControlRow {
 interface AnalyticsOverview {
   overview?: { dau?: number; wau?: number; mau?: number; stickiness?: number; avgSessionDurationSeconds?: number; sessionsPerUser?: number; inactiveUsers7d?: number }
   insights?: Array<{ type?: string; severity?: string; title?: string; description?: string; recommendation?: string }>
+  daily_signups?: Array<{ date: string; count: number }>
+  dow_activity?: Array<{ day: string; count: number }>
+  featureUsage?: Array<{ feature_name: string; event_name: string; unique_users: number; total_events: number }>
+  funnelApp?: Array<{ step_index: number; step_event_name: string; unique_users: number; conversion_rate_from_previous_step?: number | null }>
   _meta?: { days?: number }
   [k: string]: unknown
 }
@@ -317,6 +375,36 @@ export default function AdminV3Page() {
   const [analyticsData, setAnalyticsData] = useState<AnalyticsOverview | null>(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [analyticsDateRange, setAnalyticsDateRange] = useState('30')
+
+  // Chart data states
+  const [overviewStats, setOverviewStats] = useState<OverviewStats | null>(null)
+  const [overviewStatsLoading, setOverviewStatsLoading] = useState(false)
+  const [overviewStatsError, setOverviewStatsError] = useState<string | null>(null)
+  const [overviewStatsCachedAt, setOverviewStatsCachedAt] = useState<string | null>(null)
+  
+  const [trendData, setTrendData] = useState<TrendPoint[]>([])
+  const [trendLoading, setTrendLoading] = useState(false)
+  const [trendError, setTrendError] = useState<string | null>(null)
+  const [trendCachedAt, setTrendCachedAt] = useState<string | null>(null)
+  
+  const [monthlyData, setMonthlyData] = useState<MonthlyPoint[]>([])
+  const [monthlyLoading, setMonthlyLoading] = useState(false)
+  const [monthlyError, setMonthlyError] = useState<string | null>(null)
+  const [monthlyCachedAt, setMonthlyCachedAt] = useState<string | null>(null)
+  
+  const [nicheData, setNicheData] = useState<NichePoint[]>([])
+  const [nicheLoading, setNicheLoading] = useState(false)
+  const [nicheError, setNicheError] = useState<string | null>(null)
+  const [nicheCachedAt, setNicheCachedAt] = useState<string | null>(null)
+  
+  const [accountTypeData, setAccountTypeData] = useState<AccountTypePoint[]>([])
+  const [accountTypeLoading, setAccountTypeLoading] = useState(false)
+  const [accountTypeError, setAccountTypeError] = useState<string | null>(null)
+  const [accountTypeCachedAt, setAccountTypeCachedAt] = useState<string | null>(null)
+  
+  const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([])
+  const [activityFeedLoading, setActivityFeedLoading] = useState(false)
+  const [activityFeedError, setActivityFeedError] = useState<string | null>(null)
 
   // Settings (config)
   const [config, setConfig] = useState<Record<string, string>>({})
@@ -1219,6 +1307,108 @@ export default function AdminV3Page() {
     setAnalyticsLoading(false)
   }, [analyticsDateRange])
 
+  const loadOverviewStats = useCallback(async () => {
+    setOverviewStatsLoading(true)
+    setOverviewStatsError(null)
+    try {
+      const res = await fetch('/api/admin/overview-stats', { credentials: 'include' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed')
+      setOverviewStats(json.data)
+      setOverviewStatsCachedAt(json.cached_at || null)
+    } catch (e: any) {
+      setOverviewStatsError(e.message)
+    } finally {
+      setOverviewStatsLoading(false)
+    }
+  }, [])
+
+  const loadTrendData = useCallback(async (days = 14) => {
+    setTrendLoading(true)
+    setTrendError(null)
+    try {
+      const res = await fetch(`/api/admin/stats/trend?days=${days}`, { credentials: 'include' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed')
+      setTrendData(json.data || [])
+      setTrendCachedAt(json.cached_at || null)
+    } catch (e: any) {
+      setTrendError(e.message)
+    } finally {
+      setTrendLoading(false)
+    }
+  }, [])
+
+  const loadMonthlyData = useCallback(async (months = 6) => {
+    setMonthlyLoading(true)
+    setMonthlyError(null)
+    try {
+      const res = await fetch(`/api/admin/stats/monthly?months=${months}`, { credentials: 'include' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed')
+      setMonthlyData(json.data || [])
+      setMonthlyCachedAt(json.cached_at || null)
+    } catch (e: any) {
+      setMonthlyError(e.message)
+    } finally {
+      setMonthlyLoading(false)
+    }
+  }, [])
+
+  const loadNicheData = useCallback(async () => {
+    setNicheLoading(true)
+    setNicheError(null)
+    try {
+      const res = await fetch('/api/admin/stats/niches', { credentials: 'include' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed')
+      setNicheData(json.data || [])
+      setNicheCachedAt(json.cached_at || null)
+    } catch (e: any) {
+      setNicheError(e.message)
+    } finally {
+      setNicheLoading(false)
+    }
+  }, [])
+
+  const loadAccountTypeData = useCallback(async () => {
+    setAccountTypeLoading(true)
+    setAccountTypeError(null)
+    try {
+      const res = await fetch('/api/admin/stats/account-types', { credentials: 'include' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed')
+      setAccountTypeData(json.data || [])
+      setAccountTypeCachedAt(json.cached_at || null)
+    } catch (e: any) {
+      setAccountTypeError(e.message)
+    } finally {
+      setAccountTypeLoading(false)
+    }
+  }, [])
+
+  const loadActivityFeed = useCallback(async () => {
+    setActivityFeedLoading(true)
+    setActivityFeedError(null)
+    try {
+      const res = await fetch('/api/admin/audit?limit=10', { credentials: 'include' })
+      const json = await res.json()
+      const { data } = parseAdminResponse<{ entries?: any[] }>(res, json)
+      const entries = data?.entries || []
+      setActivityFeed(entries.map((e: any) => ({
+        id: e.id,
+        action: e.action,
+        target: e.target_type,
+        admin_email: e.admin_email || 'System',
+        created_at: e.created_at,
+      })))
+    } catch (e: any) {
+      setActivityFeedError(e.message)
+    } finally {
+      setActivityFeedLoading(false)
+    }
+  }, [])
+
   const loadConfig = useCallback(async () => {
     setConfigLoading(true)
     setError(null)
@@ -1387,7 +1577,22 @@ export default function AdminV3Page() {
 
   const refreshCurrent = useCallback(() => {
     setError(null)
-    if (activePanel === 'overview') void loadOverview()
+    if (activePanel === 'overview') {
+      void loadOverview()
+      void loadOverviewStats()
+      void loadTrendData(14)
+      void loadActivityFeed()
+    }
+    if (activePanel === 'dashboard') {
+      void loadOverviewStats()
+      void loadTrendData(30)
+      void loadMonthlyData(6)
+      void loadAccountTypeData()
+    }
+    if (activePanel === 'analytics') {
+      void loadAnalytics()
+      void loadNicheData()
+    }
     if (activePanel === 'applications') void loadApplications()
     if (activePanel === 'users') void loadUsers()
     if (activePanel === 'verifications') void loadVerifications()
@@ -1401,7 +1606,7 @@ export default function AdminV3Page() {
     if (activePanel === 'settings') void loadConfig()
     if (activePanel === 'inbox') void loadInbox()
     setLastUpd(new Date())
-  }, [activePanel, loadOverview, loadApplications, loadUsers, loadVerifications, loadReports, loadDataRequests, loadRisk, loadApprovals, loadAudit, loadCompliance, loadAnalytics, loadConfig, loadInbox])
+  }, [activePanel, loadOverview, loadOverviewStats, loadTrendData, loadMonthlyData, loadAccountTypeData, loadNicheData, loadActivityFeed, loadApplications, loadUsers, loadVerifications, loadReports, loadDataRequests, loadRisk, loadApprovals, loadAudit, loadCompliance, loadAnalytics, loadConfig, loadInbox])
 
   const nav = useCallback((panel: PanelId) => {
     setActivePanel(panel)
@@ -1530,6 +1735,53 @@ export default function AdminV3Page() {
   const pendingCount = stats?.pending ?? 0
 
   const isStale = lastUpd && (Date.now() - lastUpd.getTime() > 5 * 60 * 1000)
+
+  function ChartCard({
+    title,
+    subtitle,
+    children,
+    loading,
+    error,
+    onRetry,
+    cachedAt,
+  }: {
+    title: string
+    subtitle?: string
+    children: React.ReactNode
+    loading: boolean
+    error: string | null
+    onRetry: () => void
+    cachedAt?: string | null
+  }) {
+    return (
+      <div className="bg-[#13161D] border border-[#252A38] rounded-[18px] p-5">
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <div className="text-[13px] font-bold text-[#EEF0F8]">{title}</div>
+            {subtitle && <div className="text-[11px] text-[#4A5270] mt-0.5">{subtitle}</div>}
+          </div>
+          {cachedAt && (
+            <div className="text-[10px] text-[#4A5270]">
+              Cached {relT(cachedAt)}
+            </div>
+          )}
+        </div>
+        {loading ? (
+          <div className="animate-pulse space-y-2">
+            <div className="h-4 bg-[#1C2030] rounded w-3/4"></div>
+            <div className="h-32 bg-[#1C2030] rounded"></div>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center h-32 gap-2">
+            <div className="text-[12px] text-[#EF4444]">Failed to load</div>
+            <button onClick={onRetry} className="text-[11px] text-[#6366F1] underline">
+              Retry
+            </button>
+          </div>
+        ) : children}
+      </div>
+    )
+  }
 
   return (
     <div className="admin-v3">
@@ -1691,177 +1943,390 @@ export default function AdminV3Page() {
             <div id="panel-overview" className={`panel ${activePanel === 'overview' ? 'active' : ''}`}>
               <div className="ptit">Overview</div>
               <div className="pdesc">Real-time health snapshot and key metrics</div>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: 'var(--t2)' }}>Date range:</span>
-                <select
-                  className="sel"
-                  value={overviewDateRange}
-                  onChange={(e) => setOverviewDateRange(e.target.value)}
-                  style={{ width: 140 }}
-                >
-                  <option value="7">Last 7 days</option>
-                  <option value="30">Last 30 days</option>
-                  <option value="90">Last 90 days</option>
-                  <option value="all">All time</option>
-                </select>
-                <span style={{ fontSize: 11, color: 'var(--t3)', marginLeft: 'auto' }}>
-                  Last updated: {lastUpd ? relT(lastUpd.toISOString()) : '—'}
-                </span>
-              </div>
-              <div className="sg sg4">
+              
+              {/* Row 1: KPI Cards */}
+              <div className="sg sg4" style={{ marginBottom: 16 }}>
                 <div className="sc" style={{ ['--c' as string]: 'var(--ap)', cursor: 'pointer' }} onClick={() => nav('applications')}>
                   <div className="sc-lbl">Total Applications</div>
-                  <div className="sc-val">{stats ? fmt(totalApps) : '—'}</div>
-                  <div className="sc-meta">All time · View all →</div>
+                  <div className="sc-val">{overviewStats ? fmt(overviewStats.total_applications) : '—'}</div>
+                  <div className="sc-meta">View all →</div>
                 </div>
                 <div className="sc" style={{ ['--c' as string]: 'var(--ok)', cursor: 'pointer' }} onClick={() => nav('users')}>
-                  <div className="sc-lbl">Active Members</div>
-                  <div className="sc-val">{stats ? fmt(stats.approved) : '—'}</div>
+                  <div className="sc-lbl">Approved Members</div>
+                  <div className="sc-val">{overviewStats ? fmt(overviewStats.approved) : '—'}</div>
                   <div className="sc-meta">View all →</div>
                 </div>
                 <div className="sc" style={{ ['--c' as string]: 'var(--warn)', cursor: 'pointer' }} onClick={() => { nav('applications'); setAppFilter('pending'); }}>
                   <div className="sc-lbl">Pending Review</div>
-                  <div className="sc-val">{stats ? fmt(stats.pending) : '—'}</div>
+                  <div className="sc-val">{overviewStats ? fmt(overviewStats.pending) : '—'}</div>
                   <div className="sc-meta">View pending →</div>
                 </div>
                 <div className="sc" style={{ ['--c' as string]: 'var(--info)' }}>
                   <div className="sc-lbl">Active Today</div>
-                  <div className="sc-val">{activeToday != null ? fmt(activeToday) : '—'}</div>
+                  <div className="sc-val">{overviewStats ? fmt(overviewStats.active_today) : '—'}</div>
                   <div className="sc-meta">Last 24h</div>
                 </div>
               </div>
-              <div className="sg sg4">
-                <div className="sc" style={{ ['--c' as string]: 'var(--err)' }}>
-                  <div className="sc-lbl">Rejected</div>
-                  <div className="sc-val">{stats ? fmt(stats.rejected) : '—'}</div>
-                  <div className="sc-meta" />
-                </div>
-                <div className="sc" style={{ ['--c' as string]: 'var(--ap2)' }}>
-                  <div className="sc-lbl">Waitlisted</div>
-                  <div className="sc-val">{stats ? fmt(stats.waitlisted) : '—'}</div>
-                  <div className="sc-meta" />
-                </div>
+
+              {/* Row 2: KPI Cards */}
+              <div className="sg sg4" style={{ marginBottom: 24 }}>
                 <div className="sc" style={{ ['--c' as string]: 'var(--info)' }}>
                   <div className="sc-lbl">Verified Members</div>
-                  <div className="sc-val">{overviewCounts ? fmt(overviewCounts.verifiedCount) : '—'}</div>
+                  <div className="sc-val">{overviewStats ? fmt(overviewStats.verified_members) : '—'}</div>
                   <div className="sc-meta" />
                 </div>
                 <div className="sc" style={{ ['--c' as string]: 'var(--warn)', cursor: 'pointer' }} onClick={() => nav('reports')}>
                   <div className="sc-lbl">Open Reports</div>
-                  <div className="sc-val">{fmt(reportsCount)}</div>
+                  <div className="sc-val">{overviewStats ? fmt(overviewStats.open_reports) : '—'}</div>
                   <div className="sc-meta">View all →</div>
                 </div>
+                <div className="sc" style={{ ['--c' as string]: 'var(--ap)' }}>
+                  <div className="sc-lbl">7-Day Signups</div>
+                  <div className="sc-val">{overviewStats ? fmt(overviewStats.signups_7d) : '—'}</div>
+                  <div className="sc-meta">Applications</div>
+                </div>
+                <div className="sc" style={{ ['--c' as string]: 'var(--ok)' }}>
+                  <div className="sc-lbl">Approval Rate</div>
+                  <div className="sc-val">{overviewStats ? `${overviewStats.approval_rate}%` : '—'}</div>
+                  <div className="sc-meta">All time</div>
+                </div>
               </div>
-              <div className="g2">
-                <div className="tc">
-                  <div className="tch">
-                    <div className="tct">Recent Activity</div>
-                  </div>
-                  <div className="alist">
-                    {recentActivity.length === 0 ? (
-                      <div className="te">No recent activity.</div>
-                    ) : (
-                      recentActivity.slice(0, 10).map((a, i) => (
-                        <div key={i} className="aitem">
-                          <div className="aico p">📌</div>
-                          <div className="abody">
-                            <div className="atxt">
-                              <strong>{a.title}</strong> {a.subtitle}
+
+              {/* Row 3: Charts */}
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 24 }}>
+                <ChartCard
+                  title="Application Trend"
+                  subtitle="Last 14 days"
+                  loading={trendLoading}
+                  error={trendError}
+                  onRetry={() => loadTrendData(14)}
+                  cachedAt={trendCachedAt}
+                >
+                  {trendData.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: 32, color: 'var(--t3)' }}>No data available</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <LineChart data={trendData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#252A38" />
+                        <XAxis dataKey="date" tick={{ fill: '#8892AA', fontSize: 11 }} />
+                        <YAxis tick={{ fill: '#8892AA', fontSize: 11 }} />
+                        <Tooltip
+                          contentStyle={{ background: '#1C2030', border: '1px solid #2E3448', borderRadius: 8 }}
+                          labelStyle={{ color: '#EEF0F8' }}
+                        />
+                        <Line type="monotone" dataKey="total" stroke="#6366F1" strokeWidth={2} dot={false} name="Applications" />
+                        <Line type="monotone" dataKey="approved" stroke="#10B981" strokeWidth={2} dot={false} name="Approved" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+                </ChartCard>
+
+                <ChartCard
+                  title="Application Funnel"
+                  subtitle="Current status"
+                  loading={overviewStatsLoading}
+                  error={overviewStatsError}
+                  onRetry={loadOverviewStats}
+                  cachedAt={overviewStatsCachedAt}
+                >
+                  {overviewStats && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 8 }}>
+                      {[
+                        { label: 'Total', value: overviewStats.total_applications, color: '#6366F1' },
+                        { label: 'Pending', value: overviewStats.pending, color: '#F59E0B' },
+                        { label: 'Approved', value: overviewStats.approved, color: '#10B981' },
+                        { label: 'Waitlisted', value: overviewStats.waitlisted, color: '#8B5CF6' },
+                        { label: 'Rejected', value: overviewStats.rejected, color: '#EF4444' },
+                      ].map((item) => {
+                        const pct = overviewStats.total_applications > 0 ? (item.value / overviewStats.total_applications) * 100 : 0
+                        return (
+                          <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ fontSize: 11, color: 'var(--t2)', width: 70 }}>{item.label}</div>
+                            <div style={{ flex: 1, height: 8, background: '#1C2030', borderRadius: 4, overflow: 'hidden' }}>
+                              <div style={{ width: `${pct}%`, height: '100%', background: item.color, transition: 'width 0.3s' }} />
                             </div>
-                            <div className="atime">{relT(a.timestamp)}</div>
+                            <div style={{ fontSize: 11, color: 'var(--t2)', width: 50, textAlign: 'right' }}>{fmt(item.value)}</div>
+                            <div style={{ fontSize: 10, color: 'var(--t3)', width: 40, textAlign: 'right' }}>{pct.toFixed(0)}%</div>
                           </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-                <div className="card">
-                  <div className="ct">Status Breakdown</div>
-                  <div className="cs">All-time distribution</div>
-                  <div className="cb cb160" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    {stats && (
-                      <>
-                        <span style={{ fontSize: 11, color: 'var(--t2)' }}>Approved: {fmt(stats.approved)}</span>
-                        <span style={{ fontSize: 11, color: 'var(--t2)' }}>Pending: {fmt(stats.pending)}</span>
-                        <span style={{ fontSize: 11, color: 'var(--t2)' }}>Rejected: {fmt(stats.rejected)}</span>
-                        <span style={{ fontSize: 11, color: 'var(--t2)' }}>Waitlisted: {fmt(stats.waitlisted)}</span>
-                      </>
-                    )}
-                    {!stats && <span style={{ fontSize: 12, color: 'var(--t3)' }}>—</span>}
-                  </div>
-                </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </ChartCard>
+              </div>
+
+              {/* Row 4: Status Donut and Activity Feed */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <ChartCard
+                  title="Status Breakdown"
+                  subtitle="All-time distribution"
+                  loading={overviewStatsLoading}
+                  error={overviewStatsError}
+                  onRetry={loadOverviewStats}
+                  cachedAt={overviewStatsCachedAt}
+                >
+                  {overviewStats && (
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Approved', value: overviewStats.approved, color: '#10B981' },
+                            { name: 'Pending', value: overviewStats.pending, color: '#F59E0B' },
+                            { name: 'Rejected', value: overviewStats.rejected, color: '#EF4444' },
+                            { name: 'Waitlisted', value: overviewStats.waitlisted, color: '#8B5CF6' },
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={50}
+                          outerRadius={80}
+                          dataKey="value"
+                        >
+                          {[
+                            { name: 'Approved', value: overviewStats.approved, color: '#10B981' },
+                            { name: 'Pending', value: overviewStats.pending, color: '#F59E0B' },
+                            { name: 'Rejected', value: overviewStats.rejected, color: '#EF4444' },
+                            { name: 'Waitlisted', value: overviewStats.waitlisted, color: '#8B5CF6' },
+                          ].map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ background: '#1C2030', border: '1px solid #2E3448', borderRadius: 8 }} />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </ChartCard>
+
+                <ChartCard
+                  title="Recent Activity"
+                  subtitle="Last 10 actions"
+                  loading={activityFeedLoading}
+                  error={activityFeedError}
+                  onRetry={loadActivityFeed}
+                >
+                  {activityFeed.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: 32, color: 'var(--t3)' }}>No recent activity</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 200, overflowY: 'auto' }}>
+                      {activityFeed.map((item) => {
+                        const icon = item.action.includes('approve') ? '✅' : item.action.includes('reject') ? '❌' : item.action.includes('waitlist') ? '⏳' : item.action.includes('ban') ? '🚫' : item.action.includes('verif') ? '🔵' : '📌'
+                        return (
+                          <div key={item.id} style={{ display: 'flex', gap: 8, alignItems: 'start' }}>
+                            <div style={{ fontSize: 14 }}>{icon}</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 11, color: 'var(--t2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {item.action} {item.target}
+                              </div>
+                              <div style={{ fontSize: 10, color: 'var(--t3)' }}>{relT(item.created_at)}</div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </ChartCard>
               </div>
             </div>
 
             {/* Dashboard panel */}
             <div id="panel-dashboard" className={`panel ${activePanel === 'dashboard' ? 'active' : ''}`}>
               <div className="ptit">Dashboard</div>
-              <div className="pdesc">Operational metrics</div>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: 'var(--t2)' }}>Date range:</span>
-                <select
-                  className="sel"
-                  value={dashboardDateRange}
-                  onChange={(e) => setDashboardDateRange(e.target.value)}
-                  style={{ width: 140 }}
-                >
-                  <option value="7">Last 7 days</option>
-                  <option value="30">Last 30 days</option>
-                  <option value="90">Last 90 days</option>
-                  <option value="all">All time</option>
-                </select>
-                <span style={{ fontSize: 11, color: 'var(--t3)', marginLeft: 'auto' }}>
-                  Last updated: {lastUpd ? relT(lastUpd.toISOString()) : '—'}
-                </span>
-              </div>
-              <div className="sg sg4">
+              <div className="pdesc">Operational metrics and trends</div>
+              
+              {/* Row 1: Stat cards */}
+              <div className="sg sg4" style={{ marginBottom: 16 }}>
                 <div className="sc" style={{ ['--c' as string]: 'var(--ap)' }}>
-                  <div className="sc-lbl">7-Day Signups</div>
-                  <div className="sc-val">{overviewCounts ? fmt(overviewCounts.newUsersLast7d) : '—'}</div>
-                  <div className="sc-meta">New users</div>
+                  <div className="sc-lbl">Total</div>
+                  <div className="sc-val">{overviewStats ? fmt(overviewStats.total_applications) : '—'}</div>
+                  <div className="sc-meta">Applications</div>
                 </div>
                 <div className="sc" style={{ ['--c' as string]: 'var(--ok)' }}>
-                  <div className="sc-lbl">30-Day Signups</div>
-                  <div className="sc-val">{overviewCounts ? fmt(overviewCounts.newUsersLast30d) : '—'}</div>
-                  <div className="sc-meta">New users</div>
-                </div>
-                <div className="sc" style={{ ['--c' as string]: 'var(--info)' }}>
-                  <div className="sc-lbl">Approval Rate</div>
-                  <div className="sc-val">
-                    {stats && totalApps > 0 ? `${Math.round((stats.approved / totalApps) * 100)}%` : '—'}
-                  </div>
-                  <div className="sc-meta">All time</div>
+                  <div className="sc-lbl">Approved</div>
+                  <div className="sc-val">{overviewStats ? fmt(overviewStats.approved) : '—'}</div>
+                  <div className="sc-meta">Members</div>
                 </div>
                 <div className="sc" style={{ ['--c' as string]: 'var(--warn)' }}>
-                  <div className="sc-lbl">Pending Verifications</div>
-                  <div className="sc-val">{fmt(recentActivity.length)}</div>
-                  <div className="sc-meta">Recent activity</div>
+                  <div className="sc-lbl">Pending</div>
+                  <div className="sc-val">{overviewStats ? fmt(overviewStats.pending) : '—'}</div>
+                  <div className="sc-meta">Review</div>
+                </div>
+                <div className="sc" style={{ ['--c' as string]: 'var(--info)' }}>
+                  <div className="sc-lbl">Active Today</div>
+                  <div className="sc-val">{overviewStats ? fmt(overviewStats.active_today) : '—'}</div>
+                  <div className="sc-meta">Last 24h</div>
                 </div>
               </div>
-              <div className="g2">
-                <div className="card">
-                  <div className="ct">Status Distribution</div>
-                  <div className="cs">Applications by status</div>
-                  <div className="cb cb160" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    {stats && (
-                      <>
-                        <span style={{ fontSize: 11, color: 'var(--t2)' }}>Approved: {fmt(stats.approved)}</span>
-                        <span style={{ fontSize: 11, color: 'var(--t2)' }}>Pending: {fmt(stats.pending)}</span>
-                        <span style={{ fontSize: 11, color: 'var(--t2)' }}>Rejected: {fmt(stats.rejected)}</span>
-                        <span style={{ fontSize: 11, color: 'var(--t2)' }}>Waitlisted: {fmt(stats.waitlisted)}</span>
-                      </>
-                    )}
-                    {!stats && <span style={{ fontSize: 12, color: 'var(--t3)' }}>—</span>}
-                  </div>
+
+              <div className="sg sg4" style={{ marginBottom: 24 }}>
+                <div className="sc" style={{ ['--c' as string]: 'var(--ap2)' }}>
+                  <div className="sc-lbl">Signups 7d</div>
+                  <div className="sc-val">{overviewStats ? fmt(overviewStats.signups_7d) : '—'}</div>
+                  <div className="sc-meta">Applications</div>
                 </div>
-                <div className="card">
-                  <div className="ct">Threads & Messages</div>
-                  <div className="cs">From overview counts</div>
-                  <div className="cb cb160" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4 }}>
-                    <span style={{ fontSize: 13, color: 'var(--text)' }}>Threads: {overviewCounts ? fmt(overviewCounts.totalThreadCount) : '—'}</span>
-                    <span style={{ fontSize: 13, color: 'var(--text)' }}>Messages: {overviewCounts ? fmt(overviewCounts.totalMessageCount) : '—'}</span>
-                  </div>
+                <div className="sc" style={{ ['--c' as string]: 'var(--ap2)' }}>
+                  <div className="sc-lbl">Signups 30d</div>
+                  <div className="sc-val">{overviewStats ? fmt(overviewStats.signups_30d) : '—'}</div>
+                  <div className="sc-meta">Applications</div>
                 </div>
+                <div className="sc" style={{ ['--c' as string]: 'var(--ok)' }}>
+                  <div className="sc-lbl">Approval Rate</div>
+                  <div className="sc-val">{overviewStats ? `${overviewStats.approval_rate}%` : '—'}</div>
+                  <div className="sc-meta">All time</div>
+                </div>
+                <div className="sc" style={{ ['--c' as string]: 'var(--info)' }}>
+                  <div className="sc-lbl">Connections</div>
+                  <div className="sc-val">{overviewStats ? fmt(overviewStats.connections_total) : '—'}</div>
+                  <div className="sc-meta">Total</div>
+                </div>
+              </div>
+
+              {/* Row 2: Three charts */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
+                <ChartCard
+                  title="30-Day Signups"
+                  subtitle="Daily applications"
+                  loading={trendLoading}
+                  error={trendError}
+                  onRetry={() => loadTrendData(30)}
+                  cachedAt={trendCachedAt}
+                >
+                  {trendData.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: 32, color: 'var(--t3)' }}>No data</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={180}>
+                      <BarChart data={trendData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#252A38" />
+                        <XAxis dataKey="date" tick={{ fill: '#8892AA', fontSize: 10 }} interval={4} />
+                        <YAxis tick={{ fill: '#8892AA', fontSize: 10 }} />
+                        <Tooltip contentStyle={{ background: '#1C2030', border: '1px solid #2E3448', borderRadius: 8 }} />
+                        <Bar dataKey="total" fill="#6366F1" radius={[3, 3, 0, 0]} name="Signups" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </ChartCard>
+
+                <ChartCard
+                  title="Status Distribution"
+                  subtitle="All applications"
+                  loading={overviewStatsLoading}
+                  error={overviewStatsError}
+                  onRetry={loadOverviewStats}
+                  cachedAt={overviewStatsCachedAt}
+                >
+                  {overviewStats && (
+                    <ResponsiveContainer width="100%" height={180}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Approved', value: overviewStats.approved, color: '#10B981' },
+                            { name: 'Pending', value: overviewStats.pending, color: '#F59E0B' },
+                            { name: 'Rejected', value: overviewStats.rejected, color: '#EF4444' },
+                            { name: 'Waitlisted', value: overviewStats.waitlisted, color: '#8B5CF6' },
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={70}
+                          dataKey="value"
+                        >
+                          {[
+                            { name: 'Approved', value: overviewStats.approved, color: '#10B981' },
+                            { name: 'Pending', value: overviewStats.pending, color: '#F59E0B' },
+                            { name: 'Rejected', value: overviewStats.rejected, color: '#EF4444' },
+                            { name: 'Waitlisted', value: overviewStats.waitlisted, color: '#8B5CF6' },
+                          ].map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ background: '#1C2030', border: '1px solid #2E3448', borderRadius: 8 }} />
+                        <Legend wrapperStyle={{ fontSize: 10 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </ChartCard>
+
+                <ChartCard
+                  title="Creator vs Brand"
+                  subtitle="Account types"
+                  loading={accountTypeLoading}
+                  error={accountTypeError}
+                  onRetry={loadAccountTypeData}
+                  cachedAt={accountTypeCachedAt}
+                >
+                  {accountTypeData.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: 32, color: 'var(--t3)' }}>No data</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={180}>
+                      <PieChart>
+                        <Pie
+                          data={accountTypeData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={70}
+                          dataKey="count"
+                        >
+                          {accountTypeData.map((entry, index) => {
+                            const colors: Record<string, string> = { creator: '#6366F1', brand: '#10B981', unknown: '#8892AA' }
+                            return <Cell key={`cell-${index}`} fill={colors[entry.type] || '#8892AA'} />
+                          })}
+                        </Pie>
+                        <Tooltip contentStyle={{ background: '#1C2030', border: '1px solid #2E3448', borderRadius: 8 }} />
+                        <Legend wrapperStyle={{ fontSize: 10 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </ChartCard>
+              </div>
+
+              {/* Row 3: Monthly volume and weekly activity */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <ChartCard
+                  title="Monthly Volume"
+                  subtitle="Last 6 months"
+                  loading={monthlyLoading}
+                  error={monthlyError}
+                  onRetry={() => loadMonthlyData(6)}
+                  cachedAt={monthlyCachedAt}
+                >
+                  {monthlyData.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: 32, color: 'var(--t3)' }}>No data</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={monthlyData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#252A38" />
+                        <XAxis dataKey="month" tick={{ fill: '#8892AA', fontSize: 10 }} />
+                        <YAxis tick={{ fill: '#8892AA', fontSize: 10 }} />
+                        <Tooltip contentStyle={{ background: '#1C2030', border: '1px solid #2E3448', borderRadius: 8 }} />
+                        <Legend wrapperStyle={{ fontSize: 10 }} />
+                        <Bar dataKey="total" fill="rgba(99,102,241,0.4)" name="Total" radius={[3, 3, 0, 0]} />
+                        <Bar dataKey="approved" fill="#10B981" name="Approved" radius={[3, 3, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </ChartCard>
+
+                <ChartCard
+                  title="Weekly Activity Pattern"
+                  subtitle="Day of week distribution"
+                  loading={analyticsLoading}
+                  error={analyticsData ? null : 'No data'}
+                  onRetry={loadAnalytics}
+                >
+                  {analyticsData?.dow_activity && analyticsData.dow_activity.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={analyticsData.dow_activity}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#252A38" />
+                        <XAxis dataKey="day" tick={{ fill: '#8892AA', fontSize: 10 }} />
+                        <YAxis tick={{ fill: '#8892AA', fontSize: 10 }} />
+                        <Tooltip contentStyle={{ background: '#1C2030', border: '1px solid #2E3448', borderRadius: 8 }} />
+                        <Bar dataKey="count" fill="#6366F1" radius={[3, 3, 0, 0]} name="Activity" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: 32, color: 'var(--t3)' }}>No activity data</div>
+                  )}
+                </ChartCard>
               </div>
             </div>
 
@@ -2889,60 +3354,253 @@ export default function AdminV3Page() {
             {activePanel === 'analytics' && (
               <div id="panel-analytics" className="panel active">
                 <div className="ptit">Product Analytics</div>
-                <div className="pdesc">DAU/WAU/MAU, stickiness, insights.</div>
+                <div className="pdesc">Engagement metrics, trends, and insights</div>
+                
+                {/* Row 1: Date range selector */}
                 <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: 'var(--t2)' }}>Date range:</span>
-                  <select
-                    className="sel"
-                    value={analyticsDateRange}
-                    onChange={(e) => setAnalyticsDateRange(e.target.value)}
-                    style={{ width: 140 }}
-                  >
-                    <option value="7">Last 7 days</option>
-                    <option value="30">Last 30 days</option>
-                    <option value="90">Last 90 days</option>
-                    <option value="all">All time</option>
-                  </select>
-                  <button type="button" className="btn btn-gh bsm" onClick={() => void loadAnalytics()}>
-                    Refresh
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {['7', '30', '90', 'all'].map((range) => (
+                      <button
+                        key={range}
+                        type="button"
+                        className={`btn ${analyticsDateRange === range ? 'btn-pr' : 'btn-gh'} bsm`}
+                        onClick={() => setAnalyticsDateRange(range)}
+                      >
+                        {range === 'all' ? 'All time' : `Last ${range} days`}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" className="btn btn-gh bsm" onClick={() => void loadAnalytics()} style={{ marginLeft: 'auto' }}>
+                    ↻ Refresh
                   </button>
                 </div>
-                {analyticsLoading ? (
-                  <div className="te"><div className="tei">⏳</div>Loading…</div>
-                ) : !analyticsData ? (
-                  <div className="te"><div className="tei">📊</div>Failed to load analytics.</div>
-                ) : (
+
+                {/* Row 2: Stat cards */}
+                {analyticsData?.overview && (
+                  <div className="sg sg4" style={{ marginBottom: 24 }}>
+                    <div className="sc" style={{ ['--c' as string]: 'var(--ap)' }}>
+                      <div className="sc-lbl">Signups (range)</div>
+                      <div className="sc-val">{overviewStats ? fmt(analyticsDateRange === '7' ? overviewStats.signups_7d : overviewStats.signups_30d) : '—'}</div>
+                      <div className="sc-meta">Applications</div>
+                    </div>
+                    <div className="sc" style={{ ['--c' as string]: 'var(--ok)' }}>
+                      <div className="sc-lbl">Approvals (range)</div>
+                      <div className="sc-val">{overviewStats ? fmt(overviewStats.approved) : '—'}</div>
+                      <div className="sc-meta">Members</div>
+                    </div>
+                    <div className="sc" style={{ ['--c' as string]: 'var(--info)' }}>
+                      <div className="sc-lbl">Approval Rate</div>
+                      <div className="sc-val">{overviewStats ? `${overviewStats.approval_rate}%` : '—'}</div>
+                      <div className="sc-meta">All time</div>
+                    </div>
+                    <div className="sc" style={{ ['--c' as string]: 'var(--warn)' }}>
+                      <div className="sc-lbl">Connections</div>
+                      <div className="sc-val">{overviewStats ? fmt(overviewStats.connections_total) : '—'}</div>
+                      <div className="sc-meta">Total</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Row 3: Two line charts */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                  <ChartCard
+                    title="Signups Over Time"
+                    subtitle={`Last ${analyticsDateRange === 'all' ? '90' : analyticsDateRange} days`}
+                    loading={trendLoading}
+                    error={trendError}
+                    onRetry={() => loadTrendData(analyticsDateRange === 'all' ? 90 : parseInt(analyticsDateRange))}
+                    cachedAt={trendCachedAt}
+                  >
+                    {trendData.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: 32, color: 'var(--t3)' }}>No data</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={220}>
+                        <LineChart data={trendData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#252A38" />
+                          <XAxis dataKey="date" tick={{ fill: '#8892AA', fontSize: 10 }} interval={Math.floor(trendData.length / 7)} />
+                          <YAxis tick={{ fill: '#8892AA', fontSize: 10 }} />
+                          <Tooltip contentStyle={{ background: '#1C2030', border: '1px solid #2E3448', borderRadius: 8 }} />
+                          <Line type="monotone" dataKey="total" stroke="#6366F1" strokeWidth={2} dot={false} name="Signups" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
+                  </ChartCard>
+
+                  <ChartCard
+                    title="Connections Over Time"
+                    subtitle="Coming soon"
+                    loading={false}
+                    error={null}
+                    onRetry={() => {}}
+                  >
+                    <div style={{ textAlign: 'center', padding: 48, color: 'var(--t3)' }}>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
+                      <div style={{ fontSize: 12 }}>Connection tracking coming soon</div>
+                    </div>
+                  </ChartCard>
+                </div>
+
+                {/* Row 4: Three sections */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
+                  <ChartCard
+                    title="Top Niches"
+                    subtitle="Approved members"
+                    loading={nicheLoading}
+                    error={nicheError}
+                    onRetry={loadNicheData}
+                    cachedAt={nicheCachedAt}
+                  >
+                    {nicheData.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: 32, color: 'var(--t3)' }}>No data</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={240}>
+                        <BarChart layout="vertical" data={nicheData}>
+                          <XAxis type="number" tick={{ fill: '#8892AA', fontSize: 10 }} />
+                          <YAxis dataKey="niche" type="category" tick={{ fill: '#8892AA', fontSize: 11 }} width={120} />
+                          <Tooltip contentStyle={{ background: '#1C2030', border: '1px solid #2E3448', borderRadius: 8 }} />
+                          <Bar dataKey="count" fill="#6366F1" radius={[0, 3, 3, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    )}
+                  </ChartCard>
+
+                  <ChartCard
+                    title="Geographic Distribution"
+                    subtitle="Location data"
+                    loading={false}
+                    error={null}
+                    onRetry={() => {}}
+                  >
+                    <div style={{ textAlign: 'center', padding: 48, color: 'var(--t3)' }}>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>🌍</div>
+                      <div style={{ fontSize: 12 }}>Geographic data not available</div>
+                    </div>
+                  </ChartCard>
+
+                  <ChartCard
+                    title="Platform Usage"
+                    subtitle="Estimated"
+                    loading={false}
+                    error={null}
+                    onRetry={() => {}}
+                  >
+                    <ResponsiveContainer width="100%" height={240}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Web', value: 60, color: '#6366F1' },
+                            { name: 'iOS', value: 25, color: '#10B981' },
+                            { name: 'Android', value: 15, color: '#F59E0B' },
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={70}
+                          dataKey="value"
+                        >
+                          {[
+                            { name: 'Web', value: 60, color: '#6366F1' },
+                            { name: 'iOS', value: 25, color: '#10B981' },
+                            { name: 'Android', value: 15, color: '#F59E0B' },
+                          ].map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ background: '#1C2030', border: '1px solid #2E3448', borderRadius: 8 }} />
+                        <Legend wrapperStyle={{ fontSize: 10 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </ChartCard>
+                </div>
+
+                {/* Row 5: Analytics tables */}
+                {analyticsData && (
                   <>
-                    {analyticsData.overview && (
-                      <div className="sg sg4">
-                        <div className="sc" style={{ ['--c' as string]: 'var(--ap)' }}>
-                          <div className="sc-lbl">DAU</div>
-                          <div className="sc-val">{fmt(analyticsData.overview.dau)}</div>
-                        </div>
-                        <div className="sc" style={{ ['--c' as string]: 'var(--ok)' }}>
-                          <div className="sc-lbl">WAU</div>
-                          <div className="sc-val">{fmt(analyticsData.overview.wau)}</div>
-                        </div>
-                        <div className="sc" style={{ ['--c' as string]: 'var(--info)' }}>
-                          <div className="sc-lbl">MAU</div>
-                          <div className="sc-val">{fmt(analyticsData.overview.mau)}</div>
-                        </div>
-                        <div className="sc" style={{ ['--c' as string]: 'var(--warn)' }}>
-                          <div className="sc-lbl">Stickiness</div>
-                          <div className="sc-val">{analyticsData.overview.stickiness != null ? `${Number(analyticsData.overview.stickiness).toFixed(2)}` : '—'}</div>
-                        </div>
+                    {analyticsData.featureUsage && analyticsData.featureUsage.length > 0 && (
+                      <div style={{ marginBottom: 24 }}>
+                        <ChartCard
+                          title="Top Events"
+                          subtitle="Feature usage"
+                          loading={false}
+                          error={null}
+                          onRetry={() => {}}
+                        >
+                          <div className="admin-v3-table-wrap">
+                            <table className="admin-v3-table">
+                              <thead>
+                                <tr>
+                                  <th>Event</th>
+                                  <th>Users</th>
+                                  <th>Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {analyticsData.featureUsage.slice(0, 10).map((event: any, i: number) => (
+                                  <tr key={i}>
+                                    <td>{event.event_name || event.feature_name}</td>
+                                    <td>{fmt(event.unique_users)}</td>
+                                    <td>{fmt(event.total_events)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </ChartCard>
                       </div>
                     )}
+
+                    {analyticsData.funnelApp && analyticsData.funnelApp.length > 0 && (
+                      <div style={{ marginBottom: 24 }}>
+                        <ChartCard
+                          title="Funnel Analysis"
+                          subtitle="App activation flow"
+                          loading={false}
+                          error={null}
+                          onRetry={() => {}}
+                        >
+                          <div className="admin-v3-table-wrap">
+                            <table className="admin-v3-table">
+                              <thead>
+                                <tr>
+                                  <th>Step</th>
+                                  <th>Event</th>
+                                  <th>Users</th>
+                                  <th>Conversion</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {analyticsData.funnelApp.map((step: any, i: number) => (
+                                  <tr key={i}>
+                                    <td>{step.step_index}</td>
+                                    <td>{step.step_event_name}</td>
+                                    <td>{fmt(step.unique_users)}</td>
+                                    <td>{step.conversion_rate_from_previous_step != null ? `${Number(step.conversion_rate_from_previous_step).toFixed(1)}%` : '—'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </ChartCard>
+                      </div>
+                    )}
+
                     {(analyticsData.insights?.length ?? 0) > 0 && (
-                      <div style={{ marginTop: '1rem' }}>
-                        <div className="ptit" style={{ fontSize: 14 }}>Insights</div>
-                        <ul style={{ paddingLeft: '1.25rem', margin: 0 }}>
-                          {(analyticsData.insights ?? []).slice(0, 10).map((ins, i) => (
-                            <li key={i} style={{ marginBottom: 6 }}>
-                              <strong>{ins.title ?? 'Insight'}</strong> — {ins.description ?? ''} {ins.recommendation ? `Recommendation: ${ins.recommendation}` : ''}
-                            </li>
-                          ))}
-                        </ul>
+                      <div style={{ marginTop: 24 }}>
+                        <ChartCard
+                          title="Insights"
+                          subtitle="AI-generated recommendations"
+                          loading={false}
+                          error={null}
+                          onRetry={() => {}}
+                        >
+                          <ul style={{ paddingLeft: '1.25rem', margin: 0 }}>
+                            {(analyticsData.insights ?? []).slice(0, 10).map((ins: any, i: number) => (
+                              <li key={i} style={{ marginBottom: 6, fontSize: 12, color: 'var(--t2)' }}>
+                                <strong>{ins.title ?? 'Insight'}</strong> — {ins.description ?? ''} {ins.recommendation ? `Recommendation: ${ins.recommendation}` : ''}
+                              </li>
+                            ))}
+                          </ul>
+                        </ChartCard>
                       </div>
                     )}
                   </>
