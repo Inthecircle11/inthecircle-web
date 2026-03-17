@@ -7,6 +7,19 @@
   padding: 0;
 }
 
+.admin-v3 button:focus-visible,
+.admin-v3 input:focus-visible,
+.admin-v3 select:focus-visible,
+.admin-v3 a:focus-visible {
+  outline: 2px solid var(--ap);
+  outline-offset: 2px;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .admin-v3 {
   --font: var(--font-sans, 'Plus Jakarta Sans'), -apple-system, sans-serif;
   --bg: #0d0f14;

@@ -138,6 +138,7 @@ interface DataRequestRow {
   username?: string | null
   name?: string | null
   updated_at?: string | null
+  is_overdue?: boolean
   [k: string]: unknown
 }
 
@@ -236,6 +237,8 @@ export default function AdminV3Page() {
   const [adminRoles, setAdminRoles] = useState<string[]>([])
   const [adminEmail, setAdminEmail] = useState('')
   const [governanceScore, setGovernanceScore] = useState<number | null>(null)
+  const [overviewDateRange, setOverviewDateRange] = useState('30')
+  const [dashboardDateRange, setDashboardDateRange] = useState('30')
 
   // Applications tab
   const [applications, setApplications] = useState<ApplicationRow[]>([])
@@ -245,6 +248,9 @@ export default function AdminV3Page() {
   const [appFilter, setAppFilter] = useState('')
   const [appSearch, setAppSearch] = useState('')
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
+  const [selectedAppIds, setSelectedAppIds] = useState<Set<string>>(new Set())
+  const [bulkActionLoading, setBulkActionLoading] = useState(false)
+  const [exportLoading, setExportLoading] = useState(false)
 
   // Users tab
   const [users, setUsers] = useState<UserRow[]>([])
@@ -252,16 +258,31 @@ export default function AdminV3Page() {
   const [usersPage, setUsersPage] = useState(1)
   const [usersTotal, setUsersTotal] = useState(0)
   const [userActionId, setUserActionId] = useState<string | null>(null)
+  const [userSearch, setUserSearch] = useState('')
+  const userSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Verifications, Reports, Data Requests, Risk, Approvals
   const [verificationRequests, setVerificationRequests] = useState<VerificationRequestRow[]>([])
   const [verificationsLoading, setVerificationsLoading] = useState(false)
   const [verificationActionId, setVerificationActionId] = useState<string | null>(null)
+  const [verificationsSearch, setVerificationsSearch] = useState('')
   const [reports, setReports] = useState<ReportRow[]>([])
   const [reportsLoading, setReportsLoading] = useState(false)
+  const [reportsSearch, setReportsSearch] = useState('')
+  const [reportsPage, setReportsPage] = useState(1)
+  const [reportsTotal, setReportsTotal] = useState(0)
+  const [reportsExportLoading, setReportsExportLoading] = useState(false)
+  const reportsSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const REPORTS_PAGE_SIZE = 50
   const [dataRequests, setDataRequests] = useState<DataRequestRow[]>([])
   const [dataRequestsLoading, setDataRequestsLoading] = useState(false)
   const [dataRequestActionId, setDataRequestActionId] = useState<string | null>(null)
+  const [dataRequestsStatusFilter, setDataRequestsStatusFilter] = useState('all')
+  const [dataRequestsTypeFilter, setDataRequestsTypeFilter] = useState('all')
+  const [dataRequestsPage, setDataRequestsPage] = useState(1)
+  const [dataRequestsTotal, setDataRequestsTotal] = useState(0)
+  const [dataRequestsExportLoading, setDataRequestsExportLoading] = useState(false)
+  const DATA_REQUESTS_PAGE_SIZE = 50
   const [riskData, setRiskData] = useState<{
     pending_applications?: number
     pending_reports?: number
@@ -271,16 +292,20 @@ export default function AdminV3Page() {
   } | null>(null)
   const [riskLoading, setRiskLoading] = useState(false)
   const [escalationActionId, setEscalationActionId] = useState<string | null>(null)
+  const [riskLevelFilter, setRiskLevelFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all')
+  const [riskLastUpdated, setRiskLastUpdated] = useState<Date | null>(null)
   const [approvals, setApprovals] = useState<ApprovalRequestRow[]>([])
   const [approvalsLoading, setApprovalsLoading] = useState(false)
   const [approvalActionId, setApprovalActionId] = useState<string | null>(null)
+  const [approvalsFilter, setApprovalsFilter] = useState<'all' | 'active' | 'expired'>('all')
 
   // Audit Log
   const [auditEntries, setAuditEntries] = useState<AuditEntryRow[]>([])
   const [auditLoading, setAuditLoading] = useState(false)
   const [auditAction, setAuditAction] = useState('')
   const [auditTargetType, setAuditTargetType] = useState('')
-  const [auditOffset, setAuditOffset] = useState(0)
+  const [auditPage, setAuditPage] = useState(1)
+  const [auditTotal, setAuditTotal] = useState(0)
   const AUDIT_PAGE_SIZE = 50
 
   // Compliance
@@ -291,6 +316,7 @@ export default function AdminV3Page() {
   // Product Analytics
   const [analyticsData, setAnalyticsData] = useState<AnalyticsOverview | null>(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [analyticsDateRange, setAnalyticsDateRange] = useState('30')
 
   // Settings (config)
   const [config, setConfig] = useState<Record<string, string>>({})
@@ -300,6 +326,7 @@ export default function AdminV3Page() {
   // Inbox
   const [inboxThreads, setInboxThreads] = useState<Array<{ id: string; user1: string; user2: string; lastMessage: string; lastAt: string }>>([])
   const [inboxLoading, setInboxLoading] = useState(false)
+  const [inboxUnreadOnly, setInboxUnreadOnly] = useState(false)
 
   const showToast = useCallback((msg: string, type: 'ok' | 'err' | 'info' = 'info') => {
     const id = ++toastIdRef.current
@@ -555,11 +582,129 @@ export default function AdminV3Page() {
     [loadApplications, loadOverview, showToast]
   )
 
+  const doBulkAction = useCallback(
+    async (action: 'approve' | 'reject' | 'waitlist') => {
+      if (selectedAppIds.size === 0) return
+      const actionLabel = action === 'approve' ? 'approve' : action === 'reject' ? 'reject' : 'waitlist'
+      if (!confirm(`${actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1)} ${selectedAppIds.size} application(s)?`)) return
+      
+      setBulkActionLoading(true)
+      setError(null)
+      let successCount = 0
+      let failCount = 0
+      
+      for (const appId of Array.from(selectedAppIds)) {
+        try {
+          const app = applications.find(a => a.id === appId)
+          const res = await fetch(`/api/admin/applications/${appId}/action`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ action, updated_at: app?.updated_at ?? undefined }),
+          })
+          if (res.ok) successCount++
+          else failCount++
+        } catch {
+          failCount++
+        }
+      }
+      
+      setBulkActionLoading(false)
+      setSelectedAppIds(new Set())
+      
+      if (successCount > 0) {
+        showToast(`${successCount} application(s) ${actionLabel}ed`, 'ok')
+        void loadApplications()
+        void loadOverview()
+      }
+      if (failCount > 0) {
+        showToast(`${failCount} application(s) failed`, 'err')
+      }
+    },
+    [selectedAppIds, applications, loadApplications, loadOverview, showToast]
+  )
+
+  const toggleSelectAll = useCallback(() => {
+    const pendingApps = applications.filter(app => {
+      const rawStatus = (app.status || 'pending').toLowerCase()
+      return ['pending', 'submitted', 'pending_review', 'draft'].includes(rawStatus)
+    })
+    if (selectedAppIds.size === pendingApps.length) {
+      setSelectedAppIds(new Set())
+    } else {
+      setSelectedAppIds(new Set(pendingApps.map(a => a.id)))
+    }
+  }, [applications, selectedAppIds.size])
+
+  const toggleSelectApp = useCallback((appId: string) => {
+    setSelectedAppIds(prev => {
+      const next = new Set(prev)
+      if (next.has(appId)) next.delete(appId)
+      else next.add(appId)
+      return next
+    })
+  }, [])
+
+  const exportApplicationsPage = useCallback(() => {
+    const rows = applications.map(app => ({
+      id: app.id,
+      full_name: app.name,
+      email: app.email,
+      account_type: app.account_type || '',
+      niche: app.niche || '',
+      status: app.status,
+      created_at: app.application_date || '',
+      referrer_username: app.referrer_username || '',
+    }))
+    const headers = ['id', 'full_name', 'email', 'account_type', 'niche', 'status', 'created_at', 'referrer_username']
+    const csvRows = rows.map(r => headers.map(h => {
+      const val = r[h as keyof typeof r]
+      const s = String(val ?? '')
+      const needsQuotes = /[",\n\r]/.test(s)
+      return needsQuotes ? `"${s.replace(/"/g, '""')}"` : s
+    }))
+    const csv = [headers.join(','), ...csvRows.map(r => r.join(','))].join('\r\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `applications-page-${applicationsPage}-${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    showToast('Page exported', 'ok')
+  }, [applications, applicationsPage, showToast])
+
+  const exportApplicationsFiltered = useCallback(async () => {
+    setExportLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (appFilter) params.set('status', appFilter)
+      if (appSearch.trim()) params.set('search', appSearch.trim())
+      const res = await fetch(`/api/admin/applications/export?${params.toString()}`, { credentials: 'include' })
+      if (!res.ok) {
+        showToast('Export failed', 'err')
+        setExportLoading(false)
+        return
+      }
+      const blob = await res.blob()
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = `applications-filtered-${new Date().toISOString().slice(0, 10)}.csv`
+      link.click()
+      showToast('Export complete', 'ok')
+    } catch {
+      showToast('Export failed', 'err')
+    }
+    setExportLoading(false)
+  }, [appFilter, appSearch, showToast])
+
   const loadUsers = useCallback(async () => {
     setUsersLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/admin/users?page=${usersPage}&limit=${USERS_PAGE_SIZE}`, { credentials: 'include' })
+      const params = new URLSearchParams()
+      params.set('page', String(usersPage))
+      params.set('limit', String(USERS_PAGE_SIZE))
+      if (userSearch.trim()) params.set('search', userSearch.trim())
+      const res = await fetch(`/api/admin/users?${params.toString()}`, { credentials: 'include' })
       const json = await res.json().catch(() => ({}))
       const { data } = parseAdminResponse<{ users?: UserRow[]; total?: number }>(res, json)
       if (data?.users) {
@@ -575,7 +720,7 @@ export default function AdminV3Page() {
       setError('Failed to load users.')
     }
     setUsersLoading(false)
-  }, [usersPage])
+  }, [usersPage, userSearch])
 
   useEffect(() => {
     if (!authorized || activePanel !== 'users') return
@@ -659,29 +804,69 @@ export default function AdminV3Page() {
     setReportsLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/admin/reports?status=pending&sort=overdue&filter=all', { credentials: 'include' })
+      const params = new URLSearchParams()
+      params.set('status', 'pending')
+      params.set('sort', 'overdue')
+      params.set('filter', 'all')
+      params.set('page', String(reportsPage))
+      params.set('limit', String(REPORTS_PAGE_SIZE))
+      if (reportsSearch.trim()) params.set('search', reportsSearch.trim())
+      const res = await fetch(`/api/admin/reports?${params.toString()}`, { credentials: 'include' })
       const json = await res.json().catch(() => ({}))
-      const { data } = parseAdminResponse<{ reports?: ReportRow[] }>(res, json)
+      const { data } = parseAdminResponse<{ reports?: ReportRow[]; total?: number }>(res, json)
       setReports(data?.reports ?? [])
+      setReportsTotal(typeof data?.total === 'number' ? data.total : (data?.reports?.length ?? 0))
     } catch {
       setReports([])
+      setReportsTotal(0)
     }
     setReportsLoading(false)
-  }, [])
+  }, [reportsPage, reportsSearch])
 
   const loadDataRequests = useCallback(async () => {
     setDataRequestsLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/admin/data-requests', { credentials: 'include' })
+      const params = new URLSearchParams()
+      params.set('page', String(dataRequestsPage))
+      params.set('limit', String(DATA_REQUESTS_PAGE_SIZE))
+      if (dataRequestsStatusFilter !== 'all') params.set('status', dataRequestsStatusFilter)
+      if (dataRequestsTypeFilter !== 'all') params.set('type', dataRequestsTypeFilter)
+      const res = await fetch(`/api/admin/data-requests?${params.toString()}`, { credentials: 'include' })
       const json = await res.json().catch(() => ({}))
-      const { data } = parseAdminResponse<{ requests?: DataRequestRow[] }>(res, json)
+      const { data } = parseAdminResponse<{ requests?: DataRequestRow[]; total?: number }>(res, json)
       setDataRequests(data?.requests ?? [])
+      setDataRequestsTotal(typeof data?.total === 'number' ? data.total : (data?.requests?.length ?? 0))
     } catch {
       setDataRequests([])
+      setDataRequestsTotal(0)
     }
     setDataRequestsLoading(false)
-  }, [])
+  }, [dataRequestsPage, dataRequestsStatusFilter, dataRequestsTypeFilter])
+
+  const exportDataRequests = useCallback(async () => {
+    setDataRequestsExportLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (dataRequestsStatusFilter !== 'all') params.set('status', dataRequestsStatusFilter)
+      if (dataRequestsTypeFilter !== 'all') params.set('type', dataRequestsTypeFilter)
+      const res = await fetch(`/api/admin/data-requests/export?${params.toString()}`, { credentials: 'include' })
+      if (!res.ok) {
+        showToast('Export failed', 'err')
+        setDataRequestsExportLoading(false)
+        return
+      }
+      const blob = await res.blob()
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = `data-requests-${new Date().toISOString().slice(0, 10)}.csv`
+      link.click()
+      showToast('Export complete', 'ok')
+    } catch {
+      showToast('Export failed', 'err')
+    }
+    setDataRequestsExportLoading(false)
+  }, [dataRequestsStatusFilter, dataRequestsTypeFilter, showToast])
 
   const loadRisk = useCallback(async () => {
     setRiskLoading(true)
@@ -697,6 +882,7 @@ export default function AdminV3Page() {
         last_escalation_time?: string | null
       }>(res, json)
       setRiskData(data ?? null)
+      setRiskLastUpdated(new Date())
     } catch {
       setRiskData(null)
     }
@@ -766,6 +952,10 @@ export default function AdminV3Page() {
   useEffect(() => {
     if (!authorized || activePanel !== 'approvals') return
     loadApprovals()
+    const interval = setInterval(() => {
+      if (activePanel === 'approvals') void loadApprovals()
+    }, 60000)
+    return () => clearInterval(interval)
   }, [authorized, activePanel, loadApprovals])
 
   const doVerificationApprove = useCallback(
@@ -885,6 +1075,30 @@ export default function AdminV3Page() {
     [loadReports, showToast]
   )
 
+  const exportReports = useCallback(async () => {
+    setReportsExportLoading(true)
+    try {
+      const params = new URLSearchParams()
+      params.set('status', 'pending')
+      if (reportsSearch.trim()) params.set('search', reportsSearch.trim())
+      const res = await fetch(`/api/admin/reports/export?${params.toString()}`, { credentials: 'include' })
+      if (!res.ok) {
+        showToast('Export failed', 'err')
+        setReportsExportLoading(false)
+        return
+      }
+      const blob = await res.blob()
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = `reports-${new Date().toISOString().slice(0, 10)}.csv`
+      link.click()
+      showToast('Export complete', 'ok')
+    } catch {
+      showToast('Export failed', 'err')
+    }
+    setReportsExportLoading(false)
+  }, [reportsSearch, showToast])
+
   const doEscalationResolve = useCallback(
     async (escalationId: string) => {
       setEscalationActionId(escalationId)
@@ -953,19 +1167,21 @@ export default function AdminV3Page() {
     setError(null)
     try {
       const params = new URLSearchParams()
+      params.set('page', String(auditPage))
       params.set('limit', String(AUDIT_PAGE_SIZE))
-      params.set('offset', String(auditOffset))
       if (auditAction) params.set('action', auditAction)
       if (auditTargetType) params.set('target_type', auditTargetType)
       const res = await fetch(`/api/admin/audit?${params}`, { credentials: 'include' })
       const json = await res.json().catch(() => ({}))
-      const { data } = parseAdminResponse<{ entries?: AuditEntryRow[] }>(res, json)
+      const { data } = parseAdminResponse<{ entries?: AuditEntryRow[]; total?: number }>(res, json)
       setAuditEntries(data?.entries ?? [])
+      setAuditTotal(typeof data?.total === 'number' ? data.total : (data?.entries?.length ?? 0))
     } catch {
       setAuditEntries([])
+      setAuditTotal(0)
     }
     setAuditLoading(false)
-  }, [auditOffset, auditAction, auditTargetType])
+  }, [auditPage, auditAction, auditTargetType])
 
   const loadCompliance = useCallback(async () => {
     setComplianceLoading(true)
@@ -992,7 +1208,8 @@ export default function AdminV3Page() {
     setAnalyticsLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/admin/analytics/overview?days=30', { credentials: 'include' })
+      const days = analyticsDateRange === 'all' ? '365' : analyticsDateRange
+      const res = await fetch(`/api/admin/analytics/overview?days=${days}`, { credentials: 'include' })
       const json = await res.json().catch(() => ({}))
       const { data } = parseAdminResponse<AnalyticsOverview>(res, json)
       setAnalyticsData(data ?? null)
@@ -1000,7 +1217,7 @@ export default function AdminV3Page() {
       setAnalyticsData(null)
     }
     setAnalyticsLoading(false)
-  }, [])
+  }, [analyticsDateRange])
 
   const loadConfig = useCallback(async () => {
     setConfigLoading(true)
@@ -1312,8 +1529,32 @@ export default function AdminV3Page() {
   const totalApps = stats ? stats.total : 0
   const pendingCount = stats?.pending ?? 0
 
+  const isStale = lastUpd && (Date.now() - lastUpd.getTime() > 5 * 60 * 1000)
+
   return (
     <div className="admin-v3">
+      <a
+        href="#ct"
+        style={{
+          position: 'absolute',
+          left: '-9999px',
+          zIndex: 999,
+          padding: '8px 16px',
+          background: 'var(--ap)',
+          color: 'white',
+          textDecoration: 'none',
+          borderRadius: 4,
+        }}
+        onFocus={(e) => {
+          e.currentTarget.style.left = '16px'
+          e.currentTarget.style.top = '16px'
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.left = '-9999px'
+        }}
+      >
+        Skip to main content
+      </a>
       <div id="shell">
         <nav id="sb">
           <div className="sb-brand">
@@ -1427,26 +1668,61 @@ export default function AdminV3Page() {
               Dismiss
             </button>
           </div>
+          {isStale && (
+            <div style={{
+              background: '#fef3c7',
+              color: '#92400e',
+              padding: '12px 16px',
+              borderBottom: '1px solid #fbbf24',
+              fontSize: 13,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}>
+              <span>⚠️</span>
+              <span>Data may be stale — click Refresh</span>
+              <button type="button" className="btn btn-gh bsm" onClick={refreshCurrent} style={{ marginLeft: 'auto' }}>
+                Refresh
+              </button>
+            </div>
+          )}
           <div id="ct">
             {/* Overview panel */}
             <div id="panel-overview" className={`panel ${activePanel === 'overview' ? 'active' : ''}`}>
               <div className="ptit">Overview</div>
               <div className="pdesc">Real-time health snapshot and key metrics</div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: 'var(--t2)' }}>Date range:</span>
+                <select
+                  className="sel"
+                  value={overviewDateRange}
+                  onChange={(e) => setOverviewDateRange(e.target.value)}
+                  style={{ width: 140 }}
+                >
+                  <option value="7">Last 7 days</option>
+                  <option value="30">Last 30 days</option>
+                  <option value="90">Last 90 days</option>
+                  <option value="all">All time</option>
+                </select>
+                <span style={{ fontSize: 11, color: 'var(--t3)', marginLeft: 'auto' }}>
+                  Last updated: {lastUpd ? relT(lastUpd.toISOString()) : '—'}
+                </span>
+              </div>
               <div className="sg sg4">
-                <div className="sc" style={{ ['--c' as string]: 'var(--ap)' }}>
+                <div className="sc" style={{ ['--c' as string]: 'var(--ap)', cursor: 'pointer' }} onClick={() => nav('applications')}>
                   <div className="sc-lbl">Total Applications</div>
                   <div className="sc-val">{stats ? fmt(totalApps) : '—'}</div>
-                  <div className="sc-meta">All time</div>
+                  <div className="sc-meta">All time · View all →</div>
                 </div>
-                <div className="sc" style={{ ['--c' as string]: 'var(--ok)' }}>
-                  <div className="sc-lbl">Approved Members</div>
+                <div className="sc" style={{ ['--c' as string]: 'var(--ok)', cursor: 'pointer' }} onClick={() => nav('users')}>
+                  <div className="sc-lbl">Active Members</div>
                   <div className="sc-val">{stats ? fmt(stats.approved) : '—'}</div>
-                  <div className="sc-meta">Active</div>
+                  <div className="sc-meta">View all →</div>
                 </div>
-                <div className="sc" style={{ ['--c' as string]: 'var(--warn)' }}>
+                <div className="sc" style={{ ['--c' as string]: 'var(--warn)', cursor: 'pointer' }} onClick={() => { nav('applications'); setAppFilter('pending'); }}>
                   <div className="sc-lbl">Pending Review</div>
                   <div className="sc-val">{stats ? fmt(stats.pending) : '—'}</div>
-                  <div className="sc-meta">Awaiting action</div>
+                  <div className="sc-meta">View pending →</div>
                 </div>
                 <div className="sc" style={{ ['--c' as string]: 'var(--info)' }}>
                   <div className="sc-lbl">Active Today</div>
@@ -1470,10 +1746,10 @@ export default function AdminV3Page() {
                   <div className="sc-val">{overviewCounts ? fmt(overviewCounts.verifiedCount) : '—'}</div>
                   <div className="sc-meta" />
                 </div>
-                <div className="sc" style={{ ['--c' as string]: 'var(--warn)' }}>
+                <div className="sc" style={{ ['--c' as string]: 'var(--warn)', cursor: 'pointer' }} onClick={() => nav('reports')}>
                   <div className="sc-lbl">Open Reports</div>
                   <div className="sc-val">{fmt(reportsCount)}</div>
-                  <div className="sc-meta" />
+                  <div className="sc-meta">View all →</div>
                 </div>
               </div>
               <div className="g2">
@@ -1521,6 +1797,23 @@ export default function AdminV3Page() {
             <div id="panel-dashboard" className={`panel ${activePanel === 'dashboard' ? 'active' : ''}`}>
               <div className="ptit">Dashboard</div>
               <div className="pdesc">Operational metrics</div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: 'var(--t2)' }}>Date range:</span>
+                <select
+                  className="sel"
+                  value={dashboardDateRange}
+                  onChange={(e) => setDashboardDateRange(e.target.value)}
+                  style={{ width: 140 }}
+                >
+                  <option value="7">Last 7 days</option>
+                  <option value="30">Last 30 days</option>
+                  <option value="90">Last 90 days</option>
+                  <option value="all">All time</option>
+                </select>
+                <span style={{ fontSize: 11, color: 'var(--t3)', marginLeft: 'auto' }}>
+                  Last updated: {lastUpd ? relT(lastUpd.toISOString()) : '—'}
+                </span>
+              </div>
               <div className="sg sg4">
                 <div className="sc" style={{ ['--c' as string]: 'var(--ap)' }}>
                   <div className="sc-lbl">7-Day Signups</div>
@@ -1601,11 +1894,29 @@ export default function AdminV3Page() {
                     <button type="button" className="btn btn-gh bsm" onClick={() => loadApplications()} disabled={applicationsLoading}>
                       {applicationsLoading ? '…' : '↻'} Apply
                     </button>
+                    <button type="button" className="btn btn-gh bsm" onClick={exportApplicationsPage} disabled={applications.length === 0}>
+                      Export this page
+                    </button>
+                    <button type="button" className="btn btn-gh bsm" onClick={exportApplicationsFiltered} disabled={exportLoading}>
+                      {exportLoading ? 'Exporting…' : 'Export all filtered'}
+                    </button>
                   </div>
                 </div>
                 <table className="tbl">
                   <thead>
                     <tr>
+                      <th style={{ width: 40 }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedAppIds.size > 0 && selectedAppIds.size === applications.filter(app => {
+                            const rawStatus = (app.status || 'pending').toLowerCase()
+                            return ['pending', 'submitted', 'pending_review', 'draft'].includes(rawStatus)
+                          }).length}
+                          onChange={toggleSelectAll}
+                          style={{ cursor: 'pointer' }}
+                          aria-label="Select all pending applications"
+                        />
+                      </th>
                       <th>Applicant</th>
                       <th>Type</th>
                       <th>Niche</th>
@@ -1618,13 +1929,13 @@ export default function AdminV3Page() {
                   <tbody>
                     {applicationsLoading && applications.length === 0 ? (
                       <tr>
-                        <td colSpan={7}>
+                        <td colSpan={8}>
                           <div className="te">Loading…</div>
                         </td>
                       </tr>
                     ) : applications.length === 0 ? (
                       <tr>
-                        <td colSpan={7}>
+                        <td colSpan={8}>
                           <div className="te"><div className="tei">📋</div>No applications found.</div>
                         </td>
                       </tr>
@@ -1640,6 +1951,16 @@ export default function AdminV3Page() {
                         const accountType = (app.account_type || (app as { type?: string }).type || '').toLowerCase()
                         return (
                           <tr key={app.id}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={selectedAppIds.has(app.id)}
+                                onChange={() => toggleSelectApp(app.id)}
+                                disabled={!isPending}
+                                style={{ cursor: isPending ? 'pointer' : 'not-allowed' }}
+                                aria-label={`Select ${name}`}
+                              />
+                            </td>
                             <td>
                               <div className="tdp">
                                 {app.profile_image_url ? (
@@ -1686,6 +2007,7 @@ export default function AdminV3Page() {
                                     type="button"
                                     className="btn btn-ok bsm bic"
                                     title="Approve"
+                                    aria-label={`Approve ${name}`}
                                     disabled={actionLoadingId !== null}
                                     onClick={() => doAppAction(app.id, 'approve', app.updated_at)}
                                   >
@@ -1697,6 +2019,7 @@ export default function AdminV3Page() {
                                     type="button"
                                     className="btn btn-er bsm bic"
                                     title="Reject"
+                                    aria-label={`Reject ${name}`}
                                     disabled={actionLoadingId !== null}
                                     onClick={() => doAppAction(app.id, 'reject', app.updated_at)}
                                   >
@@ -1708,6 +2031,7 @@ export default function AdminV3Page() {
                                     type="button"
                                     className="btn btn-wa bsm bic"
                                     title="Waitlist"
+                                    aria-label={`Waitlist ${name}`}
                                     disabled={actionLoadingId !== null}
                                     onClick={() => doAppAction(app.id, 'waitlist', app.updated_at)}
                                   >
@@ -1748,6 +2072,59 @@ export default function AdminV3Page() {
                   </div>
                 </div>
               </div>
+              {selectedAppIds.size > 0 && (
+                <div style={{
+                  position: 'sticky',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  background: 'var(--card-bg)',
+                  borderTop: '1px solid var(--border)',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  zIndex: 10,
+                  boxShadow: '0 -2px 8px rgba(0,0,0,0.1)'
+                }}>
+                  <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>
+                    {selectedAppIds.size} selected
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-ok bsm"
+                    disabled={bulkActionLoading}
+                    onClick={() => doBulkAction('approve')}
+                  >
+                    {bulkActionLoading ? '...' : 'Approve All'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-er bsm"
+                    disabled={bulkActionLoading}
+                    onClick={() => doBulkAction('reject')}
+                  >
+                    {bulkActionLoading ? '...' : 'Reject All'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-wa bsm"
+                    disabled={bulkActionLoading}
+                    onClick={() => doBulkAction('waitlist')}
+                  >
+                    {bulkActionLoading ? '...' : 'Waitlist All'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-gh bsm"
+                    disabled={bulkActionLoading}
+                    onClick={() => setSelectedAppIds(new Set())}
+                    style={{ marginLeft: 'auto' }}
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Users panel */}
@@ -1755,6 +2132,23 @@ export default function AdminV3Page() {
               <div id="panel-users" className="panel active">
                 <div className="ptit">Users</div>
                 <div className="pdesc">Manage members: verify, ban, view.</div>
+                <div style={{ marginBottom: 16 }}>
+                  <input
+                    className="inp"
+                    style={{ width: 300 }}
+                    type="text"
+                    placeholder="Search name, username, or email…"
+                    value={userSearch}
+                    onChange={(e) => {
+                      setUserSearch(e.target.value)
+                      setUsersPage(1)
+                      if (userSearchTimeoutRef.current) clearTimeout(userSearchTimeoutRef.current)
+                      userSearchTimeoutRef.current = setTimeout(() => {
+                        if (authorized && activePanel === 'users') void loadUsers()
+                      }, 300)
+                    }}
+                  />
+                </div>
                 {usersLoading ? (
                   <div className="te"><div className="tei">⏳</div>Loading users…</div>
                 ) : (
@@ -1874,9 +2268,38 @@ export default function AdminV3Page() {
               <div id="panel-verifications" className="panel active">
                 <div className="ptit">Verifications</div>
                 <div className="pdesc">Pending verification requests — approve or reject.</div>
+                <div style={{ marginBottom: 16 }}>
+                  <input
+                    className="inp"
+                    style={{ width: 250 }}
+                    type="text"
+                    placeholder="Search username or email…"
+                    value={verificationsSearch}
+                    onChange={(e) => setVerificationsSearch(e.target.value)}
+                  />
+                </div>
                 {verificationsLoading ? (
-                  <div className="te"><div className="tei">⏳</div>Loading…</div>
-                ) : verificationRequests.length === 0 ? (
+                  <div className="admin-v3-table-wrap">
+                    <table className="admin-v3-table">
+                      <thead>
+                        <tr><th>User</th><th>Requested</th><th>Actions</th></tr>
+                      </thead>
+                      <tbody>
+                        {[1, 2, 3].map((i) => (
+                          <tr key={i}>
+                            <td><div style={{ height: 20, background: 'var(--border)', borderRadius: 4, animation: 'pulse 1.5s ease-in-out infinite' }} /></td>
+                            <td><div style={{ height: 20, background: 'var(--border)', borderRadius: 4, animation: 'pulse 1.5s ease-in-out infinite' }} /></td>
+                            <td><div style={{ height: 20, background: 'var(--border)', borderRadius: 4, animation: 'pulse 1.5s ease-in-out infinite' }} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : verificationRequests.filter(r => {
+                  if (!verificationsSearch.trim()) return true
+                  const searchLower = verificationsSearch.toLowerCase()
+                  return (r.username ?? '').toLowerCase().includes(searchLower)
+                }).length === 0 ? (
                   <div className="te"><div className="tei">✅</div>No pending verification requests.</div>
                 ) : (
                   <div className="admin-v3-table-wrap">
@@ -1885,9 +2308,23 @@ export default function AdminV3Page() {
                         <tr><th>User</th><th>Requested</th><th>Actions</th></tr>
                       </thead>
                       <tbody>
-                        {verificationRequests.map((r) => (
+                        {verificationRequests.filter(r => {
+                          if (!verificationsSearch.trim()) return true
+                          const searchLower = verificationsSearch.toLowerCase()
+                          return (r.username ?? '').toLowerCase().includes(searchLower)
+                        }).map((r) => (
                           <tr key={r.id}>
-                            <td>{r.username || r.user_id}</td>
+                            <td>
+                              {r.username || r.user_id}
+                              <a
+                                href={`/profile/${r.username}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ marginLeft: 8, fontSize: 11, color: 'var(--ap)' }}
+                              >
+                                View profile
+                              </a>
+                            </td>
                             <td>{r.requested_at ? new Date(r.requested_at).toLocaleString() : '—'}</td>
                             <td>
                               <button type="button" className="admin-v3-btn admin-v3-btn-sm" disabled={!!verificationActionId} onClick={() => doVerificationApprove(r.user_id)}>
@@ -1896,6 +2333,17 @@ export default function AdminV3Page() {
                               {' '}
                               <button type="button" className="admin-v3-btn admin-v3-btn-sm admin-v3-btn-danger" disabled={!!verificationActionId} onClick={() => doVerificationReject(r.id)}>
                                 {verificationActionId === r.id ? '…' : 'Reject'}
+                              </button>
+                              {' '}
+                              <button
+                                type="button"
+                                className="admin-v3-btn admin-v3-btn-sm"
+                                onClick={() => {
+                                  nav('applications')
+                                  setAppSearch(r.username ?? '')
+                                }}
+                              >
+                                View application
                               </button>
                             </td>
                           </tr>
@@ -1912,12 +2360,38 @@ export default function AdminV3Page() {
               <div id="panel-reports" className="panel active">
                 <div className="ptit">Reports</div>
                 <div className="pdesc">User reports — claim, release, or resolve.</div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                  <input
+                    className="inp"
+                    style={{ width: 250 }}
+                    type="text"
+                    placeholder="Search reporter email or username…"
+                    value={reportsSearch}
+                    onChange={(e) => {
+                      setReportsSearch(e.target.value)
+                      setReportsPage(1)
+                      if (reportsSearchTimeoutRef.current) clearTimeout(reportsSearchTimeoutRef.current)
+                      reportsSearchTimeoutRef.current = setTimeout(() => {
+                        if (authorized && activePanel === 'reports') void loadReports()
+                      }, 300)
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-gh bsm"
+                    onClick={exportReports}
+                    disabled={reportsExportLoading}
+                  >
+                    {reportsExportLoading ? 'Exporting…' : 'Export CSV'}
+                  </button>
+                </div>
                 {reportsLoading ? (
                   <div className="te"><div className="tei">⏳</div>Loading…</div>
                 ) : reports.length === 0 ? (
                   <div className="te"><div className="tei">📬</div>No pending reports.</div>
                 ) : (
-                  <div className="admin-v3-table-wrap">
+                  <>
+                    <div className="admin-v3-table-wrap">
                     <table className="admin-v3-table">
                       <thead>
                         <tr><th>Reporter</th><th>Reported</th><th>Status</th><th>Created</th><th>Actions</th></tr>
@@ -1943,6 +2417,30 @@ export default function AdminV3Page() {
                       </tbody>
                     </table>
                   </div>
+                  {reportsTotal > REPORTS_PAGE_SIZE && (
+                    <div className="admin-v3-pagination">
+                      <button
+                        type="button"
+                        className="admin-v3-btn admin-v3-btn-sm"
+                        disabled={reportsPage <= 1 || reportsLoading}
+                        onClick={() => setReportsPage((p) => Math.max(1, p - 1))}
+                      >
+                        Previous
+                      </button>
+                      <span className="admin-v3-muted">
+                        Page {reportsPage} of {Math.ceil(reportsTotal / REPORTS_PAGE_SIZE) || 1} · {fmt(reportsTotal)} total
+                      </span>
+                      <button
+                        type="button"
+                        className="admin-v3-btn admin-v3-btn-sm"
+                        disabled={reportsPage >= Math.ceil(reportsTotal / REPORTS_PAGE_SIZE) || reportsLoading}
+                        onClick={() => setReportsPage((p) => p + 1)}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                  </>
                 )}
               </div>
             )}
@@ -1952,23 +2450,62 @@ export default function AdminV3Page() {
               <div id="panel-data-requests" className="panel active">
                 <div className="ptit">Data Requests</div>
                 <div className="pdesc">GDPR/data requests — view and update status.</div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                  <select
+                    className="sel"
+                    value={dataRequestsStatusFilter}
+                    onChange={(e) => { setDataRequestsStatusFilter(e.target.value); setDataRequestsPage(1); }}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                  <select
+                    className="sel"
+                    value={dataRequestsTypeFilter}
+                    onChange={(e) => { setDataRequestsTypeFilter(e.target.value); setDataRequestsPage(1); }}
+                  >
+                    <option value="all">All Types</option>
+                    <option value="export">Export</option>
+                    <option value="deletion">Deletion</option>
+                  </select>
+                  <button
+                    type="button"
+                    className="btn btn-gh bsm"
+                    onClick={exportDataRequests}
+                    disabled={dataRequestsExportLoading}
+                  >
+                    {dataRequestsExportLoading ? 'Exporting…' : 'Export CSV'}
+                  </button>
+                </div>
                 {dataRequestsLoading ? (
                   <div className="te"><div className="tei">⏳</div>Loading…</div>
                 ) : dataRequests.length === 0 ? (
                   <div className="te"><div className="tei">📋</div>No data requests.</div>
                 ) : (
-                  <div className="admin-v3-table-wrap">
+                  <>
+                    <div className="admin-v3-table-wrap">
                     <table className="admin-v3-table">
                       <thead>
-                        <tr><th>User</th><th>Type</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+                        <tr><th>User</th><th>Type</th><th>Status</th><th>Created</th><th>Due Date</th><th>Actions</th></tr>
                       </thead>
                       <tbody>
-                        {dataRequests.map((r) => (
+                        {dataRequests.map((r) => {
+                          const createdAt = r.created_at ? new Date(r.created_at) : null
+                          const dueDate = createdAt ? new Date(createdAt.getTime() + 30 * 24 * 60 * 60 * 1000) : null
+                          const isOverdue = r.is_overdue === true
+                          return (
                           <tr key={r.id}>
-                            <td>{r.username ?? r.name ?? r.user_id}</td>
+                            <td>
+                              {r.username ?? r.name ?? r.user_id}
+                              {isOverdue && <span className="badge br" style={{ marginLeft: 8, fontSize: 10 }}>Overdue</span>}
+                            </td>
                             <td>{r.request_type ?? '—'}</td>
                             <td>{r.status}</td>
                             <td>{r.created_at ? new Date(r.created_at).toLocaleString() : '—'}</td>
+                            <td style={{ color: isOverdue ? 'var(--err)' : 'var(--t2)' }}>
+                              {dueDate ? `Due ${dueDate.toLocaleDateString()}` : '—'}
+                            </td>
                             <td>
                               {r.status === 'pending' && (
                                 <>
@@ -1984,10 +2521,34 @@ export default function AdminV3Page() {
                               {r.status !== 'pending' && '—'}
                             </td>
                           </tr>
-                        ))}
+                        )})}
                       </tbody>
                     </table>
                   </div>
+                  {dataRequestsTotal > DATA_REQUESTS_PAGE_SIZE && (
+                    <div className="admin-v3-pagination">
+                      <button
+                        type="button"
+                        className="admin-v3-btn admin-v3-btn-sm"
+                        disabled={dataRequestsPage <= 1 || dataRequestsLoading}
+                        onClick={() => setDataRequestsPage((p) => Math.max(1, p - 1))}
+                      >
+                        Previous
+                      </button>
+                      <span className="admin-v3-muted">
+                        Page {dataRequestsPage} of {Math.ceil(dataRequestsTotal / DATA_REQUESTS_PAGE_SIZE) || 1} · {fmt(dataRequestsTotal)} total
+                      </span>
+                      <button
+                        type="button"
+                        className="admin-v3-btn admin-v3-btn-sm"
+                        disabled={dataRequestsPage >= Math.ceil(dataRequestsTotal / DATA_REQUESTS_PAGE_SIZE) || dataRequestsLoading}
+                        onClick={() => setDataRequestsPage((p) => p + 1)}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                  </>
                 )}
               </div>
             )}
@@ -1997,6 +2558,24 @@ export default function AdminV3Page() {
               <div id="panel-risk" className="panel active">
                 <div className="ptit">Risk</div>
                 <div className="pdesc">KPIs and open escalations.</div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+                  <select
+                    className="sel"
+                    value={riskLevelFilter}
+                    onChange={(e) => setRiskLevelFilter(e.target.value as 'all' | 'high' | 'medium' | 'low')}
+                  >
+                    <option value="all">All Levels</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                  <button type="button" className="btn btn-gh bsm" onClick={() => void loadRisk()}>
+                    Refresh
+                  </button>
+                  <span style={{ fontSize: 11, color: 'var(--t3)', marginLeft: 'auto' }}>
+                    Last updated: {riskLastUpdated ? relT(riskLastUpdated.toISOString()) : '—'}
+                  </span>
+                </div>
                 {riskLoading ? (
                   <div className="te"><div className="tei">⏳</div>Loading…</div>
                 ) : !riskData ? (
@@ -2025,15 +2604,29 @@ export default function AdminV3Page() {
                       <div className="admin-v3-table-wrap" style={{ marginTop: '1rem' }}>
                         <table className="admin-v3-table">
                           <thead>
-                            <tr><th>Metric</th><th>Value</th><th>Level</th><th>Created</th><th>Actions</th></tr>
+                            <tr><th>Metric</th><th>Value</th><th>Level</th><th>Created</th><th>Links</th><th>Actions</th></tr>
                           </thead>
                           <tbody>
-                            {(riskData.open_escalations ?? []).map((e) => (
+                            {(riskData.open_escalations ?? []).filter(e => {
+                              if (riskLevelFilter === 'all') return true
+                              return (e.threshold_level ?? '').toLowerCase() === riskLevelFilter
+                            }).map((e) => (
                               <tr key={e.id}>
                                 <td>{e.metric_name}</td>
                                 <td>{e.metric_value}</td>
                                 <td>{e.threshold_level}</td>
                                 <td>{e.created_at ? new Date(e.created_at).toLocaleString() : '—'}</td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="admin-v3-btn admin-v3-btn-sm"
+                                    onClick={() => {
+                                      nav('audit-log')
+                                    }}
+                                  >
+                                    View in audit log
+                                  </button>
+                                </td>
                                 <td>
                                   <button type="button" className="admin-v3-btn admin-v3-btn-sm" disabled={!!escalationActionId} onClick={() => doEscalationResolve(e.id)}>
                                     {escalationActionId === e.id ? '…' : 'Resolve'}
@@ -2055,22 +2648,68 @@ export default function AdminV3Page() {
               <div id="panel-approvals" className="panel active">
                 <div className="ptit">Approvals</div>
                 <div className="pdesc">Admin approval requests — approve or reject.</div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                  <select
+                    className="sel"
+                    value={approvalsFilter}
+                    onChange={(e) => setApprovalsFilter(e.target.value as 'all' | 'active' | 'expired')}
+                  >
+                    <option value="all">All</option>
+                    <option value="active">Active</option>
+                    <option value="expired">Expired</option>
+                  </select>
+                </div>
                 {approvalsLoading ? (
                   <div className="te"><div className="tei">⏳</div>Loading…</div>
-                ) : approvals.length === 0 ? (
+                ) : approvals.filter(r => {
+                  const requestedAt = r.requested_at ? new Date(r.requested_at) : null
+                  const isExpired = requestedAt && (Date.now() - requestedAt.getTime() > 7 * 24 * 60 * 60 * 1000)
+                  if (approvalsFilter === 'active') return !isExpired
+                  if (approvalsFilter === 'expired') return isExpired
+                  return true
+                }).length === 0 ? (
                   <div className="te"><div className="tei">✅</div>No pending approval requests.</div>
                 ) : (
                   <div className="admin-v3-table-wrap">
                     <table className="admin-v3-table">
                       <thead>
-                        <tr><th>ID</th><th>Status</th><th>Requested</th><th>Actions</th></tr>
+                        <tr><th>ID</th><th>Status</th><th>Requested</th><th>Links</th><th>Actions</th></tr>
                       </thead>
                       <tbody>
-                        {approvals.map((r) => (
+                        {approvals.filter(r => {
+                          const requestedAt = r.requested_at ? new Date(r.requested_at) : null
+                          const isExpired = requestedAt && (Date.now() - requestedAt.getTime() > 7 * 24 * 60 * 60 * 1000)
+                          if (approvalsFilter === 'active') return !isExpired
+                          if (approvalsFilter === 'expired') return isExpired
+                          return true
+                        }).map((r) => {
+                          const requestedAt = r.requested_at ? new Date(r.requested_at) : null
+                          const isExpired = requestedAt && (Date.now() - requestedAt.getTime() > 7 * 24 * 60 * 60 * 1000)
+                          return (
                           <tr key={r.id}>
-                            <td>{r.id}</td>
+                            <td>
+                              {r.id.slice(0, 8)}
+                              {isExpired && <span className="badge br" style={{ marginLeft: 8, fontSize: 10 }}>Expired</span>}
+                            </td>
                             <td>{r.status}</td>
                             <td>{r.requested_at ? new Date(r.requested_at).toLocaleString() : '—'}</td>
+                            <td>
+                              <button
+                                type="button"
+                                className="admin-v3-btn admin-v3-btn-sm"
+                                onClick={() => nav('applications')}
+                                style={{ marginRight: 4 }}
+                              >
+                                View application
+                              </button>
+                              <button
+                                type="button"
+                                className="admin-v3-btn admin-v3-btn-sm"
+                                onClick={() => nav('users')}
+                              >
+                                View user
+                              </button>
+                            </td>
                             <td>
                               <button type="button" className="admin-v3-btn admin-v3-btn-sm" disabled={!!approvalActionId} onClick={() => doApprovalApprove(r.id)}>
                                 {approvalActionId === r.id ? '…' : 'Approve'}
@@ -2081,7 +2720,7 @@ export default function AdminV3Page() {
                               </button>
                             </td>
                           </tr>
-                        ))}
+                        )})}
                       </tbody>
                     </table>
                   </div>
@@ -2111,7 +2750,7 @@ export default function AdminV3Page() {
                     onChange={(e) => setAuditTargetType(e.target.value)}
                     style={{ maxWidth: 140 }}
                   />
-                  <button type="button" className="admin-v3-btn admin-v3-btn-sm" onClick={() => { setAuditOffset(0); void loadAudit(); }}>Apply</button>
+                  <button type="button" className="admin-v3-btn admin-v3-btn-sm" onClick={() => { setAuditPage(1); void loadAudit(); }}>Apply</button>
                   <a href={`/api/admin/audit?format=csv&limit=500${auditAction ? `&action=${encodeURIComponent(auditAction)}` : ''}${auditTargetType ? `&target_type=${encodeURIComponent(auditTargetType)}` : ''}`} className="admin-v3-btn admin-v3-btn-sm" style={{ marginLeft: 'auto' }} target="_blank" rel="noopener noreferrer">Export CSV</a>
                 </div>
                 {auditLoading ? (
@@ -2139,9 +2778,11 @@ export default function AdminV3Page() {
                       </table>
                     </div>
                     <div className="admin-v3-pagination">
-                      <button type="button" className="admin-v3-btn admin-v3-btn-sm" disabled={auditOffset <= 0 || auditLoading} onClick={() => setAuditOffset((o) => Math.max(0, o - AUDIT_PAGE_SIZE))}>Previous</button>
-                      <span className="admin-v3-muted">Offset {auditOffset}</span>
-                      <button type="button" className="admin-v3-btn admin-v3-btn-sm" disabled={auditEntries.length < AUDIT_PAGE_SIZE || auditLoading} onClick={() => setAuditOffset((o) => o + AUDIT_PAGE_SIZE)}>Next</button>
+                      <button type="button" className="admin-v3-btn admin-v3-btn-sm" disabled={auditPage <= 1 || auditLoading} onClick={() => setAuditPage((p) => Math.max(1, p - 1))}>Previous</button>
+                      <span className="admin-v3-muted">
+                        Page {auditPage} of {Math.ceil(auditTotal / AUDIT_PAGE_SIZE) || 1} · {fmt(auditTotal)} total
+                      </span>
+                      <button type="button" className="admin-v3-btn admin-v3-btn-sm" disabled={auditPage >= Math.ceil(auditTotal / AUDIT_PAGE_SIZE) || auditLoading} onClick={() => setAuditPage((p) => p + 1)}>Next</button>
                     </div>
                   </>
                 )}
@@ -2153,8 +2794,55 @@ export default function AdminV3Page() {
               <div id="panel-compliance" className="panel active">
                 <div className="ptit">Compliance</div>
                 <div className="pdesc">Control health and framework.</div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                  <button
+                    type="button"
+                    className="btn btn-gh bsm"
+                    onClick={() => {
+                      const csv = [
+                        ['Control Code', 'Status', 'Score', 'Last Checked'].join(','),
+                        ...(complianceHealth?.controls ?? []).map(c => 
+                          [c.control_code, c.status, c.score, c.last_checked_at ?? ''].join(',')
+                        )
+                      ].join('\r\n')
+                      const blob = new Blob([csv], { type: 'text/csv' })
+                      const link = document.createElement('a')
+                      link.href = URL.createObjectURL(blob)
+                      link.download = `compliance-health-${new Date().toISOString().slice(0, 10)}.csv`
+                      link.click()
+                      showToast('Health report exported', 'ok')
+                    }}
+                    disabled={!complianceHealth?.controls?.length}
+                  >
+                    Export health report (CSV)
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-gh bsm"
+                    title="Re-runs the compliance check and attempts to auto-fix issues"
+                    aria-label="Repair chain"
+                  >
+                    Repair chain
+                  </button>
+                </div>
                 {complianceLoading ? (
-                  <div className="te"><div className="tei">⏳</div>Loading…</div>
+                  <div className="admin-v3-table-wrap">
+                    <table className="admin-v3-table">
+                      <thead>
+                        <tr><th>Control</th><th>Status</th><th>Score</th><th>Last checked</th></tr>
+                      </thead>
+                      <tbody>
+                        {[1, 2, 3].map((i) => (
+                          <tr key={i}>
+                            <td><div style={{ height: 20, background: 'var(--border)', borderRadius: 4, animation: 'pulse 1.5s ease-in-out infinite' }} /></td>
+                            <td><div style={{ height: 20, background: 'var(--border)', borderRadius: 4, animation: 'pulse 1.5s ease-in-out infinite' }} /></td>
+                            <td><div style={{ height: 20, background: 'var(--border)', borderRadius: 4, animation: 'pulse 1.5s ease-in-out infinite' }} /></td>
+                            <td><div style={{ height: 20, background: 'var(--border)', borderRadius: 4, animation: 'pulse 1.5s ease-in-out infinite' }} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 ) : (
                   <>
                     {complianceHealth && (
@@ -2202,6 +2890,23 @@ export default function AdminV3Page() {
               <div id="panel-analytics" className="panel active">
                 <div className="ptit">Product Analytics</div>
                 <div className="pdesc">DAU/WAU/MAU, stickiness, insights.</div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, color: 'var(--t2)' }}>Date range:</span>
+                  <select
+                    className="sel"
+                    value={analyticsDateRange}
+                    onChange={(e) => setAnalyticsDateRange(e.target.value)}
+                    style={{ width: 140 }}
+                  >
+                    <option value="7">Last 7 days</option>
+                    <option value="30">Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                    <option value="all">All time</option>
+                  </select>
+                  <button type="button" className="btn btn-gh bsm" onClick={() => void loadAnalytics()}>
+                    Refresh
+                  </button>
+                </div>
                 {analyticsLoading ? (
                   <div className="te"><div className="tei">⏳</div>Loading…</div>
                 ) : !analyticsData ? (
@@ -2296,39 +3001,122 @@ export default function AdminV3Page() {
               <div id="panel-inbox" className="panel active">
                 <div className="ptit">Inbox</div>
                 <div className="pdesc">Message threads across the platform.</div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={inboxUnreadOnly}
+                      onChange={(e) => setInboxUnreadOnly(e.target.checked)}
+                    />
+                    Unread only
+                  </label>
+                </div>
                 {inboxLoading ? (
-                  <div className="te"><div className="tei">⏳</div>Loading…</div>
-                ) : inboxThreads.length === 0 ? (
-                  <div className="te"><div className="tei">📬</div>No conversations.</div>
-                ) : (
                   <div className="admin-v3-table-wrap">
                     <table className="admin-v3-table">
                       <thead>
                         <tr><th>Participants</th><th>Last message</th><th>Time</th></tr>
                       </thead>
                       <tbody>
-                        {inboxThreads.map((t) => (
-                          <tr key={t.id}>
-                            <td>{t.user1} ↔ {t.user2}</td>
-                            <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.lastMessage}</td>
-                            <td style={{ fontSize: 11 }}>{t.lastAt ? new Date(t.lastAt).toLocaleString() : '—'}</td>
+                        {[1, 2, 3].map((i) => (
+                          <tr key={i}>
+                            <td><div style={{ height: 20, background: 'var(--border)', borderRadius: 4, animation: 'pulse 1.5s ease-in-out infinite' }} /></td>
+                            <td><div style={{ height: 20, background: 'var(--border)', borderRadius: 4, animation: 'pulse 1.5s ease-in-out infinite' }} /></td>
+                            <td><div style={{ height: 20, background: 'var(--border)', borderRadius: 4, animation: 'pulse 1.5s ease-in-out infinite' }} /></td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
+                ) : inboxThreads.length === 0 ? (
+                  <div className="te"><div className="tei">📬</div>No conversations.</div>
+                ) : (
+                  <>
+                    <div className="admin-v3-table-wrap">
+                      <table className="admin-v3-table">
+                        <thead>
+                          <tr><th>Participants</th><th>Last message</th><th>Time</th></tr>
+                        </thead>
+                        <tbody>
+                          {inboxThreads.map((t) => (
+                            <tr key={t.id}>
+                              <td>{t.user1} ↔ {t.user2}</td>
+                              <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.lastMessage}</td>
+                              <td style={{ fontSize: 11 }}>{t.lastAt ? new Date(t.lastAt).toLocaleString() : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {inboxThreads.length >= 20 && (
+                      <div style={{ textAlign: 'center', marginTop: 16 }}>
+                        <button type="button" className="btn btn-gh bsm">
+                          Load more
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
 
-            {/* Invite Creator panel - no API, informational */}
+            {/* Invite Creator panel */}
             {activePanel === 'invite' && (
               <div id="panel-invite" className="panel active">
                 <div className="ptit">Invite Creator</div>
-                <div className="pdesc">Share invite links or use the main app to onboard creators.</div>
-                <div className="te">
-                  <div className="tei">✉️</div>
-                  Use the main app or waitlist flow to invite creators. Direct invite API can be added here if needed.
+                <div className="pdesc">Generate invite links and track recent invites.</div>
+                
+                <div className="card" style={{ marginBottom: 24 }}>
+                  <div className="ct">Invite Link Generator</div>
+                  <div className="cs">Create a shareable signup link with optional niche</div>
+                  <div style={{ marginTop: 16 }}>
+                    <input
+                      className="inp"
+                      type="text"
+                      placeholder="Niche/segment (optional)"
+                      id="invite-niche-input"
+                      style={{ width: '100%', marginBottom: 12 }}
+                    />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        className="inp"
+                        type="text"
+                        readOnly
+                        value={(() => {
+                          const nicheInput = typeof document !== 'undefined' ? (document.getElementById('invite-niche-input') as HTMLInputElement)?.value : ''
+                          const niche = nicheInput ? `&niche=${encodeURIComponent(nicheInput)}` : ''
+                          const username = adminEmail?.split('@')[0] ?? 'admin'
+                          return `https://app.inthecircle.co/signup?ref=${username}${niche}`
+                        })()}
+                        style={{ flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-gh"
+                        onClick={() => {
+                          const nicheInput = (document.getElementById('invite-niche-input') as HTMLInputElement)?.value ?? ''
+                          const niche = nicheInput ? `&niche=${encodeURIComponent(nicheInput)}` : ''
+                          const username = adminEmail?.split('@')[0] ?? 'admin'
+                          const link = `https://app.inthecircle.co/signup?ref=${username}${niche}`
+                          navigator.clipboard.writeText(link)
+                          showToast('Link copied to clipboard', 'ok')
+                        }}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card">
+                  <div className="ct">Recent Invites</div>
+                  <div className="cs">Last 10 invites sent</div>
+                  <div style={{ marginTop: 16 }}>
+                    <div className="te">
+                      <div className="tei">📋</div>
+                      No invite history available. Invite tracking can be added via audit log integration.
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

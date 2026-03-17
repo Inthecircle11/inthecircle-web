@@ -23,14 +23,26 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, Number(req.nextUrl.searchParams.get('page')) || 1)
   const limit = Math.min(MAX_USERS, Math.max(1, Number(req.nextUrl.searchParams.get('limit')) || DEFAULT_LIMIT))
   const offset = (page - 1) * limit
+  const search = req.nextUrl.searchParams.get('search')?.trim() || null
+
+  let profilesQuery = supabase
+    .from('profiles')
+    .select('id, name, username, email, profile_image_url, is_verified, is_banned, created_at, location, niche')
+    .order('created_at', { ascending: false })
+
+  let countQuery = supabase.from('profiles').select('*', { count: 'exact', head: true })
+
+  if (search) {
+    const searchPattern = `%${search}%`
+    profilesQuery = profilesQuery.or(`name.ilike.${searchPattern},username.ilike.${searchPattern},email.ilike.${searchPattern}`)
+    countQuery = countQuery.or(`name.ilike.${searchPattern},username.ilike.${searchPattern},email.ilike.${searchPattern}`)
+  }
+
+  profilesQuery = profilesQuery.range(offset, offset + limit - 1)
 
   const [listResult, countResult] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('id, name, username, email, profile_image_url, is_verified, is_banned, created_at, location, niche')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1),
-    supabase.from('profiles').select('*', { count: 'exact', head: true }),
+    profilesQuery,
+    countQuery,
   ])
 
   const { data: profiles, error } = listResult

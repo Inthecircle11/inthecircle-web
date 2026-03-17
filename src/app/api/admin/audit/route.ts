@@ -46,11 +46,12 @@ export async function GET(req: NextRequest) {
   const targetId = params.get('target_id')?.trim() || null
   const dateFrom = parseIsoDate(params.get('date_from'))
   const dateTo = parseIsoDate(params.get('date_to'))
+  const page = Math.max(1, Number(params.get('page')) || 1)
   const limit = Math.min(
     Math.max(1, Number(params.get('limit')) || 50),
     MAX_LIMIT
   )
-  const offset = Math.max(0, Number(params.get('offset')) || 0)
+  const offset = (page - 1) * limit
 
   if (adminUserId && !/^[0-9a-f-]{36}$/i.test(adminUserId)) {
     return adminError('invalid admin_user_id', 400, requestId)
@@ -61,27 +62,50 @@ export async function GET(req: NextRequest) {
     .select('*')
     .order('created_at', { ascending: false })
 
-  if (adminUserId) query = query.eq('admin_user_id', adminUserId)
-  if (targetType) query = query.eq('target_type', targetType)
-  if (targetId) query = query.eq('target_id', targetId)
-  if (dateFrom) query = query.gte('created_at', dateFrom)
-  if (dateTo) query = query.lte('created_at', dateTo)
+  let countQuery = supabase
+    .from('admin_audit_log')
+    .select('*', { count: 'exact', head: true })
+
+  if (adminUserId) {
+    query = query.eq('admin_user_id', adminUserId)
+    countQuery = countQuery.eq('admin_user_id', adminUserId)
+  }
+  if (targetType) {
+    query = query.eq('target_type', targetType)
+    countQuery = countQuery.eq('target_type', targetType)
+  }
+  if (targetId) {
+    query = query.eq('target_id', targetId)
+    countQuery = countQuery.eq('target_id', targetId)
+  }
+  if (dateFrom) {
+    query = query.gte('created_at', dateFrom)
+    countQuery = countQuery.gte('created_at', dateFrom)
+  }
+  if (dateTo) {
+    query = query.lte('created_at', dateTo)
+    countQuery = countQuery.lte('created_at', dateTo)
+  }
   if (actionParam) {
-    // Escape ILIKE wildcards: % and _ (Postgres)
     const escaped = actionParam.replace(/%/g, '\\%').replace(/_/g, '\\_')
     query = query.ilike('action', `%${escaped}%`)
+    countQuery = countQuery.ilike('action', `%${escaped}%`)
   }
 
   const cap = format === 'csv' ? Math.min(limit, MAX_CSV_ROWS) : limit
   query = query.range(offset, offset + cap - 1)
 
-  const { data, error } = await query
+  const [{ data, error }, { count }] = await Promise.all([
+    query,
+    countQuery
+  ])
 
   if (error) {
     console.error('[admin 500]', error)
     return adminError('Operation failed. Please try again.', 500, requestId)
   }
   const entries = data ?? []
+  const total = count ?? entries.length
 
   if (format === 'csv') {
     const headers = [
@@ -113,7 +137,7 @@ export async function GET(req: NextRequest) {
     return res
   }
 
-  return adminSuccess({ entries }, requestId)
+  return adminSuccess({ entries, total, page, limit }, requestId)
 }
 
 /** POST - Append an audit log entry. Destructive actions require corresponding permission. */
