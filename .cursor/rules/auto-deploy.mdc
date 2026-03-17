@@ -11,8 +11,8 @@ Production is deployed **via Git**: push (or merge) to **`main`** triggers a Ver
 
 After completing code changes that should go live:
 
-- **Normal flow:** Ensure changes are committed and pushed to **`main`** (or merged to `main`). Vercel will build and deploy automatically. No CLI deploy needed.
-- If the user explicitly says "don't deploy" or "no deployment", do not remind them to push.
+- **Always deploy without asking:** Commit and push to **`main`** so Vercel builds and deploys. Do this automatically; do not ask “should I deploy?” or “ready to push?”
+- **Exception:** If the user explicitly says "don't deploy" or "no deployment", do not push or remind them to push.
 
 ## When to Skip
 
