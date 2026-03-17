@@ -11,6 +11,16 @@ function hasRecoveryHash(): boolean {
   return params.get('type') === 'recovery' && !!params.get('access_token')
 }
 
+/** Supabase auth error in hash (e.g. otp_expired, access_denied) — send user to forgot-password to request a new link. */
+function hasAuthErrorHash(): boolean {
+  if (typeof window === 'undefined' || !window.location.hash) return false
+  const params = new URLSearchParams(window.location.hash.substring(1))
+  const error = params.get('error')
+  const errorCode = params.get('error_code')
+  const desc = params.get('error_description') || ''
+  return error === 'access_denied' || errorCode === 'otp_expired' || /expired|invalid/i.test(desc)
+}
+
 export default function DownloadPage() {
   const [redirected, setRedirected] = useState(false)
 
@@ -19,6 +29,11 @@ export default function DownloadPage() {
     // Password reset link: Supabase may redirect to /download with tokens in hash. Send user to set password.
     if (hasRecoveryHash()) {
       window.location.replace(`/update-password${window.location.hash}`)
+      return
+    }
+    // Expired/invalid reset link: Supabase sends error in hash. Send user to forgot-password to request a new link.
+    if (hasAuthErrorHash()) {
+      window.location.replace('/forgot-password?error=link_expired')
       return
     }
     const ua = window.navigator.userAgent.toLowerCase()
@@ -65,6 +80,12 @@ export default function DownloadPage() {
               Google Play (Android)
             </a>
           </div>
+          <p className="mt-6 text-sm text-[var(--text-muted)]">
+            Resetting your password?{' '}
+            <Link href="/forgot-password" className="text-[var(--accent)] hover:underline font-medium">
+              Request a new link
+            </Link>
+          </p>
           <Link href="/" className="mt-8 text-sm text-[var(--text-secondary)] hover:underline">
             ← Back to inthecircle
           </Link>
