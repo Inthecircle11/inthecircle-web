@@ -332,11 +332,11 @@ export default function AdminV3Page() {
     )
   }
 
-  // Gate screen
+  // Gate screen — full viewport so the card is centered and background fills the screen
   if (gateUnlocked === false) {
     return (
-      <div className="admin-v3">
-        <div id="gate">
+      <div className="admin-v3" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
+        <div id="gate" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="aw">
             <div className="aorb">⛔</div>
             <div className="atit">Admin Access</div>
@@ -364,11 +364,11 @@ export default function AdminV3Page() {
     )
   }
 
-  // Login screen (gate passed but not authorized)
+  // Login screen — full viewport so the card is centered and background fills the screen
   if (!authorized && !loading) {
     return (
-      <div className="admin-v3">
-        <div id="login">
+      <div className="admin-v3" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
+        <div id="login" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="aw">
             <div className="aorb">⚪</div>
             <div className="atit">Admin Sign In</div>
