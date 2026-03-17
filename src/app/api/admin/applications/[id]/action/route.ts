@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
@@ -14,73 +14,121 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const requestId = getAdminRequestId(req)
-  const result = await requireAdmin(req)
-  if ('response' in result) return adminErrorFromResponse(result.response, requestId)
-  const perm = requirePermission(result, ADMIN_PERMISSIONS.mutate_applications)
-  if (perm) return adminErrorFromResponse(perm, requestId)
-  const { id: applicationId } = await params
-  const body = await req.json().catch(() => ({}))
-  const { action, updated_at } = body
-  if (!action || !['approve', 'reject', 'waitlist', 'suspend'].includes(action)) {
-    return adminError('action must be approve|reject|waitlist|suspend', 400, requestId)
-  }
-  const supabase = getServiceRoleClient()
-  if (!supabase) return adminError('Service unavailable', 500, requestId)
+  try {
+    const result = await requireAdmin(req)
+    if ('response' in result) return adminErrorFromResponse(result.response, requestId)
+    const perm = requirePermission(result, ADMIN_PERMISSIONS.mutate_applications)
+    if (perm) return adminErrorFromResponse(perm, requestId)
 
-  const newStatus = action === 'approve' ? 'ACTIVE' : action === 'reject' ? 'REJECTED' : action === 'waitlist' ? 'WAITLISTED' : 'SUSPENDED'
-
-  let resolvedUpdatedAt: string | null = typeof updated_at === 'string' ? updated_at : null
-
-  if (resolvedUpdatedAt == null) {
-    const { data: row } = await supabase
-      .from('applications')
-      .select('updated_at')
-      .eq('id', applicationId)
-      .maybeSingle()
-    if (row?.updated_at != null) resolvedUpdatedAt = typeof row.updated_at === 'string' ? row.updated_at : (row.updated_at as Date)?.toISOString?.() ?? null
-  }
-
-  if (resolvedUpdatedAt != null) {
-    const { data: row, error } = await supabase.rpc('admin_application_action_v2', {
-      p_application_id: applicationId,
-      p_updated_at: resolvedUpdatedAt,
-      p_action: action,
-    })
-    if (error) {
-      console.error('[admin 500] applications action', error)
-      const msg = (error as { code?: string }).code === '42883'
-        ? 'Database function missing. Run Supabase migrations (admin_application_action_v2).'
-        : 'Operation failed. Please try again.'
-      return adminError(msg, 500, requestId)
+    const { id: applicationId } = await params
+    if (!applicationId) {
+      console.error('[action route] missing application id in params')
+      return adminError('Missing application id', 400, requestId)
     }
-    if (row == null) {
-      return adminError('Record changed by another moderator', 409, requestId)
-    }
-    if (action === 'approve') {
-      void triggerWelcomeEmailForApplication(supabase, applicationId)
-    }
-    clearApplicationsCache()
-    return adminSuccess({ ok: true }, requestId)
-  }
 
-  const { error } = await (async () => {
+    const body = await req.json().catch(() => ({}))
+    const { action, updated_at } = body
+    if (!action || !['approve', 'reject', 'waitlist', 'suspend'].includes(action)) {
+      return adminError('action must be approve|reject|waitlist|suspend', 400, requestId)
+    }
+
+    const supabase = getServiceRoleClient()
+    if (!supabase) {
+      console.error('[action route] getServiceRoleClient() returned null — check SUPABASE_SERVICE_ROLE_KEY')
+      return adminError('Service unavailable (missing SUPABASE_SERVICE_ROLE_KEY)', 500, requestId)
+    }
+
+    const newStatus = action === 'approve' ? 'ACTIVE' : action === 'reject' ? 'REJECTED' : action === 'waitlist' ? 'WAITLISTED' : 'SUSPENDED'
+
+    let resolvedUpdatedAt: string | null = typeof updated_at === 'string' ? updated_at : null
+
+    if (resolvedUpdatedAt == null) {
+      const { data: row, error: fetchError } = await supabase
+        .from('applications')
+        .select('updated_at')
+        .eq('id', applicationId)
+        .maybeSingle()
+      if (fetchError) {
+        console.error('[action route] fetch updated_at error:', JSON.stringify(fetchError))
+        return NextResponse.json(
+          { ok: false, error: fetchError.message ?? 'Failed to fetch application', detail: fetchError, request_id: requestId },
+          { status: 500 }
+        )
+      }
+      if (row?.updated_at != null) resolvedUpdatedAt = typeof row.updated_at === 'string' ? row.updated_at : (row.updated_at as Date)?.toISOString?.() ?? null
+    }
+
+    if (resolvedUpdatedAt != null) {
+      const { data: row, error } = await supabase.rpc('admin_application_action_v2', {
+        p_application_id: applicationId,
+        p_updated_at: resolvedUpdatedAt,
+        p_action: action,
+      })
+      if (error) {
+        console.error('[action route] admin_application_action_v2 RPC error:', JSON.stringify(error))
+        const code = (error as { code?: string }).code
+        const msg =
+          code === '42883'
+            ? 'Database function missing. Run Supabase migrations (admin_application_action_v2).'
+            : (error as { message?: string }).message ?? error?.toString?.() ?? 'Operation failed. Please try again.'
+        return NextResponse.json(
+          { ok: false, error: msg, detail: error, request_id: requestId },
+          { status: 500 }
+        )
+      }
+      if (row == null) {
+        return adminError('Record changed by another moderator', 409, requestId)
+      }
+      if (action === 'approve') {
+        try {
+          void triggerWelcomeEmailForApplication(supabase, applicationId)
+        } catch (e) {
+          console.error('[action route] triggerWelcomeEmailForApplication (non-fatal):', e)
+        }
+      }
+      clearApplicationsCache()
+      return adminSuccess({ ok: true }, requestId)
+    }
+
     const hasCol = await hasUpdatedAtColumn(supabase)
     const payload: Record<string, unknown> = { status: newStatus }
     if (hasCol) payload.updated_at = new Date().toISOString()
-    return supabase.from('applications').update(payload).eq('id', applicationId)
-  })()
-  if (error) {
-    console.error('[admin 500] applications action fallback update', error)
-    const msg = (error as { code?: string }).code === '42703'
-      ? 'Database column missing. Run Supabase migrations (applications.updated_at).'
-      : 'Operation failed. Please try again.'
-    return adminError(msg, 500, requestId)
+    const { error } = await supabase.from('applications').update(payload).eq('id', applicationId).select('id')
+    if (error) {
+      console.error('[action route] fallback update error:', JSON.stringify(error))
+      const code = (error as { code?: string }).code
+      const msg =
+        code === '42703'
+          ? 'Database column missing. Run Supabase migrations (applications.updated_at).'
+          : (error as { message?: string }).message ?? error?.toString?.() ?? 'Operation failed. Please try again.'
+      return NextResponse.json(
+        { ok: false, error: msg, detail: error, request_id: requestId },
+        { status: 500 }
+      )
+    }
+    if (action === 'approve') {
+      try {
+        void triggerWelcomeEmailForApplication(supabase, applicationId)
+      } catch (e) {
+        console.error('[action route] triggerWelcomeEmailForApplication (non-fatal):', e)
+      }
+    }
+    clearApplicationsCache()
+    return adminSuccess({ ok: true }, requestId)
+  } catch (err: unknown) {
+    const ex = err as { message?: string; code?: string }
+    console.error('[action route] unhandled error:', err)
+    const msg = ex?.message ?? (typeof err === 'string' ? err : String(err)) ?? 'Unknown error'
+    return NextResponse.json(
+      {
+        ok: false,
+        error: msg,
+        detail: err != null ? (typeof err === 'object' && 'message' in err ? { message: (err as { message?: string }).message, code: (err as { code?: string }).code } : err) : undefined,
+        request_id: requestId,
+      },
+      { status: 500 }
+    )
   }
-  if (action === 'approve') {
-    void triggerWelcomeEmailForApplication(supabase, applicationId)
-  }
-  clearApplicationsCache()
-  return adminSuccess({ ok: true }, requestId)
 }
 
 async function hasUpdatedAtColumn(supabase: Awaited<ReturnType<typeof getServiceRoleClient>>): Promise<boolean> {
