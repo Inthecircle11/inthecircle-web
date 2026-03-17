@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
@@ -19,13 +19,11 @@ export async function POST(
     if ('response' in result) return adminErrorFromResponse(result.response, requestId)
     const perm = requirePermission(result, ADMIN_PERMISSIONS.mutate_applications)
     if (perm) return adminErrorFromResponse(perm, requestId)
-
     const { id: applicationId } = await params
     if (!applicationId) {
       console.error('[action route] missing application id in params')
       return adminError('Missing application id', 400, requestId)
     }
-
     const body = await req.json().catch(() => ({}))
     const { action, updated_at } = body
     if (!action || !['approve', 'reject', 'waitlist', 'suspend'].includes(action)) {
@@ -50,10 +48,7 @@ export async function POST(
         .maybeSingle()
       if (fetchError) {
         console.error('[action route] fetch updated_at error:', JSON.stringify(fetchError))
-        return NextResponse.json(
-          { ok: false, error: fetchError.message ?? 'Failed to fetch application', detail: fetchError, request_id: requestId },
-          { status: 500 }
-        )
+        return adminError(fetchError.message ?? 'Failed to fetch application', 500, requestId)
       }
       if (row?.updated_at != null) resolvedUpdatedAt = typeof row.updated_at === 'string' ? row.updated_at : (row.updated_at as Date)?.toISOString?.() ?? null
     }
@@ -65,16 +60,15 @@ export async function POST(
         p_action: action,
       })
       if (error) {
-        console.error('[action route] admin_application_action_v2 RPC error:', JSON.stringify(error))
         const code = (error as { code?: string }).code
         const msg =
           code === '42883'
             ? 'Database function missing. Run Supabase migrations (admin_application_action_v2).'
-            : (error as { message?: string }).message ?? error?.toString?.() ?? 'Operation failed. Please try again.'
-        return NextResponse.json(
-          { ok: false, error: msg, detail: error, request_id: requestId },
-          { status: 500 }
-        )
+            : code === 'PGRST301'
+              ? 'Invalid application id or record not found.'
+              : (error as { message?: string }).message ?? 'Operation failed. Please try again.'
+        console.error('[action route] admin_application_action_v2 RPC error:', JSON.stringify(error))
+        return adminError(msg, 500, requestId)
       }
       if (row == null) {
         return adminError('Record changed by another moderator', 409, requestId)
@@ -95,16 +89,13 @@ export async function POST(
     if (hasCol) payload.updated_at = new Date().toISOString()
     const { error } = await supabase.from('applications').update(payload).eq('id', applicationId).select('id')
     if (error) {
-      console.error('[action route] fallback update error:', JSON.stringify(error))
       const code = (error as { code?: string }).code
       const msg =
         code === '42703'
           ? 'Database column missing. Run Supabase migrations (applications.updated_at).'
-          : (error as { message?: string }).message ?? error?.toString?.() ?? 'Operation failed. Please try again.'
-      return NextResponse.json(
-        { ok: false, error: msg, detail: error, request_id: requestId },
-        { status: 500 }
-      )
+          : (error as { message?: string }).message ?? 'Operation failed. Please try again.'
+      console.error('[action route] fallback update error:', JSON.stringify(error))
+      return adminError(msg, 500, requestId)
     }
     if (action === 'approve') {
       try {
@@ -116,18 +107,10 @@ export async function POST(
     clearApplicationsCache()
     return adminSuccess({ ok: true }, requestId)
   } catch (err: unknown) {
-    const ex = err as { message?: string; code?: string }
+    const ex = err as { message?: string }
     console.error('[action route] unhandled error:', err)
     const msg = ex?.message ?? (typeof err === 'string' ? err : String(err)) ?? 'Unknown error'
-    return NextResponse.json(
-      {
-        ok: false,
-        error: msg,
-        detail: err != null ? (typeof err === 'object' && 'message' in err ? { message: (err as { message?: string }).message, code: (err as { code?: string }).code } : err) : undefined,
-        request_id: requestId,
-      },
-      { status: 500 }
-    )
+    return adminError(msg || 'Operation failed. Please try again.', 500, requestId)
   }
 }
 

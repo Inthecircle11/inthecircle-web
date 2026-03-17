@@ -376,6 +376,12 @@ export default function AdminV3Page() {
       const { data } = parseAdminResponse<{ authorized?: boolean; roles?: string[] }>(res, json)
       if (res.status === 401) {
         setAuthorized(false)
+        setError('Session expired. Please sign in again.')
+        try {
+          await createClient().auth.signOut({ scope: 'local' })
+        } catch {
+          // ignore sign-out errors (e.g. already invalid session)
+        }
         setLoading(false)
         return
       }
