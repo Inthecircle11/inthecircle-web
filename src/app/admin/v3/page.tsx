@@ -56,8 +56,10 @@ function fmt(n: number | null | undefined): string {
 }
 
 function relT(s: string | null | undefined): string {
-  if (!s) return '-'
-  const diff = (Date.now() - new Date(s).getTime()) / 1000
+  if (!s) return 'just now'
+  const t = new Date(s).getTime()
+  if (Number.isNaN(t)) return 'just now'
+  const diff = (Date.now() - t) / 1000
   if (diff < 60) return 'just now'
   if (diff < 3600) return `${Math.round(diff / 60)}m ago`
   if (diff < 86400) return `${Math.round(diff / 3600)}h ago`
@@ -82,6 +84,8 @@ interface ApplicationRow {
   application_date: string | null
   referrer_username: string | null
   updated_at?: string | null
+  profile_image_url?: string | null
+  account_type?: string | null
 }
 
 const APPLICATIONS_PAGE_SIZE = 20
@@ -303,6 +307,20 @@ export default function AdminV3Page() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3800)
   }, [])
 
+  // Debug: surface unhandled promise rejections (RPC/auth/fetch errors)
+  useEffect(() => {
+    const handler = (e: PromiseRejectionEvent) => {
+      const reason = e?.reason
+      const msg = reason?.message ?? (typeof reason === 'string' ? reason : JSON.stringify(reason ?? ''))
+      console.error('[Admin] Unhandled promise rejection:', reason)
+      if (msg && (msg.includes('rpc') || msg.includes('auth') || msg.includes('fetch') || msg.includes('Failed'))) {
+        showToast(`Error: ${String(msg).slice(0, 80)}`, 'err')
+      }
+    }
+    window.addEventListener('unhandledrejection', handler)
+    return () => window.removeEventListener('unhandledrejection', handler)
+  }, [showToast])
+
   // Gate check on mount
   useEffect(() => {
     let cancelled = false
@@ -442,11 +460,12 @@ export default function AdminV3Page() {
   const loadGovernanceScore = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/compliance/health', { credentials: 'include' })
-      if (!res.ok) return
-      const data = await res.json()
+      const json = await res.json().catch(() => ({}))
+      const { data } = parseAdminResponse<{ overall_score?: number | null }>(res, json)
       if (typeof data?.overall_score === 'number') setGovernanceScore(data.overall_score)
+      else setGovernanceScore(null)
     } catch {
-      // non-blocking
+      setGovernanceScore(null)
     }
   }, [])
 
@@ -505,15 +524,19 @@ export default function AdminV3Page() {
         const { error: err } = parseAdminResponse(res, json)
         if (err) {
           setError(err)
+          showToast(err, 'err')
         } else if (res.ok) {
           showToast(action === 'approve' ? 'Application approved' : action === 'reject' ? 'Application rejected' : 'Application waitlisted', 'ok')
           void loadApplications()
           void loadOverview()
         } else if (res.status === 409) {
-          setError('Record changed by another moderator. Refresh and try again.')
+          const msg = 'Record changed by another moderator. Refresh and try again.'
+          setError(msg)
+          showToast(msg, 'err')
         }
       } catch {
         setError('Request failed')
+        showToast('Request failed', 'err')
       }
       setActionLoadingId(null)
     },
@@ -560,14 +583,17 @@ export default function AdminV3Page() {
         })
         const json = await res.json().catch(() => ({}))
         const { error: err } = parseAdminResponse(res, json)
-        if (err) setError(err)
-        else if (res.ok) {
+        if (err) {
+          setError(err)
+          showToast(err, 'err')
+        } else if (res.ok) {
           showToast(isVerified ? 'User unverified' : 'User verified', 'ok')
           void loadUsers()
           void loadOverview()
         }
       } catch {
         setError('Request failed')
+        showToast('Request failed', 'err')
       }
       setUserActionId(null)
     },
@@ -587,13 +613,16 @@ export default function AdminV3Page() {
         })
         const json = await res.json().catch(() => ({}))
         const { error: err } = parseAdminResponse(res, json)
-        if (err) setError(err)
-        else if (res.ok) {
+        if (err) {
+          setError(err)
+          showToast(err, 'err')
+        } else if (res.ok) {
           showToast(isBanned ? 'User unbanned' : 'User banned', isBanned ? 'ok' : 'err')
           void loadUsers()
         }
       } catch {
         setError('Request failed')
+        showToast('Request failed', 'err')
       }
       setUserActionId(null)
     },
@@ -1336,14 +1365,14 @@ export default function AdminV3Page() {
           <div className="sh">
             <div className="sh-tit">Governance Health</div>
             <div className="sh-r">
-              <span style={{ color: 'var(--t2)', fontSize: '11.5px' }}>Score</span>
+              <span style={{ color: 'var(--t2)', fontSize: '11.5px' }}>Governance</span>
               <span className={`dot ${governanceScore != null && governanceScore >= 70 ? 'ok' : governanceScore != null ? 'warn' : ''}`} />
             </div>
-            <div className="sh-r" style={{ marginBottom: 0 }}>
-              <span style={{ color: 'var(--t2)', fontSize: '11.5px' }}>
-                {governanceScore != null ? `${governanceScore} / 100` : '—'}
-              </span>
-            </div>
+            {governanceScore != null && (
+              <div className="sh-r" style={{ marginBottom: 0 }}>
+                <span style={{ color: 'var(--t2)', fontSize: '11.5px' }}>{governanceScore} / 100</span>
+              </div>
+            )}
           </div>
           <div className="sb-bot">
             <div className="sb-user">
@@ -1372,7 +1401,7 @@ export default function AdminV3Page() {
                 <span className="hldot" />
                 Live
               </span>
-              <span className="hupd">{lastUpd ? `Updated ${relT(lastUpd.toISOString())}` : 'Not synced'}</span>
+              <span className="hupd" id="hupd">{lastUpd ? `Updated ${relT(lastUpd.toISOString())}` : 'Not synced'}</span>
               {adminRoles[0] && <span className="hrole">{adminRoles[0]}</span>}
               <button type="button" className="href" onClick={refreshCurrent}>
                 ↻ Refresh
@@ -1566,6 +1595,7 @@ export default function AdminV3Page() {
                   <thead>
                     <tr>
                       <th>Applicant</th>
+                      <th>Type</th>
                       <th>Niche</th>
                       <th>Status</th>
                       <th>Applied</th>
@@ -1576,38 +1606,63 @@ export default function AdminV3Page() {
                   <tbody>
                     {applicationsLoading && applications.length === 0 ? (
                       <tr>
-                        <td colSpan={6}>
+                        <td colSpan={7}>
                           <div className="te">Loading…</div>
                         </td>
                       </tr>
                     ) : applications.length === 0 ? (
                       <tr>
-                        <td colSpan={6}>
+                        <td colSpan={7}>
                           <div className="te"><div className="tei">📋</div>No applications found.</div>
                         </td>
                       </tr>
                     ) : (
                       applications.map((app) => {
-                        const st = (app.status || '').toLowerCase()
-                        const isPending = ['pending', 'submitted', 'pending_review', 'draft'].includes(st)
-                        const isApproved = st === 'active' || st === 'approved'
+                        const rawStatus = (app.status || 'pending').toLowerCase()
+                        const st = rawStatus === 'active' ? 'approved' : rawStatus
+                        const isPending = ['pending', 'submitted', 'pending_review', 'draft'].includes(rawStatus)
+                        const isApproved = st === 'approved'
                         const isRejected = st === 'rejected'
                         const isWaitlisted = st === 'waitlisted'
+                        const name = app.name || app.username || '?'
+                        const accountType = (app.account_type || (app as { type?: string }).type || '').toLowerCase()
                         return (
                           <tr key={app.id}>
                             <td>
                               <div className="tdp">
-                                <div className="av">{(app.name || app.username || '?')[0].toUpperCase()}</div>
+                                {app.profile_image_url ? (
+                                  <>
+                                    <img
+                                      src={app.profile_image_url}
+                                      alt={name[0]}
+                                      style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                                      onError={(e) => {
+                                        const t = e.currentTarget
+                                        t.style.display = 'none'
+                                        const next = t.nextElementSibling as HTMLElement
+                                        if (next) next.style.display = 'flex'
+                                      }}
+                                    />
+                                    <div className="av" style={{ display: 'none' }}>{name[0]?.toUpperCase() || '?'}</div>
+                                  </>
+                                ) : (
+                                  <div className="av">{name[0]?.toUpperCase() || '?'}</div>
+                                )}
                                 <div>
                                   <div className="tdn">{app.name || app.username || '—'}</div>
                                   <div className="tds">{app.email || '—'}</div>
                                 </div>
                               </div>
                             </td>
+                            <td style={{ fontSize: 11, color: 'var(--t3)' }}>
+                              {accountType ? (
+                                <span className={`badge ${accountType === 'brand' ? 'ba' : 'bp'}`}>{accountType === 'brand' ? 'brand' : 'creator'}</span>
+                              ) : '—'}
+                            </td>
                             <td style={{ fontSize: 11, color: 'var(--t3)' }}>{app.niche || '—'}</td>
                             <td>
                               <span className={`badge ${isApproved ? 'ba' : isRejected ? 'br' : isWaitlisted ? 'bw' : 'bp'}`}>
-                                {app.status || 'pending'}
+                                {st}
                               </span>
                             </td>
                             <td style={{ fontSize: 11, color: 'var(--t3)' }}>{fmtDate(app.application_date)}</td>
@@ -1711,9 +1766,37 @@ export default function AdminV3Page() {
                               <td colSpan={7} className="admin-v3-muted">No users found.</td>
                             </tr>
                           ) : (
-                            users.map((u) => (
+                            users.map((u) => {
+                              const uName = u.name ?? u.username ?? u.email ?? u.id
+                              const initial = (typeof uName === 'string' ? uName[0] : '?')?.toUpperCase() || '?'
+                              return (
                               <tr key={u.id}>
-                                <td>{u.name ?? u.username ?? u.email ?? u.id}</td>
+                                <td>
+                                  <div className="tdp">
+                                    {u.profile_image_url ? (
+                                      <>
+                                        <img
+                                          src={u.profile_image_url}
+                                          alt={initial}
+                                          style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                                          onError={(e) => {
+                                            const t = e.currentTarget
+                                            t.style.display = 'none'
+                                            const next = t.nextElementSibling as HTMLElement
+                                            if (next) next.style.display = 'flex'
+                                          }}
+                                        />
+                                        <div className="av" style={{ display: 'none' }}>{initial}</div>
+                                      </>
+                                    ) : (
+                                      <div className="av">{initial}</div>
+                                    )}
+                                    <div>
+                                      <div className="tdn">{u.name ?? u.username ?? '—'}</div>
+                                      <div className="tds">{u.email ?? '—'}</div>
+                                    </div>
+                                  </div>
+                                </td>
                                 <td>{u.username ?? '—'}</td>
                                 <td>{u.email ?? '—'}</td>
                                 <td>{u.is_verified ? 'Yes' : 'No'}</td>
@@ -1741,10 +1824,10 @@ export default function AdminV3Page() {
                                   </button>
                                 </td>
                               </tr>
-                            ))
+                            )})
                           )}
                         </tbody>
-                      </table>
+                        </table>
                     </div>
                     {usersTotal > USERS_PAGE_SIZE && (
                       <div className="admin-v3-pagination">

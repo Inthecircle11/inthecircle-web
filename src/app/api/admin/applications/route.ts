@@ -258,6 +258,7 @@ export async function GET(req: NextRequest) {
       username: a.username ?? '',
       email: a.email ?? '',
       profile_image_url: a.profile_image_url ?? null,
+      account_type: a.account_type ?? a.type ?? null,
       bio: a.bio ?? '',
       niche: a.niche ?? '',
       application_date: a.submitted_at ?? '',
