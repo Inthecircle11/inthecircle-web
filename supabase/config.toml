@@ -152,10 +152,12 @@ site_url = "https://app.inthecircle.co"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 # Do not add /download here — password reset must land on /auth/callback or /update-password.
 additional_redirect_urls = [
+  "https://app.inthecircle.co/**",
   "https://app.inthecircle.co/auth/callback",
   "https://app.inthecircle.co/update-password",
   "https://inthecircle-web.vercel.app/auth/callback",
-  "http://localhost:3000/auth/callback"
+  "http://localhost:3000/auth/callback",
+  "http://localhost:3000/**"
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
