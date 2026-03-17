@@ -601,24 +601,6 @@ export default function AdminV3Page() {
     loadGovernanceScore()
   }, [authorized, loadRecentActivity, loadReportsCount, loadGovernanceScore])
 
-  useEffect(() => {
-    if (!authorized) return
-    if (activePanel === 'overview') {
-      loadOverviewStats()
-      loadTrendData(14)
-      loadActivityFeed()
-    }
-    if (activePanel === 'dashboard') {
-      loadOverviewStats()
-      loadTrendData(30)
-      loadMonthlyData(6)
-      loadAccountTypeData()
-    }
-    if (activePanel === 'analytics') {
-      loadNicheData()
-    }
-  }, [authorized, activePanel, loadOverviewStats, loadTrendData, loadMonthlyData, loadAccountTypeData, loadNicheData, loadActivityFeed])
-
   const loadApplications = useCallback(async () => {
     setApplicationsLoading(true)
     setError(null)
@@ -1440,6 +1422,24 @@ export default function AdminV3Page() {
     }
     setConfigLoading(false)
   }, [])
+
+  useEffect(() => {
+    if (!authorized) return
+    if (activePanel === 'overview') {
+      loadOverviewStats()
+      loadTrendData(14)
+      loadActivityFeed()
+    }
+    if (activePanel === 'dashboard') {
+      loadOverviewStats()
+      loadTrendData(30)
+      loadMonthlyData(6)
+      loadAccountTypeData()
+    }
+    if (activePanel === 'analytics') {
+      loadNicheData()
+    }
+  }, [authorized, activePanel, loadOverviewStats, loadTrendData, loadMonthlyData, loadAccountTypeData, loadNicheData, loadActivityFeed])
 
   const saveConfig = useCallback(async (updates: Record<string, string>) => {
     setConfigSaving(true)
