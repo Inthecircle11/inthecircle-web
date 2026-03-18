@@ -17,7 +17,7 @@ interface ActiveUser {
   minutes_ago: number
 }
 
-/** GET - List active users from user_presence table. Requires active_sessions permission. */
+/** GET - List active users from analytics_sessions table. Requires active_sessions permission. */
 export async function GET(req: NextRequest) {
   const result = await requireAdmin(req)
   if ('response' in result) return result.response
@@ -35,31 +35,18 @@ export async function GET(req: NextRequest) {
   // Calculate the cutoff time
   const cutoffTime = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString()
 
-  // Fetch users active in the specified window
-  const { data: usersData, error: usersError } = await supabase
-    .from('user_presence')
-    .select(`
-      user_id,
-      last_seen,
-      is_online,
-      updated_at,
-      profiles!inner (
-        name,
-        username,
-        profile_image_url,
-        niche,
-        account_type,
-        location
-      )
-    `)
-    .gt('last_seen', cutoffTime)
-    .order('last_seen', { ascending: false })
+  // Fetch users active in the specified window from analytics_sessions
+  const { data: sessionsData, error: sessionsError } = await supabase
+    .from('analytics_sessions')
+    .select('user_id, last_activity_at')
+    .not('user_id', 'is', null)
+    .gte('last_activity_at', cutoffTime)
+    .order('last_activity_at', { ascending: false })
     .limit(100)
-
-  if (usersError) {
-    console.error('[active-users] Failed to fetch users:', usersError)
-    console.error('[active-users] Error details:', JSON.stringify(usersError, null, 2))
-    // Return empty data instead of error to prevent UI breaking
+  
+  if (sessionsError) {
+    console.error('[active-users] Failed to fetch sessions:', sessionsError)
+    console.error('[active-users] Error details:', JSON.stringify(sessionsError, null, 2))
     return NextResponse.json({
       ok: true,
       data: {
@@ -69,28 +56,53 @@ export async function GET(req: NextRequest) {
         users: [],
       },
       fetched_at: new Date().toISOString(),
-      error: usersError.message,
+      error: sessionsError.message,
     })
   }
 
-  // Fetch aggregate counts in parallel
+  // Get unique user IDs
+  const uniqueUserIds = [...new Set((sessionsData || []).map((s: any) => s.user_id))]
+  
+  // Fetch profile data for these users
+  let usersData: any[] = []
+  if (uniqueUserIds.length > 0) {
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, name, username, profile_image_url, niche, account_type, location')
+      .in('id', uniqueUserIds)
+    
+    if (!profilesError && profiles) {
+      // Map sessions to profiles
+      const profileMap = new Map(profiles.map((p: any) => [p.id, p]))
+      usersData = (sessionsData || []).map((session: any) => ({
+        user_id: session.user_id,
+        last_seen: session.last_activity_at,
+        profiles: profileMap.get(session.user_id) || {}
+      }))
+    }
+  }
+
+  // Fetch aggregate counts in parallel from analytics_sessions
   const cutoff5min = new Date(Date.now() - 5 * 60 * 1000).toISOString()
   const cutoff60min = new Date(Date.now() - 60 * 60 * 1000).toISOString()
   const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
   const [concurrentRes, activeHourRes, activeTodayRes] = await Promise.allSettled([
     supabase
-      .from('user_presence')
-      .select('*', { count: 'exact', head: true })
-      .gt('last_seen', cutoff5min),
+      .from('analytics_sessions')
+      .select('user_id', { count: 'exact', head: true })
+      .not('user_id', 'is', null)
+      .gte('last_activity_at', cutoff5min),
     supabase
-      .from('user_presence')
-      .select('*', { count: 'exact', head: true })
-      .gt('last_seen', cutoff60min),
+      .from('analytics_sessions')
+      .select('user_id', { count: 'exact', head: true })
+      .not('user_id', 'is', null)
+      .gte('last_activity_at', cutoff60min),
     supabase
-      .from('user_presence')
-      .select('*', { count: 'exact', head: true })
-      .gt('last_seen', cutoff24h),
+      .from('analytics_sessions')
+      .select('user_id', { count: 'exact', head: true })
+      .not('user_id', 'is', null)
+      .gte('last_activity_at', cutoff24h),
   ])
   
   const getConcurrentCount = () => {
@@ -132,6 +144,17 @@ export async function GET(req: NextRequest) {
       minutes_ago: minutesAgo,
     }
   })
+  
+  // Remove duplicates by user_id, keeping the most recent
+  const uniqueUsers = Array.from(
+    users.reduce((map, user) => {
+      const existing = map.get(user.user_id)
+      if (!existing || user.minutes_ago < existing.minutes_ago) {
+        map.set(user.user_id, user)
+      }
+      return map
+    }, new Map<string, ActiveUser>()).values()
+  )
 
   return NextResponse.json({
     ok: true,
@@ -139,7 +162,7 @@ export async function GET(req: NextRequest) {
       concurrent: getConcurrentCount(),
       active_hour: getActiveHourCount(),
       active_today: getActiveTodayCount(),
-      users,
+      users: uniqueUsers,
     },
     fetched_at: new Date().toISOString(),
   })
