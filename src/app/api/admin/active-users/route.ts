@@ -9,12 +9,14 @@ interface ActiveUser {
   user_id: string
   last_seen: string
   full_name: string | null
+  name: string | null
   username: string | null
   email: string | null
   profile_image_url: string | null
   niche: string | null
   account_type: string | null
   location: string | null
+  about: string | null
   minutes_ago: number
 }
 
@@ -68,7 +70,7 @@ export async function GET(req: NextRequest) {
   if (uniqueUserIds.length > 0) {
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('id, name, username, email, profile_image_url, niche, account_type, location')
+      .select('id, name, username, email, profile_image_url, niche, account_type, location, about')
       .in('id', uniqueUserIds)
     
     if (!profilesError && profiles) {
@@ -133,12 +135,14 @@ export async function GET(req: NextRequest) {
       user_id: row.user_id,
       last_seen: row.last_seen,
       full_name: profile.name || null,
+      name: profile.name || null,
       username: profile.username || null,
       email: profile.email || null,
       profile_image_url: profile.profile_image_url || null,
       niche: profile.niche || null,
       account_type: profile.account_type || null,
       location: profile.location || null,
+      about: profile.about || null,
       minutes_ago: minutesAgo,
     }
   })

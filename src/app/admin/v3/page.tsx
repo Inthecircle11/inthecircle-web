@@ -105,12 +105,14 @@ interface ActiveUser {
   user_id: string
   last_seen: string
   full_name: string | null
+  name: string | null
   username: string | null
   email: string | null
   profile_image_url: string | null
   niche: string | null
   account_type: string | null
   location: string | null
+  about: string | null
   minutes_ago: number
 }
 
@@ -242,6 +244,32 @@ function fmtDate(s: string | null | undefined): string {
   const d = new Date(s)
   if (isNaN(d.getTime())) return '-'
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function calculateProfileCompletion(user: ActiveUser): number {
+  // Core fields (required for basic profile)
+  const coreFields = [
+    user.name,
+    user.username,
+    user.email,
+  ]
+  
+  // Optional but important fields
+  const optionalFields = [
+    user.niche,
+    user.location,
+    user.about,
+    user.profile_image_url,
+  ]
+  
+  const coreScore = coreFields.filter(f => f && f.trim() !== '').length
+  const optionalScore = optionalFields.filter(f => f && f.trim() !== '').length
+  
+  // Core fields are worth 60%, optional fields are worth 40%
+  const corePercentage = (coreScore / coreFields.length) * 60
+  const optionalPercentage = (optionalScore / optionalFields.length) * 40
+  
+  return Math.round(corePercentage + optionalPercentage)
 }
 
 interface ApplicationRow {
@@ -544,6 +572,7 @@ export default function AdminV3Page() {
   const [activeUsersLoading, setActiveUsersLoading] = useState(true)
   const [activeUsersWindow, setActiveUsersWindow] = useState(5)
   const [activeUsersFetchedAt, setActiveUsersFetchedAt] = useState<string | null>(null)
+  const [activeUsersCompletionFilter, setActiveUsersCompletionFilter] = useState<string>('all')
 
   // Settings (config)
   const [config, setConfig] = useState<Record<string, string>>({})
@@ -2228,6 +2257,19 @@ export default function AdminV3Page() {
                       <div className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
                       <span className="text-[11px] text-[#4A5270]">Live</span>
                     </div>
+                    {/* Completion filter */}
+                    <select
+                      value={activeUsersCompletionFilter}
+                      onChange={e => setActiveUsersCompletionFilter(e.target.value)}
+                      className="bg-[#1C2030] border border-[#2E3448] text-[#8892AA]
+                        text-[11px] rounded-lg px-2 py-1 outline-none cursor-pointer"
+                    >
+                      <option value="all">All Users</option>
+                      <option value="0-25">0-25% Complete</option>
+                      <option value="26-50">26-50% Complete</option>
+                      <option value="51-75">51-75% Complete</option>
+                      <option value="76-100">76-100% Complete</option>
+                    </select>
                     {/* Window selector */}
                     <select
                       value={activeUsersWindow}
@@ -2290,56 +2332,74 @@ export default function AdminV3Page() {
                   </div>
                 ) : (
                   <div className="space-y-1 max-h-[400px] overflow-y-auto">
-                    {activeUsersData.users.map(user => (
-                      <div key={user.user_id}
-                        className="flex items-center gap-3 p-2 rounded-lg
-                          hover:bg-[#1C2030] transition-colors">
-                        
-                        {/* Avatar */}
-                        <div className="relative flex-shrink-0">
-                          {user.profile_image_url ? (
-                            <img
-                              src={user.profile_image_url}
-                              alt={user.full_name || ''}
-                              className="w-8 h-8 rounded-full object-cover"
-                              onError={e => {
-                                e.currentTarget.style.display = 'none'
-                              }}
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br
-                              from-[#6366F1] to-[#A78BFA] flex items-center
-                              justify-center text-[11px] font-bold text-white">
-                              {(user.full_name || user.username || '?')[0].toUpperCase()}
+                    {activeUsersData.users
+                      .filter(user => {
+                        if (activeUsersCompletionFilter === 'all') return true
+                        const completion = calculateProfileCompletion(user)
+                        const [min, max] = activeUsersCompletionFilter.split('-').map(Number)
+                        return completion >= min && completion <= max
+                      })
+                      .map(user => {
+                        const completion = calculateProfileCompletion(user)
+                        return (
+                          <div key={user.user_id}
+                            className="flex items-center gap-3 p-2 rounded-lg
+                              hover:bg-[#1C2030] transition-colors">
+                            
+                            {/* Avatar */}
+                            <div className="relative flex-shrink-0">
+                              {user.profile_image_url ? (
+                                <img
+                                  src={user.profile_image_url}
+                                  alt={user.full_name || ''}
+                                  className="w-8 h-8 rounded-full object-cover"
+                                  onError={e => {
+                                    e.currentTarget.style.display = 'none'
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br
+                                  from-[#6366F1] to-[#A78BFA] flex items-center
+                                  justify-center text-[11px] font-bold text-white">
+                                  {(user.full_name || user.username || '?')[0].toUpperCase()}
+                                </div>
+                              )}
+                              {/* Online dot — only for last 5 min */}
+                              {user.minutes_ago < 5 && (
+                                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5
+                                  rounded-full bg-[#10B981] border-2 border-[#13161D]" />
+                              )}
                             </div>
-                          )}
-                          {/* Online dot — only for last 5 min */}
-                          {user.minutes_ago < 5 && (
-                            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5
-                              rounded-full bg-[#10B981] border-2 border-[#13161D]" />
-                          )}
-                        </div>
 
-                        {/* User info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[12.5px] font-600 text-[#EEF0F8] truncate">
-                              {user.full_name || user.username || 'Unknown'}
-                            </span>
-                            {user.location && (
-                              <span className="text-[12px]">
-                                {getCountryFlag(user.location)}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[11px] text-[#4A5270] truncate">
-                            {user.email || `@${user.username}` || '—'}
-                            {user.niche && ` · ${user.niche}`}
-                          </div>
-                        </div>
+                            {/* User info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[12.5px] font-600 text-[#EEF0F8] truncate">
+                                  {user.full_name || user.username || 'Unknown'}
+                                </span>
+                                {user.location && (
+                                  <span className="text-[12px]">
+                                    {getCountryFlag(user.location)}
+                                  </span>
+                                )}
+                                {/* Completion badge */}
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                  completion >= 76 ? 'bg-[#10B981]/10 text-[#10B981]' :
+                                  completion >= 51 ? 'bg-[#F59E0B]/10 text-[#F59E0B]' :
+                                  completion >= 26 ? 'bg-[#EF4444]/10 text-[#EF4444]' :
+                                  'bg-[#6B7280]/10 text-[#6B7280]'
+                                }`}>
+                                  {completion}%
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-[#4A5270] truncate">
+                                {user.email || `@${user.username}` || '—'}
+                                {user.niche && ` · ${user.niche}`}
+                              </div>
+                            </div>
 
-                        {/* Last seen */}
-                        <div className="flex-shrink-0 text-right">
+                            {/* Last seen */}
+                            <div className="flex-shrink-0 text-right">
                           <div className={`text-[11px] font-600 ${
                             user.minutes_ago < 5 ? 'text-[#10B981]' :
                             user.minutes_ago < 60 ? 'text-[#F59E0B]' :
@@ -2354,7 +2414,8 @@ export default function AdminV3Page() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )
+                  })}
                   </div>
                 )}
 
