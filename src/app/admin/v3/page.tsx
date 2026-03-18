@@ -142,7 +142,7 @@ function getCountryFlag(location: string | null | undefined): string {
     // Qatar
     'qatar': 'QA', 'doha': 'QA',
     // Kuwait
-    'kuwait': 'KW', 'kuwait city': 'KW',
+    'kuwait': 'KW', 'kuwait city': 'KW', 'al kuwayt': 'KW', 'hawalli': 'KW',
     // Jordan
     'jordan': 'JO', 'amman': 'JO',
     // Lebanon
@@ -270,6 +270,207 @@ function calculateProfileCompletion(user: ActiveUser): number {
   const optionalPercentage = (optionalScore / optionalFields.length) * 40
   
   return Math.round(corePercentage + optionalPercentage)
+}
+
+function normalizeLocation(raw: string): {
+  city: string
+  country: string
+  countryCode: string
+} {
+  if (!raw) return { city: '', country: 'Unknown', countryCode: '' }
+
+  const s = raw.trim()
+
+  // Country normalization map: keyword → { country, code }
+  const countryMap: Array<{
+    keywords: string[]
+    country: string
+    code: string
+  }> = [
+    { keywords: ['uae', 'united arab emirates', 'dubai', 'abu dhabi',
+        'sharjah', 'ajman', 'fujairah', 'ras al khaimah', 'al ain'],
+      country: 'United Arab Emirates', code: 'AE' },
+    { keywords: ['saudi', 'saudi arabia', 'riyadh', 'jeddah',
+        'mecca', 'medina', 'dammam', 'khobar'],
+      country: 'Saudi Arabia', code: 'SA' },
+    { keywords: ['egypt', 'cairo', 'alexandria', 'giza'],
+      country: 'Egypt', code: 'EG' },
+    { keywords: ['uk', 'united kingdom', 'england', 'london',
+        'manchester', 'birmingham', 'scotland', 'wales', 'britain'],
+      country: 'United Kingdom', code: 'GB' },
+    { keywords: ['usa', 'united states', 'america', 'new york',
+        'los angeles', 'california', 'texas', 'florida', 'chicago',
+        ', ca', ', ny', ', tx', ', fl'],
+      country: 'United States', code: 'US' },
+    { keywords: ['qatar', 'doha'],
+      country: 'Qatar', code: 'QA' },
+    { keywords: ['kuwait', 'al kuwayt', 'hawalli', 'al kuwait',
+        'kuwait city'],
+      country: 'Kuwait', code: 'KW' },
+    { keywords: ['jordan', 'amman', 'zarqa'],
+      country: 'Jordan', code: 'JO' },
+    { keywords: ['lebanon', 'beirut'],
+      country: 'Lebanon', code: 'LB' },
+    { keywords: ['bahrain', 'manama'],
+      country: 'Bahrain', code: 'BH' },
+    { keywords: ['oman', 'muscat', 'salalah'],
+      country: 'Oman', code: 'OM' },
+    { keywords: ['sri lanka', 'colombo', 'kandy'],
+      country: 'Sri Lanka', code: 'LK' },
+    { keywords: ['poland', 'warsaw', 'krakow', 'polska'],
+      country: 'Poland', code: 'PL' },
+    { keywords: ['italy', 'italia', 'milan', 'milano', 'rome',
+        'roma', 'florence', 'naples'],
+      country: 'Italy', code: 'IT' },
+    { keywords: ['germany', 'berlin', 'munich', 'hamburg',
+        'frankfurt', 'cologne'],
+      country: 'Germany', code: 'DE' },
+    { keywords: ['france', 'paris', 'lyon', 'marseille'],
+      country: 'France', code: 'FR' },
+    { keywords: ['canada', 'toronto', 'vancouver', 'montreal',
+        'calgary'],
+      country: 'Canada', code: 'CA' },
+    { keywords: ['australia', 'sydney', 'melbourne', 'brisbane',
+        'perth'],
+      country: 'Australia', code: 'AU' },
+    { keywords: ['india', 'mumbai', 'delhi', 'bangalore',
+        'chennai', 'hyderabad', 'pune'],
+      country: 'India', code: 'IN' },
+    { keywords: ['pakistan', 'karachi', 'lahore', 'islamabad'],
+      country: 'Pakistan', code: 'PK' },
+    { keywords: ['turkey', 'turkiye', 'istanbul', 'ankara',
+        'izmir'],
+      country: 'Turkey', code: 'TR' },
+    { keywords: ['morocco', 'casablanca', 'rabat', 'marrakech'],
+      country: 'Morocco', code: 'MA' },
+    { keywords: ['nigeria', 'lagos', 'abuja', 'kano'],
+      country: 'Nigeria', code: 'NG' },
+    { keywords: ['south africa', 'cape town', 'johannesburg',
+        'durban'],
+      country: 'South Africa', code: 'ZA' },
+    { keywords: ['singapore'],
+      country: 'Singapore', code: 'SG' },
+    { keywords: ['malaysia', 'kuala lumpur', 'kl'],
+      country: 'Malaysia', code: 'MY' },
+  ]
+
+  const lower = s.toLowerCase()
+
+  // Find matching country
+  let matchedCountry = 'Unknown'
+  let matchedCode = ''
+
+  // Sort by keyword length descending to match longest first
+  const allKeywords = countryMap.flatMap(c =>
+    c.keywords.map(k => ({ keyword: k, country: c.country, code: c.code }))
+  ).sort((a, b) => b.keyword.length - a.keyword.length)
+
+  for (const { keyword, country, code } of allKeywords) {
+    if (lower.includes(keyword)) {
+      matchedCountry = country
+      matchedCode = code
+      break
+    }
+  }
+
+  // Extract city: take the part before the first comma
+  // or the whole string if no comma
+  const parts = s.split(',')
+  let city = parts[0].trim()
+
+  // Normalize city names
+  const cityNorm: Record<string, string> = {
+    'dubai': 'Dubai',
+    'abu dhabi': 'Abu Dhabi',
+    'sharjah': 'Sharjah',
+    'london': 'London',
+    'cairo': 'Cairo',
+    'riyadh': 'Riyadh',
+    'jeddah': 'Jeddah',
+    'doha': 'Doha',
+    'kuwait city': 'Kuwait City',
+    'al kuwayt': 'Kuwait City',
+    'hawalli': 'Hawalli',
+    'los angeles': 'Los Angeles',
+    'new york': 'New York',
+    'paris': 'Paris',
+    'milan': 'Milan',
+    'milano': 'Milan',
+    'berlin': 'Berlin',
+    'toronto': 'Toronto',
+    'sydney': 'Sydney',
+    'mumbai': 'Mumbai',
+    'singapore': 'Singapore',
+  }
+
+  const cityLower = city.toLowerCase()
+  for (const [key, normalized] of Object.entries(cityNorm)) {
+    if (cityLower === key || cityLower.startsWith(key)) {
+      city = normalized
+      break
+    }
+  }
+
+  // If city is just the country name, set it to empty
+  if (city.toLowerCase() === matchedCountry.toLowerCase() ||
+      city.toLowerCase() === matchedCode.toLowerCase()) {
+    city = ''
+  }
+
+  return { city, country: matchedCountry, countryCode: matchedCode }
+}
+
+interface GeoCountry {
+  country: string
+  countryCode: string
+  flag: string
+  total: number
+  cities: Array<{ city: string; count: number }>
+}
+
+function groupLocationsByCountry(
+  locations: Array<{ location: string; count: number }>
+): GeoCountry[] {
+  const countryMap = new Map<string, GeoCountry>()
+
+  for (const { location, count } of locations) {
+    const { city, country, countryCode } = normalizeLocation(location)
+    const flag = countryCode ? isoToFlag(countryCode) : ''
+
+    if (!countryMap.has(country)) {
+      countryMap.set(country, {
+        country,
+        countryCode,
+        flag,
+        total: 0,
+        cities: [],
+      })
+    }
+
+    const entry = countryMap.get(country)!
+    entry.total += count
+
+    if (city) {
+      const existingCity = entry.cities.find(
+        c => c.city.toLowerCase() === city.toLowerCase()
+      )
+      if (existingCity) {
+        existingCity.count += count
+      } else {
+        entry.cities.push({ city, count })
+      }
+    }
+  }
+
+  // Sort cities within each country by count desc
+  for (const entry of countryMap.values()) {
+    entry.cities.sort((a, b) => b.count - a.count)
+  }
+
+  // Return sorted by total count desc
+  return Array.from(countryMap.values())
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10)
 }
 
 interface ApplicationRow {
@@ -575,6 +776,9 @@ export default function AdminV3Page() {
   const [activeUsersWindow, setActiveUsersWindow] = useState(5)
   const [activeUsersFetchedAt, setActiveUsersFetchedAt] = useState<string | null>(null)
   const [activeUsersCompletionFilter, setActiveUsersCompletionFilter] = useState<string>('all')
+
+  // Geographic view mode
+  const [geoView, setGeoView] = useState<'country' | 'city'>('country')
 
   // Settings (config)
   const [config, setConfig] = useState<Record<string, string>>({})
@@ -4041,41 +4245,225 @@ export default function AdminV3Page() {
                     )}
                   </ChartCard>
 
-                  <ChartCard
-                    title="Geographic Distribution"
-                    subtitle="Top locations"
-                    loading={geoLoading}
-                    error={geoError}
-                    onRetry={loadGeoData}
-                  >
-                    {geoData.length === 0 ? (
+                  <div className="bg-[#13161D] border border-[#252A38] rounded-[18px] p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <div className="text-[13px] font-bold text-[#EEF0F8]">Geographic Distribution</div>
+                        <div className="text-[11px] text-[#4A5270] mt-0.5">Top locations</div>
+                      </div>
+                      {/* View toggle */}
+                      <div className="flex gap-1 bg-[#1C2030] rounded-lg p-1">
+                        <button
+                          onClick={() => setGeoView('country')}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: geoView === 'country' ? '#6366F1' : 'transparent',
+                            color: geoView === 'country' ? '#fff' : '#8892AA',
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          Country
+                        </button>
+                        <button
+                          onClick={() => setGeoView('city')}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: geoView === 'city' ? '#6366F1' : 'transparent',
+                            color: geoView === 'city' ? '#fff' : '#8892AA',
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          City
+                        </button>
+                      </div>
+                    </div>
+
+                    {geoLoading ? (
+                      <div style={{ textAlign: 'center', padding: 48, color: 'var(--t3)' }}>
+                        <div style={{ fontSize: 12 }}>Loading...</div>
+                      </div>
+                    ) : geoError ? (
+                      <div style={{ textAlign: 'center', padding: 48, color: 'var(--err)' }}>
+                        <div style={{ fontSize: 12, marginBottom: 8 }}>{geoError}</div>
+                        <button
+                          onClick={loadGeoData}
+                          className="btn btn-gh bsm"
+                          style={{ marginTop: 8 }}
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    ) : geoData.length === 0 ? (
                       <div style={{ textAlign: 'center', padding: 48, color: 'var(--t3)' }}>
                         <div style={{ fontSize: 32, marginBottom: 8 }}>🌍</div>
                         <div style={{ fontSize: 12 }}>No location data</div>
                       </div>
-                    ) : (
-                      <div style={{ padding: '8px 0' }}>
-                        {geoData.map((item, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: i < geoData.length - 1 ? '1px solid #252A38' : 'none' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span style={{ fontSize: 13, width: 24, textAlign: 'center', color: '#4A5270' }}>
+                    ) : geoView === 'country' ? (
+                      /* Country view */
+                      <div className="space-y-1">
+                        {groupLocationsByCountry(geoData).map((country, i) => (
+                          <div key={country.country}>
+                            {/* Country row */}
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                padding: '8px 4px',
+                                borderBottom: '1px solid #252A38',
+                              }}
+                            >
+                              <span style={{
+                                fontSize: '11px',
+                                color: '#4A5270',
+                                width: '18px',
+                                textAlign: 'center',
+                                flexShrink: 0,
+                              }}>
                                 {i + 1}
                               </span>
-                              <span style={{ fontSize: 13 }}>
-                                {getCountryFlag(item.location)}
+                              <span style={{ fontSize: '16px', flexShrink: 0 }}>
+                                {country.flag}
                               </span>
-                              <span style={{ fontSize: 12, color: '#8892AA' }}>
-                                {item.location}
+                              <span style={{
+                                fontSize: '13px',
+                                color: '#EEF0F8',
+                                fontWeight: 600,
+                                flex: 1,
+                              }}>
+                                {country.country}
+                              </span>
+                              <span style={{
+                                fontSize: '13px',
+                                fontWeight: 700,
+                                color: '#EEF0F8',
+                              }}>
+                                {country.total}
                               </span>
                             </div>
-                            <span style={{ fontSize: 12, fontWeight: 'bold', color: '#EEF0F8' }}>
-                              {item.count}
-                            </span>
+                            {/* City breakdown */}
+                            {country.cities.length > 0 && (
+                              <div style={{ paddingLeft: '44px' }}>
+                                {country.cities.map(city => (
+                                  <div
+                                    key={city.city}
+                                    style={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      padding: '4px 4px 4px 0',
+                                      borderBottom: '1px solid #1C2030',
+                                      fontSize: '11.5px',
+                                    }}
+                                  >
+                                    <span style={{ color: '#8892AA' }}>
+                                      {city.city}
+                                    </span>
+                                    <span style={{ color: '#4A5270' }}>
+                                      {city.count}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
+                    ) : (
+                      /* City view — flat list but normalized */
+                      <div>
+                        {geoData
+                          .map(item => ({
+                            ...item,
+                            normalized: normalizeLocation(item.location),
+                          }))
+                          .reduce((acc, item) => {
+                            // Merge same normalized city+country
+                            const key = `${item.normalized.city}-${item.normalized.country}`
+                            const existing = acc.find(a => a.key === key)
+                            if (existing) {
+                              existing.count += item.count
+                            } else {
+                              acc.push({
+                                key,
+                                city: item.normalized.city || item.normalized.country,
+                                country: item.normalized.country,
+                                countryCode: item.normalized.countryCode,
+                                flag: item.normalized.countryCode
+                                  ? isoToFlag(item.normalized.countryCode) : '',
+                                count: item.count,
+                              })
+                            }
+                            return acc
+                          }, [] as Array<{
+                            key: string
+                            city: string
+                            country: string
+                            countryCode: string
+                            flag: string
+                            count: number
+                          }>)
+                          .sort((a, b) => b.count - a.count)
+                          .slice(0, 15)
+                          .map((item, i) => (
+                            <div
+                              key={item.key}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                padding: '8px 4px',
+                                borderBottom: '1px solid #252A38',
+                              }}
+                            >
+                              <span style={{
+                                fontSize: '11px',
+                                color: '#4A5270',
+                                width: '18px',
+                                textAlign: 'center',
+                                flexShrink: 0,
+                              }}>
+                                {i + 1}
+                              </span>
+                              <span style={{ fontSize: '16px', flexShrink: 0 }}>
+                                {item.flag}
+                              </span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{
+                                  fontSize: '12.5px',
+                                  color: '#EEF0F8',
+                                  fontWeight: 500,
+                                }}>
+                                  {item.city}
+                                </div>
+                                <div style={{
+                                  fontSize: '10.5px',
+                                  color: '#4A5270',
+                                }}>
+                                  {item.country}
+                                </div>
+                              </div>
+                              <span style={{
+                                fontSize: '13px',
+                                fontWeight: 700,
+                                color: '#EEF0F8',
+                              }}>
+                                {item.count}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
                     )}
-                  </ChartCard>
+                  </div>
 
                   <ChartCard
                     title="Platform Usage"
