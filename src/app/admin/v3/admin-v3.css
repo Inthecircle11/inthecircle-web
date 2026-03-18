@@ -1383,13 +1383,15 @@
 
 /* Mobile Responsive Styles */
 @media (max-width: 1023px) {
-  /* Sidebar - fixed position on mobile */
+  /* Sidebar - fixed position and hidden by default on mobile */
   .admin-v3 #sb {
     position: fixed !important;
     top: 0;
     bottom: 0;
     left: 0;
     z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 300ms ease-in-out;
   }
 
   /* Main content - full width on mobile */
