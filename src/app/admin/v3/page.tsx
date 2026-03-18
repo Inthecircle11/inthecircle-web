@@ -2085,7 +2085,6 @@ export default function AdminV3Page() {
           style={{
             transform: isMobile && !sidebarOpen ? 'translateX(-100%)' : 'translateX(0)',
             transition: 'transform 300ms ease-in-out',
-            position: isMobile ? 'fixed' : 'static',
           }}
         >
           {/* Close button - mobile only */}
