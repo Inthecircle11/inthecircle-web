@@ -26,18 +26,35 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const { data: applications, error } = await supabase
+    // Get approved application user IDs
+    const { data: approvedApps, error: appsError } = await supabase
       .from('applications')
-      .select('niche')
+      .select('user_id')
       .eq('status', 'approved')
+    
+    if (appsError) throw appsError
+    
+    const approvedUserIds = approvedApps?.map((app: { user_id: string }) => app.user_id) || []
+    
+    if (approvedUserIds.length === 0) {
+      const body = { ok: true, data: [], cached_at: new Date().toISOString() }
+      cachedNiches = { at: Date.now(), body }
+      return NextResponse.json(body)
+    }
+    
+    // Get niches from profiles for approved users
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('niche')
+      .in('id', approvedUserIds)
       .not('niche', 'is', null)
       .neq('niche', '')
     
-    if (error) throw error
+    if (profilesError) throw profilesError
     
     const nicheMap = new Map<string, number>()
-    applications?.forEach((app: { niche: string }) => {
-      const niche = app.niche || 'Not specified'
+    profiles?.forEach((p: { niche: string }) => {
+      const niche = p.niche || 'Not specified'
       nicheMap.set(niche, (nicheMap.get(niche) || 0) + 1)
     })
     
