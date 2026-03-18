@@ -88,6 +88,14 @@ interface ActivityItem {
   created_at: string
 }
 
+interface ActiveUsersData {
+  concurrent_now: number
+  active_this_hour: number
+  active_today: number
+  recent_users: Array<{ id: string; name: string | null; username: string | null; last_activity: string }>
+  cached_at: string
+}
+
 interface ActiveUser {
   user_id: string
   last_seen: string
