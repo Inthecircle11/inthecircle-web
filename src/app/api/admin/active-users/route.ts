@@ -33,8 +33,10 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const windowMinutes = parseInt(url.searchParams.get('window') || '5', 10)
 
-  // Calculate the cutoff time
-  const cutoffTime = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString()
+  // Calculate the cutoff time - use 24 hours minimum to show recent users
+  // since analytics_sessions may not update in real-time
+  const effectiveWindow = Math.max(windowMinutes, 1440) // At least 24 hours
+  const cutoffTime = new Date(Date.now() - effectiveWindow * 60 * 1000).toISOString()
 
   // Fetch users active in the specified window from analytics_sessions
   const { data: sessionsData, error: sessionsError } = await supabase
