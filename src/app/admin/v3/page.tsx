@@ -2381,7 +2381,7 @@ export default function AdminV3Page() {
                         const completion = calculateProfileCompletion(user)
                         return (
                           <div key={user.user_id}
-                            className="flex items-center gap-3 p-2 rounded-lg
+                            className="flex items-center gap-3 p-3 lg:p-2 rounded-lg
                               hover:bg-[#1C2030] transition-colors">
                             
                             {/* Avatar */}
@@ -2437,7 +2437,7 @@ export default function AdminV3Page() {
                             </div>
 
                             {/* Last seen */}
-                            <div className="flex-shrink-0 text-right">
+                            <div className="flex-shrink-0 text-right min-w-[50px]">
                           <div className={`text-[11px] font-600 ${
                             user.minutes_ago < 5 ? 'text-[#10B981]' :
                             user.minutes_ago < 60 ? 'text-[#F59E0B]' :
@@ -3701,26 +3701,28 @@ export default function AdminV3Page() {
                   <div className="te"><div className="tei">📋</div>No audit entries.</div>
                 ) : (
                   <>
-                    <div className="admin-v3-table-wrap">
-                      <table className="admin-v3-table">
-                        <thead>
-                          <tr><th>Time</th><th>Admin</th><th>Action</th><th>Target</th><th>Details</th></tr>
-                        </thead>
-                        <tbody>
-                          {auditEntries.map((e) => (
-                            <tr key={e.id}>
-                              <td style={{ fontSize: 11 }}>{e.created_at ? new Date(e.created_at).toLocaleString() : '—'}</td>
-                              <td>{e.admin_email ?? '—'}</td>
-                              <td>{e.action}</td>
-                              <td>{e.target_type && e.target_id ? `${e.target_type}: ${e.target_id}` : (e.target_type ?? '—')}</td>
-                              <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.details != null ? JSON.stringify(e.details).slice(0, 80) : '—'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div className="overflow-x-auto -mx-4 lg:mx-0">
+                      <div className="admin-v3-table-wrap">
+                        <table className="admin-v3-table min-w-[600px] lg:min-w-full">
+                          <thead>
+                            <tr><th>Time</th><th>Admin</th><th>Action</th><th>Target</th><th className="hidden lg:table-cell">Details</th></tr>
+                          </thead>
+                          <tbody>
+                            {auditEntries.map((e) => (
+                              <tr key={e.id}>
+                                <td style={{ fontSize: 11 }}>{e.created_at ? new Date(e.created_at).toLocaleString() : '—'}</td>
+                                <td>{e.admin_email ?? '—'}</td>
+                                <td>{e.action}</td>
+                                <td>{e.target_type && e.target_id ? `${e.target_type}: ${e.target_id}` : (e.target_type ?? '—')}</td>
+                                <td className="hidden lg:table-cell max-w-[200px] overflow-hidden" style={{ textOverflow: 'ellipsis' }}>{e.details != null ? JSON.stringify(e.details).slice(0, 80) : '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                     <div className="admin-v3-pagination">
-                      <button type="button" className="admin-v3-btn admin-v3-btn-sm" disabled={auditPage <= 1 || auditLoading} onClick={() => setAuditPage((p) => Math.max(1, p - 1))}>Previous</button>
+                      <button type="button" className="admin-v3-btn admin-v3-btn-sm min-h-[40px] px-4 lg:px-3 lg:min-h-[auto]" disabled={auditPage <= 1 || auditLoading} onClick={() => setAuditPage((p) => Math.max(1, p - 1))}>Previous</button>
                       <span className="admin-v3-muted">
                         Page {auditPage} of {Math.ceil(auditTotal / AUDIT_PAGE_SIZE) || 1} · {fmt(auditTotal)} total
                       </span>
@@ -3788,7 +3790,7 @@ export default function AdminV3Page() {
                 ) : (
                   <>
                     {complianceHealth && (
-                      <div className="sg sg4" style={{ marginBottom: '1rem' }}>
+                      <div className="sg sg4 grid grid-cols-1 sm:grid-cols-2 gap-4" style={{ marginBottom: '1rem' }}>
                         <div className="sc" style={{ ['--c' as string]: 'var(--ok)' }}>
                           <div className="sc-lbl">Overall score</div>
                           <div className="sc-val">{complianceHealth.overall_score ?? '—'}</div>
@@ -3799,11 +3801,12 @@ export default function AdminV3Page() {
                         </div>
                       </div>
                     )}
-                    <div className="admin-v3-table-wrap">
-                      <table className="admin-v3-table">
-                        <thead>
-                          <tr><th>Control</th><th>Status</th><th>Score</th><th>Last checked</th></tr>
-                        </thead>
+                    <div className="overflow-x-auto -mx-4 lg:mx-0">
+                      <div className="admin-v3-table-wrap">
+                        <table className="admin-v3-table min-w-[500px] lg:min-w-full">
+                          <thead>
+                            <tr><th>Control</th><th>Status</th><th>Score</th><th>Last checked</th></tr>
+                          </thead>
                         <tbody>
                           {(complianceHealth?.controls ?? []).map((c) => (
                             <tr key={c.control_code}>
@@ -3821,6 +3824,7 @@ export default function AdminV3Page() {
                           )}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   </>
                 )}
