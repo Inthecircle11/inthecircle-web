@@ -47,6 +47,7 @@ interface OverviewStats {
   suspended: number
   verified_members: number
   active_today: number
+  concurrent_now: number
   open_reports: number
   signups_7d: number
   signups_30d: number
@@ -85,6 +86,18 @@ interface ActivityItem {
   target: string
   admin_email: string
   created_at: string
+}
+
+interface ActiveUser {
+  user_id: string
+  last_seen: string
+  full_name: string | null
+  username: string | null
+  profile_image_url: string | null
+  niche: string | null
+  account_type: string | null
+  location: string | null
+  minutes_ago: number
 }
 
 // Country flag utility functions
@@ -501,6 +514,17 @@ export default function AdminV3Page() {
   const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([])
   const [activityFeedLoading, setActivityFeedLoading] = useState(false)
   const [activityFeedError, setActivityFeedError] = useState<string | null>(null)
+
+  // Active users
+  const [activeUsersData, setActiveUsersData] = useState<{
+    concurrent: number
+    active_hour: number
+    active_today: number
+    users: ActiveUser[]
+  } | null>(null)
+  const [activeUsersLoading, setActiveUsersLoading] = useState(true)
+  const [activeUsersWindow, setActiveUsersWindow] = useState(5)
+  const [activeUsersFetchedAt, setActiveUsersFetchedAt] = useState<string | null>(null)
 
   // Settings (config)
   const [config, setConfig] = useState<Record<string, string>>({})
@@ -1537,6 +1561,21 @@ export default function AdminV3Page() {
     }
   }, [])
 
+  const loadActiveUsers = useCallback(async (window = 5) => {
+    setActiveUsersLoading(true)
+    try {
+      const res = await fetch(`/api/admin/active-users?window=${window}`, { credentials: 'include' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error)
+      setActiveUsersData(json.data)
+      setActiveUsersFetchedAt(json.fetched_at)
+    } catch (e: any) {
+      console.error('Failed to load active users:', e.message)
+    } finally {
+      setActiveUsersLoading(false)
+    }
+  }, [])
+
   const loadConfig = useCallback(async () => {
     setConfigLoading(true)
     setError(null)
@@ -1557,6 +1596,7 @@ export default function AdminV3Page() {
       loadOverviewStats()
       loadTrendData(14)
       loadActivityFeed()
+      loadActiveUsers(activeUsersWindow)
     }
     if (activePanel === 'dashboard') {
       loadOverviewStats()
@@ -1568,7 +1608,14 @@ export default function AdminV3Page() {
       loadNicheData()
       loadGeoData()
     }
-  }, [authorized, activePanel, loadOverviewStats, loadTrendData, loadMonthlyData, loadAccountTypeData, loadNicheData, loadGeoData, loadActivityFeed])
+  }, [authorized, activePanel, loadOverviewStats, loadTrendData, loadMonthlyData, loadAccountTypeData, loadNicheData, loadGeoData, loadActivityFeed, loadActiveUsers, activeUsersWindow])
+
+  // Auto-refresh active users every 30 seconds when on Overview panel
+  useEffect(() => {
+    if (!authorized || activePanel !== 'overview') return
+    const interval = setInterval(() => loadActiveUsers(activeUsersWindow), 30000)
+    return () => clearInterval(interval)
+  }, [authorized, activePanel, activeUsersWindow, loadActiveUsers])
 
   const saveConfig = useCallback(async (updates: Record<string, string>) => {
     setConfigSaving(true)
@@ -2111,7 +2158,11 @@ export default function AdminV3Page() {
                 <div className="sc" style={{ ['--c' as string]: 'var(--info)' }}>
                   <div className="sc-lbl">Active Today</div>
                   <div className="sc-val">{overviewStats ? fmt(overviewStats.active_today) : '—'}</div>
-                  <div className="sc-meta">Last 24h</div>
+                  <div className="sc-meta">
+                    <span className="text-[11px] text-[#10B981] font-600">
+                      {overviewStats?.concurrent_now ?? 0} online now
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -2137,6 +2188,165 @@ export default function AdminV3Page() {
                   <div className="sc-val">{overviewStats ? `${overviewStats.approval_rate}%` : '—'}</div>
                   <div className="sc-meta">All time</div>
                 </div>
+              </div>
+
+              {/* Live User Activity */}
+              <div className="bg-[#13161D] border border-[#252A38] rounded-[18px] p-5 mb-6">
+                
+                {/* Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <div className="text-[13px] font-bold text-[#EEF0F8]">
+                      Live User Activity
+                    </div>
+                    <div className="text-[11px] text-[#4A5270] mt-0.5">
+                      Real-time presence from user_presence table
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* Auto-refresh indicator */}
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
+                      <span className="text-[11px] text-[#4A5270]">Live</span>
+                    </div>
+                    {/* Window selector */}
+                    <select
+                      value={activeUsersWindow}
+                      onChange={e => {
+                        const w = parseInt(e.target.value)
+                        setActiveUsersWindow(w)
+                        loadActiveUsers(w)
+                      }}
+                      className="bg-[#1C2030] border border-[#2E3448] text-[#8892AA]
+                        text-[11px] rounded-lg px-2 py-1 outline-none cursor-pointer"
+                    >
+                      <option value={5}>Last 5 min</option>
+                      <option value={60}>Last 1 hour</option>
+                      <option value={1440}>Last 24 hours</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 3 count stats */}
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-[#1C2030] rounded-xl p-3 text-center">
+                    <div className="text-[22px] font-bold text-[#EEF0F8]">
+                      {activeUsersData?.concurrent ?? '—'}
+                    </div>
+                    <div className="text-[10px] text-[#4A5270] mt-1">Concurrent Now</div>
+                    <div className="text-[10px] text-[#10B981] mt-0.5">last 5 min</div>
+                  </div>
+                  <div className="bg-[#1C2030] rounded-xl p-3 text-center">
+                    <div className="text-[22px] font-bold text-[#EEF0F8]">
+                      {activeUsersData?.active_hour ?? '—'}
+                    </div>
+                    <div className="text-[10px] text-[#4A5270] mt-1">Active This Hour</div>
+                    <div className="text-[10px] text-[#8892AA] mt-0.5">last 60 min</div>
+                  </div>
+                  <div className="bg-[#1C2030] rounded-xl p-3 text-center">
+                    <div className="text-[22px] font-bold text-[#EEF0F8]">
+                      {activeUsersData?.active_today ?? '—'}
+                    </div>
+                    <div className="text-[10px] text-[#4A5270] mt-1">Active Today</div>
+                    <div className="text-[10px] text-[#8892AA] mt-0.5">last 24 hours</div>
+                  </div>
+                </div>
+
+                {/* User list */}
+                {activeUsersLoading ? (
+                  <div className="space-y-2">
+                    {[1,2,3].map(i => (
+                      <div key={i} className="animate-pulse flex items-center gap-3 p-2">
+                        <div className="w-8 h-8 rounded-full bg-[#1C2030]" />
+                        <div className="flex-1 space-y-1.5">
+                          <div className="h-3 bg-[#1C2030] rounded w-1/3" />
+                          <div className="h-2.5 bg-[#1C2030] rounded w-1/2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : !activeUsersData?.users?.length ? (
+                  <div className="text-center py-6 text-[#4A5270] text-[12px]">
+                    No users active in this time window
+                  </div>
+                ) : (
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {activeUsersData.users.map(user => (
+                      <div key={user.user_id}
+                        className="flex items-center gap-3 p-2 rounded-lg
+                          hover:bg-[#1C2030] transition-colors">
+                        
+                        {/* Avatar */}
+                        <div className="relative flex-shrink-0">
+                          {user.profile_image_url ? (
+                            <img
+                              src={user.profile_image_url}
+                              alt={user.full_name || ''}
+                              className="w-8 h-8 rounded-full object-cover"
+                              onError={e => {
+                                e.currentTarget.style.display = 'none'
+                              }}
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br
+                              from-[#6366F1] to-[#A78BFA] flex items-center
+                              justify-center text-[11px] font-bold text-white">
+                              {(user.full_name || user.username || '?')[0].toUpperCase()}
+                            </div>
+                          )}
+                          {/* Online dot — only for last 5 min */}
+                          {user.minutes_ago < 5 && (
+                            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5
+                              rounded-full bg-[#10B981] border-2 border-[#13161D]" />
+                          )}
+                        </div>
+
+                        {/* User info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[12.5px] font-600 text-[#EEF0F8] truncate">
+                              {user.full_name || user.username || 'Unknown'}
+                            </span>
+                            {user.location && (
+                              <span className="text-[12px]">
+                                {getCountryFlag(user.location)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-[#4A5270] truncate">
+                            @{user.username || '—'}
+                            {user.niche && ` · ${user.niche}`}
+                          </div>
+                        </div>
+
+                        {/* Last seen */}
+                        <div className="flex-shrink-0 text-right">
+                          <div className={`text-[11px] font-600 ${
+                            user.minutes_ago < 5 ? 'text-[#10B981]' :
+                            user.minutes_ago < 60 ? 'text-[#F59E0B]' :
+                            'text-[#4A5270]'
+                          }`}>
+                            {user.minutes_ago < 1 ? 'Just now' :
+                             user.minutes_ago < 60 ? `${user.minutes_ago}m ago` :
+                             `${Math.floor(user.minutes_ago / 60)}h ago`}
+                          </div>
+                          <div className="text-[10px] text-[#4A5270]">
+                            {user.account_type || 'user'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Footer */}
+                {activeUsersFetchedAt && (
+                  <div className="mt-3 pt-3 border-t border-[#252A38] text-[10px]
+                    text-[#4A5270] flex items-center justify-between">
+                    <span>Auto-refreshes every 30 seconds</span>
+                    <span>Updated {new Date(activeUsersFetchedAt).toLocaleTimeString()}</span>
+                  </div>
+                )}
               </div>
 
               {/* Row 3: Charts */}

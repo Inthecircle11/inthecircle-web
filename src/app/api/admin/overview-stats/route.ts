@@ -140,27 +140,23 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // If admin_get_all_stats didn't return activeToday, fetch it from dedicated RPC (same DB, no extra permission)
-  let activeToday: number | null =
-    parsed.activeToday != null && parsed.activeToday !== ''
-      ? Number(parsed.activeToday)
-      : null
-  if (activeToday === null) {
-    const { data: activeTodayRow } = await supabase.rpc('admin_get_active_today_count').maybeSingle()
-    if (activeTodayRow != null && typeof (activeTodayRow as { active_count?: unknown }).active_count !== 'undefined') {
-      const raw = (activeTodayRow as { active_count: number | string }).active_count
-      activeToday =
-        typeof raw === 'number'
-          ? Math.max(0, Math.floor(raw))
-          : Math.max(0, parseInt(String(raw), 10) || 0)
-    }
-    // Fallback when admin_get_active_today_count is missing (e.g. migration not run)
-    if (activeToday === null) {
-      const { data: rows } = await supabase.rpc('get_active_sessions', { active_minutes: 24 * 60 })
-      const list = (rows ?? []) as Array<{ user_id: string }>
-      activeToday = new Set(list.map((r) => r.user_id)).size
-    }
-  }
+  // Fetch active_today and concurrent_now from user_presence table
+  const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const cutoff5min = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+
+  const [activeTodayRes, concurrentRes] = await Promise.all([
+    supabase
+      .from('user_presence')
+      .select('*', { count: 'exact', head: true })
+      .gt('last_seen', cutoff24h),
+    supabase
+      .from('user_presence')
+      .select('*', { count: 'exact', head: true })
+      .gt('last_seen', cutoff5min),
+  ])
+
+  const activeToday = activeTodayRes.count ?? 0
+  const concurrentNow = concurrentRes.count ?? 0
 
   // Fetch active sessions separately (requires profile join, but only if user has permission)
   let activeSessions = null
@@ -238,7 +234,8 @@ export async function GET(req: NextRequest) {
     verified_members: Number(parsed.overview?.verifiedCount) || 0,
     
     // Activity
-    active_today: activeToday ?? 0,
+    active_today: activeToday,
+    concurrent_now: concurrentNow,
     
     // Reports
     open_reports: openReportsRes,
