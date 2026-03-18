@@ -1,150 +1,113 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/admin-auth'
+import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
+import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 
 export const dynamic = 'force-dynamic'
 
-const CACHE_TTL_MS = 60 * 1000 // 1 minute cache
+interface ActiveUser {
+  user_id: string
+  last_seen: string
+  full_name: string | null
+  username: string | null
+  profile_image_url: string | null
+  niche: string | null
+  account_type: string | null
+  location: string | null
+  minutes_ago: number
+}
 
-let cachedData: {
-  concurrent: number
-  active_hour: number
-  active_today: number
-  users: Array<{
-    user_id: string
-    last_seen: string
-    full_name: string | null
-    username: string | null
-    profile_image_url: string | null
-    niche: string | null
-    account_type: string | null
-    location: string | null
-    minutes_ago: number
-  }>
-  fetched_at: string
-} | null = null
-
-let cacheTimestamp = 0
-
+/** GET - List active users from user_presence table. Requires active_sessions permission. */
 export async function GET(req: NextRequest) {
-  try {
-    const adminCheck = await requireAdmin(req)
-    if (!adminCheck.ok) {
-      return NextResponse.json({ ok: false, error: adminCheck.error }, { status: adminCheck.status })
-    }
+  const result = await requireAdmin(req)
+  if ('response' in result) return result.response
+  const forbidden = requirePermission(result, ADMIN_PERMISSIONS.active_sessions)
+  if (forbidden) return forbidden
 
-    const now = Date.now()
-    if (cachedData && now - cacheTimestamp < CACHE_TTL_MS) {
-      return NextResponse.json({ ok: true, data: cachedData, fetched_at: cachedData.fetched_at })
-    }
-
-    const supabase = getServiceRoleClient()
-    if (!supabase) {
-      return NextResponse.json({ ok: false, error: 'Service role client not available' }, { status: 500 })
-    }
-
-    const window = parseInt(req.nextUrl.searchParams.get('window') || '5')
-    const nowDate = new Date()
-    const windowAgo = new Date(nowDate.getTime() - window * 60 * 1000)
-    const oneHourAgo = new Date(nowDate.getTime() - 60 * 60 * 1000)
-    const startOfDay = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate())
-
-    // Query analytics_sessions for active users
-    const [concurrentResult, hourlyResult, dailyResult, recentResult] = await Promise.allSettled([
-      // Concurrent (based on window parameter)
-      supabase
-        .from('analytics_sessions')
-        .select('user_id', { count: 'exact', head: true })
-        .gte('last_activity_at', windowAgo.toISOString())
-        .not('user_id', 'is', null),
-      
-      // Active this hour
-      supabase
-        .from('analytics_sessions')
-        .select('user_id', { count: 'exact', head: true })
-        .gte('last_activity_at', oneHourAgo.toISOString())
-        .not('user_id', 'is', null),
-      
-      // Active today
-      supabase
-        .from('analytics_sessions')
-        .select('user_id', { count: 'exact', head: true })
-        .gte('last_activity_at', startOfDay.toISOString())
-        .not('user_id', 'is', null),
-      
-      // Recent active users (based on window) with profile data
-      supabase
-        .from('analytics_sessions')
-        .select('user_id, last_activity_at')
-        .gte('last_activity_at', windowAgo.toISOString())
-        .not('user_id', 'is', null)
-        .order('last_activity_at', { ascending: false })
-        .limit(20)
-    ])
-
-    const concurrent = concurrentResult.status === 'fulfilled' ? (concurrentResult.value.count ?? 0) : 0
-    const active_hour = hourlyResult.status === 'fulfilled' ? (hourlyResult.value.count ?? 0) : 0
-    const active_today = dailyResult.status === 'fulfilled' ? (dailyResult.value.count ?? 0) : 0
-
-    let users: Array<{
-      user_id: string
-      last_seen: string
-      full_name: string | null
-      username: string | null
-      profile_image_url: string | null
-      niche: string | null
-      account_type: string | null
-      location: string | null
-      minutes_ago: number
-    }> = []
-
-    if (recentResult.status === 'fulfilled' && recentResult.value.data && recentResult.value.data.length > 0) {
-      const userIds = [...new Set(recentResult.value.data.map((s: any) => s.user_id).filter(Boolean))]
-      
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, name, username, profile_image_url, niche, location')
-          .in('id', userIds)
-        
-        const profileMap = new Map(profiles?.map(p => [p.id, p]) || [])
-        
-        users = recentResult.value.data
-          .map((session: any) => {
-            const profile = profileMap.get(session.user_id)
-            const lastActivityDate = new Date(session.last_activity_at)
-            const minutesAgo = Math.floor((nowDate.getTime() - lastActivityDate.getTime()) / (60 * 1000))
-            
-            return {
-              user_id: session.user_id,
-              last_seen: session.last_activity_at,
-              full_name: profile?.name || null,
-              username: profile?.username || null,
-              profile_image_url: profile?.profile_image_url || null,
-              niche: profile?.niche || null,
-              account_type: null,
-              location: profile?.location || null,
-              minutes_ago: minutesAgo
-            }
-          })
-          .filter((u: any) => u.full_name || u.username)
-          .slice(0, 10)
-      }
-    }
-
-    const fetchedAt = new Date().toISOString()
-    cachedData = {
-      concurrent,
-      active_hour,
-      active_today,
-      users,
-      fetched_at: fetchedAt
-    }
-    cacheTimestamp = now
-
-    return NextResponse.json({ ok: true, data: cachedData, fetched_at: fetchedAt })
-  } catch (e: any) {
-    console.error('[ACTIVE-USERS ERROR]', e)
-    return NextResponse.json({ ok: false, error: e.message || 'Failed to fetch active users' }, { status: 500 })
+  const supabase = getServiceRoleClient()
+  if (!supabase) {
+    return NextResponse.json({ error: 'Server missing SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 })
   }
+
+  const url = new URL(req.url)
+  const windowMinutes = parseInt(url.searchParams.get('window') || '5', 10)
+
+  // Calculate the cutoff time
+  const cutoffTime = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString()
+
+  // Fetch users active in the specified window
+  const { data: usersData, error: usersError } = await supabase
+    .from('user_presence')
+    .select(`
+      user_id,
+      last_seen,
+      is_online,
+      updated_at,
+      profiles!inner (
+        full_name,
+        username,
+        profile_image_url,
+        niche,
+        account_type,
+        location
+      )
+    `)
+    .gt('last_seen', cutoffTime)
+    .order('last_seen', { ascending: false })
+    .limit(100)
+
+  if (usersError) {
+    console.error('[active-users] Failed to fetch users:', usersError)
+    return NextResponse.json({ error: 'Failed to fetch active users' }, { status: 500 })
+  }
+
+  // Fetch aggregate counts in parallel
+  const cutoff5min = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+  const cutoff60min = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
+  const [concurrentRes, activeHourRes, activeTodayRes] = await Promise.all([
+    supabase
+      .from('user_presence')
+      .select('*', { count: 'exact', head: true })
+      .gt('last_seen', cutoff5min),
+    supabase
+      .from('user_presence')
+      .select('*', { count: 'exact', head: true })
+      .gt('last_seen', cutoff60min),
+    supabase
+      .from('user_presence')
+      .select('*', { count: 'exact', head: true })
+      .gt('last_seen', cutoff24h),
+  ])
+
+  // Transform the data
+  const users: ActiveUser[] = (usersData ?? []).map((row: any) => {
+    const profile = row.profiles || {}
+    const lastSeenDate = new Date(row.last_seen)
+    const minutesAgo = Math.floor((Date.now() - lastSeenDate.getTime()) / 60000)
+
+    return {
+      user_id: row.user_id,
+      last_seen: row.last_seen,
+      full_name: profile.full_name || null,
+      username: profile.username || null,
+      profile_image_url: profile.profile_image_url || null,
+      niche: profile.niche || null,
+      account_type: profile.account_type || null,
+      location: profile.location || null,
+      minutes_ago: minutesAgo,
+    }
+  })
+
+  return NextResponse.json({
+    ok: true,
+    data: {
+      concurrent: concurrentRes.count ?? 0,
+      active_hour: activeHourRes.count ?? 0,
+      active_today: activeTodayRes.count ?? 0,
+      users,
+    },
+    fetched_at: new Date().toISOString(),
+  })
 }
