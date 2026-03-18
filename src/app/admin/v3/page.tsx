@@ -426,6 +426,7 @@ export default function AdminV3Page() {
   const [toasts, setToasts] = useState<{ id: number; msg: string; type: 'ok' | 'err' | 'info' }[]>([])
   const toastIdRef = useRef(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   // Data
   const [stats, setStats] = useState<Stats | null>(null)
@@ -608,6 +609,14 @@ export default function AdminV3Page() {
     window.addEventListener('unhandledrejection', handler)
     return () => window.removeEventListener('unhandledrejection', handler)
   }, [showToast])
+
+  // Check if mobile
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   // Gate check on mount
   useEffect(() => {
@@ -1979,6 +1988,13 @@ export default function AdminV3Page() {
 
   const isStale = lastUpd && (Date.now() - lastUpd.getTime() > 5 * 60 * 1000)
 
+  // Helper for responsive grids
+  const gridCols = (mobile: number, desktop: number): React.CSSProperties => ({
+    display: 'grid',
+    gridTemplateColumns: `repeat(${isMobile ? mobile : desktop}, 1fr)`,
+    gap: isMobile ? '12px' : '16px',
+  })
+
   function ChartCard({
     title,
     subtitle,
@@ -2051,28 +2067,48 @@ export default function AdminV3Page() {
         Skip to main content
       </a>
       {/* Mobile backdrop */}
-      {sidebarOpen && (
+      {isMobile && sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            zIndex: 40,
+          }}
         />
       )}
       
       <div id="shell">
-        <nav id="sb" className={`
-          fixed lg:static inset-y-0 left-0 z-50
-          transform transition-transform duration-300 ease-in-out
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          lg:translate-x-0
-        `}>
+        <nav
+          id="sb"
+          style={{
+            transform: isMobile && !sidebarOpen ? 'translateX(-100%)' : 'translateX(0)',
+            transition: 'transform 300ms ease-in-out',
+            position: isMobile ? 'fixed' : 'static',
+          }}
+        >
           {/* Close button - mobile only */}
-          <button
-            className="lg:hidden absolute top-4 right-4 text-[#8892AA] hover:text-[#EEF0F8] p-1 text-[20px] leading-none"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Close menu"
-          >
-            ✕
-          </button>
+          {isMobile && (
+            <button
+              onClick={() => setSidebarOpen(false)}
+              style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                background: 'none',
+                border: 'none',
+                color: '#8892AA',
+                fontSize: 20,
+                cursor: 'pointer',
+                zIndex: 51,
+                padding: 4,
+              }}
+              aria-label="Close menu"
+            >
+              ✕
+            </button>
+          )}
           
           <div className="sb-brand">
             <div className="sb-orb" />
@@ -2082,54 +2118,54 @@ export default function AdminV3Page() {
             </div>
           </div>
           <div className="sb-sec">Operations</div>
-          <button type="button" className={`ni ${activePanel === 'overview' ? 'active' : ''}`} onClick={() => { nav('overview'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
+          <button type="button" className={`ni ${activePanel === 'overview' ? 'active' : ''}`} onClick={() => { nav('overview'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">🏠</span>Overview
           </button>
-          <button type="button" className={`ni ${activePanel === 'dashboard' ? 'active' : ''}`} onClick={() => { nav('dashboard'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
+          <button type="button" className={`ni ${activePanel === 'dashboard' ? 'active' : ''}`} onClick={() => { nav('dashboard'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">📊</span>Dashboard
           </button>
-          <button type="button" className={`ni ${activePanel === 'analytics' ? 'active' : ''}`} onClick={() => { nav('analytics'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
+          <button type="button" className={`ni ${activePanel === 'analytics' ? 'active' : ''}`} onClick={() => { nav('analytics'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">📈</span>Product Analytics
           </button>
           <div className="sb-sec">Community</div>
-          <button type="button" className={`ni ${activePanel === 'applications' ? 'active' : ''}`} onClick={() => { nav('applications'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
+          <button type="button" className={`ni ${activePanel === 'applications' ? 'active' : ''}`} onClick={() => { nav('applications'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">📋</span>Applications
             {pendingCount > 0 && <span className="nbdg w">{pendingCount > 99 ? '99+' : pendingCount}</span>}
           </button>
-          <button type="button" className={`ni ${activePanel === 'users' ? 'active' : ''}`} onClick={() => { nav('users'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
+          <button type="button" className={`ni ${activePanel === 'users' ? 'active' : ''}`} onClick={() => { nav('users'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">👥</span>Users
           </button>
-          <button type="button" className={`ni ${activePanel === 'verifications' ? 'active' : ''}`} onClick={() => { nav('verifications'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
+          <button type="button" className={`ni ${activePanel === 'verifications' ? 'active' : ''}`} onClick={() => { nav('verifications'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">✅</span>Verifications
           </button>
           <div className="sb-sec">Moderation</div>
-          <button type="button" className={`ni ${activePanel === 'inbox' ? 'active' : ''}`} onClick={() => { nav('inbox'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
+          <button type="button" className={`ni ${activePanel === 'inbox' ? 'active' : ''}`} onClick={() => { nav('inbox'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">📬</span>Inbox
           </button>
-          <button type="button" className={`ni ${activePanel === 'reports' ? 'active' : ''}`} onClick={() => { nav('reports'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
+          <button type="button" className={`ni ${activePanel === 'reports' ? 'active' : ''}`} onClick={() => { nav('reports'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">🚩</span>Reports
             {reportsCount > 0 && <span className="nbdg">{reportsCount > 99 ? '99+' : reportsCount}</span>}
           </button>
-          <button type="button" className={`ni ${activePanel === 'data-requests' ? 'active' : ''}`} onClick={() => { nav('data-requests'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
+          <button type="button" className={`ni ${activePanel === 'data-requests' ? 'active' : ''}`} onClick={() => { nav('data-requests'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">📂</span>Data Requests
           </button>
-          <button type="button" className={`ni ${activePanel === 'risk' ? 'active' : ''}`} onClick={() => { nav('risk'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
+          <button type="button" className={`ni ${activePanel === 'risk' ? 'active' : ''}`} onClick={() => { nav('risk'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">⚠</span>Risk
           </button>
-          <button type="button" className={`ni ${activePanel === 'approvals' ? 'active' : ''}`} onClick={() => { nav('approvals'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
+          <button type="button" className={`ni ${activePanel === 'approvals' ? 'active' : ''}`} onClick={() => { nav('approvals'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">✔</span>Approvals
           </button>
           <div className="sb-sec">System</div>
-          <button type="button" className={`ni ${activePanel === 'audit-log' ? 'active' : ''}`} onClick={() => { nav('audit-log'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
+          <button type="button" className={`ni ${activePanel === 'audit-log' ? 'active' : ''}`} onClick={() => { nav('audit-log'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">📝</span>Audit Log
           </button>
-          <button type="button" className={`ni ${activePanel === 'compliance' ? 'active' : ''}`} onClick={() => { nav('compliance'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
+          <button type="button" className={`ni ${activePanel === 'compliance' ? 'active' : ''}`} onClick={() => { nav('compliance'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">🛡</span>Compliance
           </button>
-          <button type="button" className={`ni ${activePanel === 'invite' ? 'active' : ''}`} onClick={() => { nav('invite'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
+          <button type="button" className={`ni ${activePanel === 'invite' ? 'active' : ''}`} onClick={() => { nav('invite'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">✉</span>Invite Creator
           </button>
-          <button type="button" className={`ni ${activePanel === 'settings' ? 'active' : ''}`} onClick={() => { nav('settings'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
+          <button type="button" className={`ni ${activePanel === 'settings' ? 'active' : ''}`} onClick={() => { nav('settings'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">⚙</span>Settings
           </button>
           <div className="sh">
@@ -2163,31 +2199,43 @@ export default function AdminV3Page() {
           <div id="hdr" className="px-4 lg:px-6">
             <div className="hbc flex items-center gap-3">
               {/* Hamburger button - mobile only */}
-              <button
-                className="lg:hidden flex flex-col gap-1 p-1.5"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Open menu"
-              >
-                <span className="w-5 h-0.5 bg-[#EEF0F8] block" />
-                <span className="w-5 h-0.5 bg-[#EEF0F8] block" />
-                <span className="w-5 h-0.5 bg-[#EEF0F8] block" />
-              </button>
+              {isMobile && (
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 4,
+                    padding: 6,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                  aria-label="Open menu"
+                >
+                  <span style={{ width: 20, height: 2, background: '#EEF0F8', display: 'block' }} />
+                  <span style={{ width: 20, height: 2, background: '#EEF0F8', display: 'block' }} />
+                  <span style={{ width: 20, height: 2, background: '#EEF0F8', display: 'block' }} />
+                </button>
+              )}
               <div className="flex items-center gap-2">
-                <span className="hbr hidden lg:inline">Admin</span>
-                <span className="hbs hidden lg:inline">/</span>
+                {!isMobile && <span className="hbr">Admin</span>}
+                {!isMobile && <span className="hbs">/</span>}
                 <span className="hbc-cur">{PANEL_LABELS[activePanel]}</span>
               </div>
             </div>
             <div className="hdr-r">
-              <span className="hlive hidden lg:flex">
-                <span className="hldot" />
-                Live
-              </span>
-              <span className="hupd hidden lg:inline" id="hupd">{lastUpd ? `Updated ${relT(lastUpd.toISOString())}` : 'Not synced'}</span>
-              {adminRoles[0] && <span className="hrole hidden lg:inline">{adminRoles[0]}</span>}
+              {!isMobile && (
+                <span className="hlive">
+                  <span className="hldot" />
+                  Live
+                </span>
+              )}
+              {!isMobile && <span className="hupd" id="hupd">{lastUpd ? `Updated ${relT(lastUpd.toISOString())}` : 'Not synced'}</span>}
+              {!isMobile && adminRoles[0] && <span className="hrole">{adminRoles[0]}</span>}
               <button type="button" className="href" onClick={refreshCurrent}>
                 <span>↻</span>
-                <span className="hidden lg:inline ml-1.5">Refresh</span>
+                {!isMobile && <span style={{ marginLeft: 6 }}>Refresh</span>}
               </button>
             </div>
           </div>
@@ -2216,14 +2264,14 @@ export default function AdminV3Page() {
               </button>
             </div>
           )}
-          <div id="ct">
+          <div id="ct" style={{ padding: isMobile ? '16px' : '24px 26px' }}>
             {/* Overview panel */}
             <div id="panel-overview" className={`panel ${activePanel === 'overview' ? 'active' : ''}`}>
-              <div className="ptit text-[18px] lg:text-[20px]">Overview</div>
-              <div className="pdesc text-[12px] lg:text-[12.5px]">Real-time health snapshot and key metrics</div>
+              <div className="ptit" style={{ fontSize: isMobile ? 18 : 20 }}>Overview</div>
+              <div className="pdesc" style={{ fontSize: isMobile ? 12 : 12.5 }}>Real-time health snapshot and key metrics</div>
               
               {/* Row 1: KPI Cards */}
-              <div className="sg sg4 grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginBottom: 16 }}>
+              <div className="sg sg4" style={{ ...gridCols(2, 4), marginBottom: 16 }}>
                 <div className="sc" style={{ ['--c' as string]: 'var(--ap)', cursor: 'pointer' }} onClick={() => nav('applications')}>
                   <div className="sc-lbl">Total Applications</div>
                   <div className="sc-val">{overviewStats ? fmt(overviewStats.total_applications) : '—'}</div>
@@ -2251,7 +2299,7 @@ export default function AdminV3Page() {
               </div>
 
               {/* Row 2: KPI Cards */}
-              <div className="sg sg4 grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginBottom: 24 }}>
+              <div className="sg sg4" style={{ ...gridCols(2, 4), marginBottom: 24 }}>
                 <div className="sc" style={{ ['--c' as string]: 'var(--info)' }}>
                   <div className="sc-lbl">Verified Members</div>
                   <div className="sc-val">{overviewStats ? fmt(overviewStats.verified_members) : '—'}</div>
@@ -2275,7 +2323,7 @@ export default function AdminV3Page() {
               </div>
 
               {/* Live User Activity */}
-              <div className="bg-[#13161D] border border-[#252A38] rounded-[18px] p-4 lg:p-5 mb-6">
+              <div className="bg-[#13161D] border border-[#252A38] rounded-[18px] mb-6" style={{ padding: isMobile ? 16 : 20 }}>
                 
                 {/* Header */}
                 <div className="flex items-center justify-between mb-4">
@@ -2468,7 +2516,12 @@ export default function AdminV3Page() {
               </div>
 
               {/* Row 3: Charts */}
-              <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4 mb-6">
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr',
+                gap: isMobile ? 12 : 16,
+                marginBottom: 24,
+              }}>
                 <ChartCard
                   title="Application Trend"
                   subtitle="Last 14 days"
@@ -2531,7 +2584,7 @@ export default function AdminV3Page() {
               </div>
 
               {/* Row 4: Status Donut and Activity Feed */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div style={gridCols(1, 2)}>
                 <ChartCard
                   title="Status Breakdown"
                   subtitle="All-time distribution"
@@ -2605,11 +2658,11 @@ export default function AdminV3Page() {
 
             {/* Dashboard panel */}
             <div id="panel-dashboard" className={`panel ${activePanel === 'dashboard' ? 'active' : ''}`}>
-              <div className="ptit text-[18px] lg:text-[20px]">Dashboard</div>
-              <div className="pdesc text-[12px] lg:text-[12.5px]">Operational metrics and trends</div>
+              <div className="ptit" style={{ fontSize: isMobile ? 18 : 20 }}>Dashboard</div>
+              <div className="pdesc" style={{ fontSize: isMobile ? 12 : 12.5 }}>Operational metrics and trends</div>
               
               {/* Row 1: Stat cards */}
-              <div className="sg sg4 grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginBottom: 16 }}>
+              <div className="sg sg4" style={{ ...gridCols(2, 4), marginBottom: 16 }}>
                 <div className="sc" style={{ ['--c' as string]: 'var(--ap)' }}>
                   <div className="sc-lbl">Total</div>
                   <div className="sc-val">{overviewStats ? fmt(overviewStats.total_applications) : '—'}</div>
@@ -2632,7 +2685,7 @@ export default function AdminV3Page() {
                 </div>
               </div>
 
-              <div className="sg sg4 grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginBottom: 24 }}>
+              <div className="sg sg4" style={{ ...gridCols(2, 4), marginBottom: 24 }}>
                 <div className="sc" style={{ ['--c' as string]: 'var(--ap2)' }}>
                   <div className="sc-lbl">Signups 7d</div>
                   <div className="sc-val">{overviewStats ? fmt(overviewStats.signups_7d) : '—'}</div>
@@ -2656,7 +2709,7 @@ export default function AdminV3Page() {
               </div>
 
               {/* Row 2: Three charts */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+              <div style={{ ...gridCols(1, 3), marginBottom: 24 }}>
                 <ChartCard
                   title="30-Day Signups"
                   subtitle="Daily applications"
@@ -2755,7 +2808,7 @@ export default function AdminV3Page() {
               </div>
 
               {/* Row 3: Monthly volume and weekly activity */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div style={gridCols(1, 2)}>
                 <ChartCard
                   title="Monthly Volume"
                   subtitle="Last 6 months"
@@ -2807,14 +2860,15 @@ export default function AdminV3Page() {
 
             {/* Applications panel */}
             <div id="panel-applications" className={`panel ${activePanel === 'applications' ? 'active' : ''}`}>
-              <div className="ptit text-[18px] lg:text-[20px]">Applications</div>
-              <div className="pdesc text-[12px] lg:text-[12.5px]">Review, approve, reject or waitlist applicants</div>
+              <div className="ptit" style={{ fontSize: isMobile ? 18 : 20 }}>Applications</div>
+              <div className="pdesc" style={{ fontSize: isMobile ? 12 : 12.5 }}>Review, approve, reject or waitlist applicants</div>
               <div className="tc">
                 <div className="tch">
                   <div className="tct">All Applications</div>
-                  <div className="tca flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                  <div className="tca" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, alignItems: isMobile ? 'stretch' : 'center' }}>
                     <input
-                      className="inp w-full sm:w-[200px]"
+                      className="inp"
+                      style={{ width: isMobile ? '100%' : 200 }}
                       type="text"
                       placeholder="Search name or email…"
                       value={appSearch}
@@ -2833,16 +2887,20 @@ export default function AdminV3Page() {
                     <button type="button" className="btn btn-gh bsm" onClick={() => loadApplications()} disabled={applicationsLoading}>
                       {applicationsLoading ? '…' : '↻'} Apply
                     </button>
-                    <button type="button" className="btn btn-gh bsm hidden sm:inline-flex" onClick={exportApplicationsPage} disabled={applications.length === 0}>
-                      Export this page
-                    </button>
-                    <button type="button" className="btn btn-gh bsm hidden sm:inline-flex" onClick={exportApplicationsFiltered} disabled={exportLoading}>
-                      {exportLoading ? 'Exporting…' : 'Export all filtered'}
-                    </button>
+                    {!isMobile && (
+                      <>
+                        <button type="button" className="btn btn-gh bsm" onClick={exportApplicationsPage} disabled={applications.length === 0}>
+                          Export this page
+                        </button>
+                        <button type="button" className="btn btn-gh bsm" onClick={exportApplicationsFiltered} disabled={exportLoading}>
+                          {exportLoading ? 'Exporting…' : 'Export all filtered'}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
-                <div className="overflow-x-auto -mx-4 lg:mx-0">
-                  <table className="tbl min-w-[600px] lg:min-w-full">
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginLeft: isMobile ? -16 : 0, marginRight: isMobile ? -16 : 0 }}>
+                  <table className="tbl" style={{ minWidth: isMobile ? 600 : '100%' }}>
                   <thead>
                     <tr>
                       <th style={{ width: 40 }}>
@@ -2859,10 +2917,10 @@ export default function AdminV3Page() {
                       </th>
                       <th>Applicant</th>
                       <th>Type</th>
-                      <th className="hidden lg:table-cell">Niche</th>
+                      <th style={{ display: isMobile ? 'none' : 'table-cell' }}>Niche</th>
                       <th>Status</th>
                       <th>Applied</th>
-                      <th className="hidden lg:table-cell">Referrer</th>
+                      <th style={{ display: isMobile ? 'none' : 'table-cell' }}>Referrer</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -2938,14 +2996,14 @@ export default function AdminV3Page() {
                                 <span className={`badge ${accountType === 'brand' ? 'ba' : 'bp'}`}>{accountType === 'brand' ? 'brand' : 'creator'}</span>
                               ) : '—'}
                             </td>
-                            <td className="hidden lg:table-cell" style={{ fontSize: 11, color: 'var(--t3)' }}>{app.niche || '—'}</td>
+                            <td style={{ display: isMobile ? 'none' : 'table-cell', fontSize: 11, color: 'var(--t3)' }}>{app.niche || '—'}</td>
                             <td>
                               <span className={`badge ${isApproved ? 'ba' : isRejected ? 'br' : isWaitlisted ? 'bw' : 'bp'}`}>
                                 {st === 'waitlist' ? 'Waitlist' : st.charAt(0).toUpperCase() + st.slice(1)}
                               </span>
                             </td>
                             <td style={{ fontSize: 11, color: 'var(--t3)' }}>{fmtDate(app.application_date)}</td>
-                            <td className="hidden lg:table-cell" style={{ fontSize: 11, color: 'var(--t3)' }}>{app.referrer_username ? `@${app.referrer_username}` : '—'}</td>
+                            <td style={{ display: isMobile ? 'none' : 'table-cell', fontSize: 11, color: 'var(--t3)' }}>{app.referrer_username ? `@${app.referrer_username}` : '—'}</td>
                             <td>
                               <div className="ag">
                                 {!isApproved && (
@@ -3020,7 +3078,20 @@ export default function AdminV3Page() {
                 </div>
               </div>
               {selectedAppIds.size > 0 && (
-                <div className="fixed bottom-0 left-0 right-0 lg:left-[228px] bg-[#13161D] border-t border-[#252A38] p-3 lg:p-4 flex flex-wrap items-center gap-2 z-30">
+                <div style={{
+                  position: 'fixed',
+                  bottom: 0,
+                  left: isMobile ? 0 : 228,
+                  right: 0,
+                  background: '#13161D',
+                  borderTop: '1px solid #252A38',
+                  padding: isMobile ? 12 : 16,
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  gap: 8,
+                  zIndex: 30,
+                }}>
                   <span className="text-[13px] font-semibold text-[#EEF0F8]">
                     {selectedAppIds.size} selected
                   </span>
@@ -3790,7 +3861,7 @@ export default function AdminV3Page() {
                 ) : (
                   <>
                     {complianceHealth && (
-                      <div className="sg sg4 grid grid-cols-1 sm:grid-cols-2 gap-4" style={{ marginBottom: '1rem' }}>
+                      <div className="sg sg4" style={{ ...gridCols(1, 2), marginBottom: 16 }}>
                         <div className="sc" style={{ ['--c' as string]: 'var(--ok)' }}>
                           <div className="sc-lbl">Overall score</div>
                           <div className="sc-val">{complianceHealth.overall_score ?? '—'}</div>
@@ -3834,8 +3905,8 @@ export default function AdminV3Page() {
             {/* Product Analytics panel */}
             {activePanel === 'analytics' && (
               <div id="panel-analytics" className="panel active">
-                <div className="ptit text-[18px] lg:text-[20px]">Product Analytics</div>
-                <div className="pdesc text-[12px] lg:text-[12.5px]">Engagement metrics, trends, and insights</div>
+                <div className="ptit" style={{ fontSize: isMobile ? 18 : 20 }}>Product Analytics</div>
+                <div className="pdesc" style={{ fontSize: isMobile ? 12 : 12.5 }}>Engagement metrics, trends, and insights</div>
                 
                 {/* Row 1: Date range selector */}
                 <div className="flex flex-wrap gap-2 mb-4 items-center">
@@ -3858,7 +3929,7 @@ export default function AdminV3Page() {
 
                 {/* Row 2: Stat cards */}
                 {analyticsData?.overview && (
-                  <div className="sg sg4 grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginBottom: 24 }}>
+                  <div className="sg sg4" style={{ ...gridCols(2, 4), marginBottom: 24 }}>
                     <div className="sc" style={{ ['--c' as string]: 'var(--ap)' }}>
                       <div className="sc-lbl">Signups (range)</div>
                       <div className="sc-val">{overviewStats ? fmt(analyticsDateRange === '7' ? overviewStats.signups_7d : overviewStats.signups_30d) : '—'}</div>
@@ -3883,7 +3954,7 @@ export default function AdminV3Page() {
                 )}
 
                 {/* Row 3: Two line charts */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                <div style={{ ...gridCols(1, 2), marginBottom: 24 }}>
                   <ChartCard
                     title="Signups Over Time"
                     subtitle={`Last ${analyticsDateRange === 'all' ? '90' : analyticsDateRange} days`}
@@ -3932,7 +4003,7 @@ export default function AdminV3Page() {
                 </div>
 
                 {/* Row 4: Three sections */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                <div style={{ ...gridCols(1, 3), marginBottom: 24 }}>
                   <ChartCard
                     title="Top Niches"
                     subtitle="Approved members"
