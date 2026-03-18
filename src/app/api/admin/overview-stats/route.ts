@@ -203,8 +203,8 @@ export async function GET(req: NextRequest) {
   // Additional stats for charts and metrics dashboard
   const additionalStatsResults = await Promise.allSettled([
     supabase.from('user_reports').select('*', { count: 'exact', head: true }).or('status.eq.open,status.is.null'),
-    supabase.from('applications').select('*', { count: 'exact', head: true }).gte('created_at', iso7d),
-    supabase.from('applications').select('*', { count: 'exact', head: true }).gte('created_at', iso30d),
+    supabase.from('applications').select('*', { count: 'exact', head: true }).gte('submitted_at', iso7d),
+    supabase.from('applications').select('*', { count: 'exact', head: true }).gte('submitted_at', iso30d),
     supabase.from('admin_approval_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_verified', false),
     supabase.from('intents').select('*', { count: 'exact', head: true }).in('status', ['matched', 'connected']),
