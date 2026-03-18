@@ -425,6 +425,7 @@ export default function AdminV3Page() {
   const [lastUpd, setLastUpd] = useState<Date | null>(null)
   const [toasts, setToasts] = useState<{ id: number; msg: string; type: 'ok' | 'err' | 'info' }[]>([])
   const toastIdRef = useRef(0)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Data
   const [stats, setStats] = useState<Stats | null>(null)
@@ -2049,8 +2050,30 @@ export default function AdminV3Page() {
       >
         Skip to main content
       </a>
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      
       <div id="shell">
-        <nav id="sb">
+        <nav id="sb" className={`
+          fixed lg:static inset-y-0 left-0 z-50
+          transform transition-transform duration-300 ease-in-out
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0
+        `}>
+          {/* Close button - mobile only */}
+          <button
+            className="lg:hidden absolute top-4 right-4 text-[#8892AA] hover:text-[#EEF0F8] p-1 text-[20px] leading-none"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close menu"
+          >
+            ✕
+          </button>
+          
           <div className="sb-brand">
             <div className="sb-orb" />
             <div>
@@ -2059,54 +2082,54 @@ export default function AdminV3Page() {
             </div>
           </div>
           <div className="sb-sec">Operations</div>
-          <button type="button" className={`ni ${activePanel === 'overview' ? 'active' : ''}`} onClick={() => nav('overview')}>
+          <button type="button" className={`ni ${activePanel === 'overview' ? 'active' : ''}`} onClick={() => { nav('overview'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
             <span className="nico">🏠</span>Overview
           </button>
-          <button type="button" className={`ni ${activePanel === 'dashboard' ? 'active' : ''}`} onClick={() => nav('dashboard')}>
+          <button type="button" className={`ni ${activePanel === 'dashboard' ? 'active' : ''}`} onClick={() => { nav('dashboard'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
             <span className="nico">📊</span>Dashboard
           </button>
-          <button type="button" className={`ni ${activePanel === 'analytics' ? 'active' : ''}`} onClick={() => nav('analytics')}>
+          <button type="button" className={`ni ${activePanel === 'analytics' ? 'active' : ''}`} onClick={() => { nav('analytics'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
             <span className="nico">📈</span>Product Analytics
           </button>
           <div className="sb-sec">Community</div>
-          <button type="button" className={`ni ${activePanel === 'applications' ? 'active' : ''}`} onClick={() => nav('applications')}>
+          <button type="button" className={`ni ${activePanel === 'applications' ? 'active' : ''}`} onClick={() => { nav('applications'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
             <span className="nico">📋</span>Applications
             {pendingCount > 0 && <span className="nbdg w">{pendingCount > 99 ? '99+' : pendingCount}</span>}
           </button>
-          <button type="button" className={`ni ${activePanel === 'users' ? 'active' : ''}`} onClick={() => nav('users')}>
+          <button type="button" className={`ni ${activePanel === 'users' ? 'active' : ''}`} onClick={() => { nav('users'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
             <span className="nico">👥</span>Users
           </button>
-          <button type="button" className={`ni ${activePanel === 'verifications' ? 'active' : ''}`} onClick={() => nav('verifications')}>
+          <button type="button" className={`ni ${activePanel === 'verifications' ? 'active' : ''}`} onClick={() => { nav('verifications'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
             <span className="nico">✅</span>Verifications
           </button>
           <div className="sb-sec">Moderation</div>
-          <button type="button" className={`ni ${activePanel === 'inbox' ? 'active' : ''}`} onClick={() => nav('inbox')}>
+          <button type="button" className={`ni ${activePanel === 'inbox' ? 'active' : ''}`} onClick={() => { nav('inbox'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
             <span className="nico">📬</span>Inbox
           </button>
-          <button type="button" className={`ni ${activePanel === 'reports' ? 'active' : ''}`} onClick={() => nav('reports')}>
+          <button type="button" className={`ni ${activePanel === 'reports' ? 'active' : ''}`} onClick={() => { nav('reports'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
             <span className="nico">🚩</span>Reports
             {reportsCount > 0 && <span className="nbdg">{reportsCount > 99 ? '99+' : reportsCount}</span>}
           </button>
-          <button type="button" className={`ni ${activePanel === 'data-requests' ? 'active' : ''}`} onClick={() => nav('data-requests')}>
+          <button type="button" className={`ni ${activePanel === 'data-requests' ? 'active' : ''}`} onClick={() => { nav('data-requests'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
             <span className="nico">📂</span>Data Requests
           </button>
-          <button type="button" className={`ni ${activePanel === 'risk' ? 'active' : ''}`} onClick={() => nav('risk')}>
+          <button type="button" className={`ni ${activePanel === 'risk' ? 'active' : ''}`} onClick={() => { nav('risk'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
             <span className="nico">⚠</span>Risk
           </button>
-          <button type="button" className={`ni ${activePanel === 'approvals' ? 'active' : ''}`} onClick={() => nav('approvals')}>
+          <button type="button" className={`ni ${activePanel === 'approvals' ? 'active' : ''}`} onClick={() => { nav('approvals'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
             <span className="nico">✔</span>Approvals
           </button>
           <div className="sb-sec">System</div>
-          <button type="button" className={`ni ${activePanel === 'audit-log' ? 'active' : ''}`} onClick={() => nav('audit-log')}>
+          <button type="button" className={`ni ${activePanel === 'audit-log' ? 'active' : ''}`} onClick={() => { nav('audit-log'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
             <span className="nico">📝</span>Audit Log
           </button>
-          <button type="button" className={`ni ${activePanel === 'compliance' ? 'active' : ''}`} onClick={() => nav('compliance')}>
+          <button type="button" className={`ni ${activePanel === 'compliance' ? 'active' : ''}`} onClick={() => { nav('compliance'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
             <span className="nico">🛡</span>Compliance
           </button>
-          <button type="button" className={`ni ${activePanel === 'invite' ? 'active' : ''}`} onClick={() => nav('invite')}>
+          <button type="button" className={`ni ${activePanel === 'invite' ? 'active' : ''}`} onClick={() => { nav('invite'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
             <span className="nico">✉</span>Invite Creator
           </button>
-          <button type="button" className={`ni ${activePanel === 'settings' ? 'active' : ''}`} onClick={() => nav('settings')}>
+          <button type="button" className={`ni ${activePanel === 'settings' ? 'active' : ''}`} onClick={() => { nav('settings'); if (window.innerWidth < 1024) setSidebarOpen(false) }}>
             <span className="nico">⚙</span>Settings
           </button>
           <div className="sh">
@@ -2136,22 +2159,35 @@ export default function AdminV3Page() {
             </div>
           </div>
         </nav>
-        <div id="mn">
-          <div id="hdr">
-            <div className="hbc">
-              <span className="hbr">Admin</span>
-              <span className="hbs">/</span>
-              <span className="hbc-cur">{PANEL_LABELS[activePanel]}</span>
+        <div id="mn" className="flex-1 flex flex-col overflow-hidden min-w-0 w-full">
+          <div id="hdr" className="px-4 lg:px-6">
+            <div className="hbc flex items-center gap-3">
+              {/* Hamburger button - mobile only */}
+              <button
+                className="lg:hidden flex flex-col gap-1 p-1.5"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open menu"
+              >
+                <span className="w-5 h-0.5 bg-[#EEF0F8] block" />
+                <span className="w-5 h-0.5 bg-[#EEF0F8] block" />
+                <span className="w-5 h-0.5 bg-[#EEF0F8] block" />
+              </button>
+              <div className="flex items-center gap-2">
+                <span className="hbr hidden lg:inline">Admin</span>
+                <span className="hbs hidden lg:inline">/</span>
+                <span className="hbc-cur">{PANEL_LABELS[activePanel]}</span>
+              </div>
             </div>
             <div className="hdr-r">
-              <span className="hlive">
+              <span className="hlive hidden lg:flex">
                 <span className="hldot" />
                 Live
               </span>
-              <span className="hupd" id="hupd">{lastUpd ? `Updated ${relT(lastUpd.toISOString())}` : 'Not synced'}</span>
-              {adminRoles[0] && <span className="hrole">{adminRoles[0]}</span>}
+              <span className="hupd hidden lg:inline" id="hupd">{lastUpd ? `Updated ${relT(lastUpd.toISOString())}` : 'Not synced'}</span>
+              {adminRoles[0] && <span className="hrole hidden lg:inline">{adminRoles[0]}</span>}
               <button type="button" className="href" onClick={refreshCurrent}>
-                ↻ Refresh
+                <span>↻</span>
+                <span className="hidden lg:inline ml-1.5">Refresh</span>
               </button>
             </div>
           </div>
@@ -2183,11 +2219,11 @@ export default function AdminV3Page() {
           <div id="ct">
             {/* Overview panel */}
             <div id="panel-overview" className={`panel ${activePanel === 'overview' ? 'active' : ''}`}>
-              <div className="ptit">Overview</div>
-              <div className="pdesc">Real-time health snapshot and key metrics</div>
+              <div className="ptit text-[18px] lg:text-[20px]">Overview</div>
+              <div className="pdesc text-[12px] lg:text-[12.5px]">Real-time health snapshot and key metrics</div>
               
               {/* Row 1: KPI Cards */}
-              <div className="sg sg4" style={{ marginBottom: 16 }}>
+              <div className="sg sg4 grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginBottom: 16 }}>
                 <div className="sc" style={{ ['--c' as string]: 'var(--ap)', cursor: 'pointer' }} onClick={() => nav('applications')}>
                   <div className="sc-lbl">Total Applications</div>
                   <div className="sc-val">{overviewStats ? fmt(overviewStats.total_applications) : '—'}</div>
@@ -2215,7 +2251,7 @@ export default function AdminV3Page() {
               </div>
 
               {/* Row 2: KPI Cards */}
-              <div className="sg sg4" style={{ marginBottom: 24 }}>
+              <div className="sg sg4 grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginBottom: 24 }}>
                 <div className="sc" style={{ ['--c' as string]: 'var(--info)' }}>
                   <div className="sc-lbl">Verified Members</div>
                   <div className="sc-val">{overviewStats ? fmt(overviewStats.verified_members) : '—'}</div>
@@ -2239,7 +2275,7 @@ export default function AdminV3Page() {
               </div>
 
               {/* Live User Activity */}
-              <div className="bg-[#13161D] border border-[#252A38] rounded-[18px] p-5 mb-6">
+              <div className="bg-[#13161D] border border-[#252A38] rounded-[18px] p-4 lg:p-5 mb-6">
                 
                 {/* Header */}
                 <div className="flex items-center justify-between mb-4">
@@ -2291,27 +2327,27 @@ export default function AdminV3Page() {
                 </div>
 
                 {/* 3 count stats */}
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <div className="bg-[#1C2030] rounded-xl p-3 text-center">
-                    <div className="text-[22px] font-bold text-[#EEF0F8]">
+                <div className="grid grid-cols-3 gap-2 lg:gap-3 mb-4">
+                  <div className="bg-[#1C2030] rounded-xl p-2 lg:p-3 text-center">
+                    <div className="text-[18px] lg:text-[22px] font-bold text-[#EEF0F8]">
                       {activeUsersData?.concurrent ?? '—'}
                     </div>
-                    <div className="text-[10px] text-[#4A5270] mt-1">Concurrent Now</div>
-                    <div className="text-[10px] text-[#10B981] mt-0.5">last 5 min</div>
+                    <div className="text-[9px] lg:text-[10px] text-[#4A5270] mt-1">Concurrent Now</div>
+                    <div className="text-[9px] lg:text-[10px] text-[#10B981] mt-0.5">last 5 min</div>
                   </div>
-                  <div className="bg-[#1C2030] rounded-xl p-3 text-center">
-                    <div className="text-[22px] font-bold text-[#EEF0F8]">
+                  <div className="bg-[#1C2030] rounded-xl p-2 lg:p-3 text-center">
+                    <div className="text-[18px] lg:text-[22px] font-bold text-[#EEF0F8]">
                       {activeUsersData?.active_hour ?? '—'}
                     </div>
-                    <div className="text-[10px] text-[#4A5270] mt-1">Active This Hour</div>
-                    <div className="text-[10px] text-[#8892AA] mt-0.5">last 60 min</div>
+                    <div className="text-[9px] lg:text-[10px] text-[#4A5270] mt-1">Active This Hour</div>
+                    <div className="text-[9px] lg:text-[10px] text-[#8892AA] mt-0.5">last 60 min</div>
                   </div>
-                  <div className="bg-[#1C2030] rounded-xl p-3 text-center">
-                    <div className="text-[22px] font-bold text-[#EEF0F8]">
+                  <div className="bg-[#1C2030] rounded-xl p-2 lg:p-3 text-center">
+                    <div className="text-[18px] lg:text-[22px] font-bold text-[#EEF0F8]">
                       {activeUsersData?.active_today ?? '—'}
                     </div>
-                    <div className="text-[10px] text-[#4A5270] mt-1">Active Today</div>
-                    <div className="text-[10px] text-[#8892AA] mt-0.5">last 24 hours</div>
+                    <div className="text-[9px] lg:text-[10px] text-[#4A5270] mt-1">Active Today</div>
+                    <div className="text-[9px] lg:text-[10px] text-[#8892AA] mt-0.5">last 24 hours</div>
                   </div>
                 </div>
 
@@ -2432,7 +2468,7 @@ export default function AdminV3Page() {
               </div>
 
               {/* Row 3: Charts */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 24 }}>
+              <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4 mb-6">
                 <ChartCard
                   title="Application Trend"
                   subtitle="Last 14 days"
@@ -2495,7 +2531,7 @@ export default function AdminV3Page() {
               </div>
 
               {/* Row 4: Status Donut and Activity Feed */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <ChartCard
                   title="Status Breakdown"
                   subtitle="All-time distribution"
@@ -2569,11 +2605,11 @@ export default function AdminV3Page() {
 
             {/* Dashboard panel */}
             <div id="panel-dashboard" className={`panel ${activePanel === 'dashboard' ? 'active' : ''}`}>
-              <div className="ptit">Dashboard</div>
-              <div className="pdesc">Operational metrics and trends</div>
+              <div className="ptit text-[18px] lg:text-[20px]">Dashboard</div>
+              <div className="pdesc text-[12px] lg:text-[12.5px]">Operational metrics and trends</div>
               
               {/* Row 1: Stat cards */}
-              <div className="sg sg4" style={{ marginBottom: 16 }}>
+              <div className="sg sg4 grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginBottom: 16 }}>
                 <div className="sc" style={{ ['--c' as string]: 'var(--ap)' }}>
                   <div className="sc-lbl">Total</div>
                   <div className="sc-val">{overviewStats ? fmt(overviewStats.total_applications) : '—'}</div>
@@ -2596,7 +2632,7 @@ export default function AdminV3Page() {
                 </div>
               </div>
 
-              <div className="sg sg4" style={{ marginBottom: 24 }}>
+              <div className="sg sg4 grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginBottom: 24 }}>
                 <div className="sc" style={{ ['--c' as string]: 'var(--ap2)' }}>
                   <div className="sc-lbl">Signups 7d</div>
                   <div className="sc-val">{overviewStats ? fmt(overviewStats.signups_7d) : '—'}</div>
@@ -2620,7 +2656,7 @@ export default function AdminV3Page() {
               </div>
 
               {/* Row 2: Three charts */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
                 <ChartCard
                   title="30-Day Signups"
                   subtitle="Daily applications"
@@ -2719,7 +2755,7 @@ export default function AdminV3Page() {
               </div>
 
               {/* Row 3: Monthly volume and weekly activity */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <ChartCard
                   title="Monthly Volume"
                   subtitle="Last 6 months"
@@ -2771,15 +2807,14 @@ export default function AdminV3Page() {
 
             {/* Applications panel */}
             <div id="panel-applications" className={`panel ${activePanel === 'applications' ? 'active' : ''}`}>
-              <div className="ptit">Applications</div>
-              <div className="pdesc">Review, approve, reject or waitlist applicants</div>
+              <div className="ptit text-[18px] lg:text-[20px]">Applications</div>
+              <div className="pdesc text-[12px] lg:text-[12.5px]">Review, approve, reject or waitlist applicants</div>
               <div className="tc">
                 <div className="tch">
                   <div className="tct">All Applications</div>
-                  <div className="tca">
+                  <div className="tca flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                     <input
-                      className="inp"
-                      style={{ width: 200 }}
+                      className="inp w-full sm:w-[200px]"
                       type="text"
                       placeholder="Search name or email…"
                       value={appSearch}
@@ -2798,15 +2833,16 @@ export default function AdminV3Page() {
                     <button type="button" className="btn btn-gh bsm" onClick={() => loadApplications()} disabled={applicationsLoading}>
                       {applicationsLoading ? '…' : '↻'} Apply
                     </button>
-                    <button type="button" className="btn btn-gh bsm" onClick={exportApplicationsPage} disabled={applications.length === 0}>
+                    <button type="button" className="btn btn-gh bsm hidden sm:inline-flex" onClick={exportApplicationsPage} disabled={applications.length === 0}>
                       Export this page
                     </button>
-                    <button type="button" className="btn btn-gh bsm" onClick={exportApplicationsFiltered} disabled={exportLoading}>
+                    <button type="button" className="btn btn-gh bsm hidden sm:inline-flex" onClick={exportApplicationsFiltered} disabled={exportLoading}>
                       {exportLoading ? 'Exporting…' : 'Export all filtered'}
                     </button>
                   </div>
                 </div>
-                <table className="tbl">
+                <div className="overflow-x-auto -mx-4 lg:mx-0">
+                  <table className="tbl min-w-[600px] lg:min-w-full">
                   <thead>
                     <tr>
                       <th style={{ width: 40 }}>
@@ -2823,10 +2859,10 @@ export default function AdminV3Page() {
                       </th>
                       <th>Applicant</th>
                       <th>Type</th>
-                      <th>Niche</th>
+                      <th className="hidden lg:table-cell">Niche</th>
                       <th>Status</th>
                       <th>Applied</th>
-                      <th>Referrer</th>
+                      <th className="hidden lg:table-cell">Referrer</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -2902,14 +2938,14 @@ export default function AdminV3Page() {
                                 <span className={`badge ${accountType === 'brand' ? 'ba' : 'bp'}`}>{accountType === 'brand' ? 'brand' : 'creator'}</span>
                               ) : '—'}
                             </td>
-                            <td style={{ fontSize: 11, color: 'var(--t3)' }}>{app.niche || '—'}</td>
+                            <td className="hidden lg:table-cell" style={{ fontSize: 11, color: 'var(--t3)' }}>{app.niche || '—'}</td>
                             <td>
                               <span className={`badge ${isApproved ? 'ba' : isRejected ? 'br' : isWaitlisted ? 'bw' : 'bp'}`}>
                                 {st === 'waitlist' ? 'Waitlist' : st.charAt(0).toUpperCase() + st.slice(1)}
                               </span>
                             </td>
                             <td style={{ fontSize: 11, color: 'var(--t3)' }}>{fmtDate(app.application_date)}</td>
-                            <td style={{ fontSize: 11, color: 'var(--t3)' }}>{app.referrer_username ? `@${app.referrer_username}` : '—'}</td>
+                            <td className="hidden lg:table-cell" style={{ fontSize: 11, color: 'var(--t3)' }}>{app.referrer_username ? `@${app.referrer_username}` : '—'}</td>
                             <td>
                               <div className="ag">
                                 {!isApproved && (
@@ -2956,6 +2992,7 @@ export default function AdminV3Page() {
                     )}
                   </tbody>
                 </table>
+                </div>
                 <div className="tpg">
                   <div className="tpgi">
                     {applicationsTotal > 0
@@ -2983,45 +3020,33 @@ export default function AdminV3Page() {
                 </div>
               </div>
               {selectedAppIds.size > 0 && (
-                <div style={{
-                  position: 'sticky',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  background: 'var(--card-bg)',
-                  borderTop: '1px solid var(--border)',
-                  padding: '12px 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  zIndex: 10,
-                  boxShadow: '0 -2px 8px rgba(0,0,0,0.1)'
-                }}>
-                  <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>
+                <div className="fixed bottom-0 left-0 right-0 lg:left-[228px] bg-[#13161D] border-t border-[#252A38] p-3 lg:p-4 flex flex-wrap items-center gap-2 z-30">
+                  <span className="text-[13px] font-semibold text-[#EEF0F8]">
                     {selectedAppIds.size} selected
                   </span>
-                  <button
-                    type="button"
-                    className="btn btn-ok bsm"
-                    disabled={bulkActionLoading}
-                    onClick={() => doBulkAction('approve')}
-                  >
-                    {bulkActionLoading ? '...' : 'Approve All'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-er bsm"
-                    disabled={bulkActionLoading}
-                    onClick={() => doBulkAction('reject')}
-                  >
-                    {bulkActionLoading ? '...' : 'Reject All'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-wa bsm"
-                    disabled={bulkActionLoading}
-                    onClick={() => doBulkAction('waitlist')}
-                  >
+                  <div className="flex flex-wrap gap-2 ml-auto">
+                    <button
+                      type="button"
+                      className="btn btn-ok bsm"
+                      disabled={bulkActionLoading}
+                      onClick={() => doBulkAction('approve')}
+                    >
+                      {bulkActionLoading ? '...' : 'Approve'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-er bsm"
+                      disabled={bulkActionLoading}
+                      onClick={() => doBulkAction('reject')}
+                    >
+                      {bulkActionLoading ? '...' : 'Reject'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-wa bsm"
+                      disabled={bulkActionLoading}
+                      onClick={() => doBulkAction('waitlist')}
+                    >
                     {bulkActionLoading ? '...' : 'Waitlist All'}
                   </button>
                   <button
@@ -3033,6 +3058,7 @@ export default function AdminV3Page() {
                   >
                     Clear
                   </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -3804,12 +3830,12 @@ export default function AdminV3Page() {
             {/* Product Analytics panel */}
             {activePanel === 'analytics' && (
               <div id="panel-analytics" className="panel active">
-                <div className="ptit">Product Analytics</div>
-                <div className="pdesc">Engagement metrics, trends, and insights</div>
+                <div className="ptit text-[18px] lg:text-[20px]">Product Analytics</div>
+                <div className="pdesc text-[12px] lg:text-[12.5px]">Engagement metrics, trends, and insights</div>
                 
                 {/* Row 1: Date range selector */}
-                <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                <div className="flex flex-wrap gap-2 mb-4 items-center">
+                  <div className="flex flex-wrap gap-2">
                     {['7', '30', '90', 'all'].map((range) => (
                       <button
                         key={range}
@@ -3828,7 +3854,7 @@ export default function AdminV3Page() {
 
                 {/* Row 2: Stat cards */}
                 {analyticsData?.overview && (
-                  <div className="sg sg4" style={{ marginBottom: 24 }}>
+                  <div className="sg sg4 grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginBottom: 24 }}>
                     <div className="sc" style={{ ['--c' as string]: 'var(--ap)' }}>
                       <div className="sc-lbl">Signups (range)</div>
                       <div className="sc-val">{overviewStats ? fmt(analyticsDateRange === '7' ? overviewStats.signups_7d : overviewStats.signups_30d) : '—'}</div>
@@ -3853,7 +3879,7 @@ export default function AdminV3Page() {
                 )}
 
                 {/* Row 3: Two line charts */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                   <ChartCard
                     title="Signups Over Time"
                     subtitle={`Last ${analyticsDateRange === 'all' ? '90' : analyticsDateRange} days`}
@@ -3902,7 +3928,7 @@ export default function AdminV3Page() {
                 </div>
 
                 {/* Row 4: Three sections */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
                   <ChartCard
                     title="Top Niches"
                     subtitle="Approved members"

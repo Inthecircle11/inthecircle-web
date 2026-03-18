@@ -1380,3 +1380,39 @@
 .admin-v3 .admin-v3-btn-danger:hover:not(:disabled) {
   filter: brightness(1.1);
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  /* Content area padding */
+  .admin-v3 #ct {
+    padding: 16px !important;
+  }
+  
+  .admin-v3 .panel {
+    padding: 16px !important;
+  }
+  
+  /* Table cells */
+  .admin-v3 .tbl thead th {
+    padding: 8px 12px;
+    font-size: 9px;
+  }
+  
+  .admin-v3 .tbl tbody td {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+  
+  /* Action buttons minimum tap size */
+  .admin-v3 .btn.bic,
+  .admin-v3 .btn.bsm {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 8px;
+  }
+  
+  /* Chart cards */
+  .admin-v3 .bg-\[#13161D\] {
+    padding: 12px !important;
+  }
+}
