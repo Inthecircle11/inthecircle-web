@@ -11,10 +11,8 @@ let cacheTimestamp = 0
 
 export async function GET(req: NextRequest) {
   try {
-    const adminCheck = await requireAdmin(req)
-    if (!adminCheck.ok) {
-      return NextResponse.json({ ok: false, error: adminCheck.error }, { status: adminCheck.status })
-    }
+    const result = await requireAdmin(req)
+    if ('response' in result) return result.response
 
     const now = Date.now()
     if (cachedGeo && now - cacheTimestamp < CACHE_TTL_MS) {
