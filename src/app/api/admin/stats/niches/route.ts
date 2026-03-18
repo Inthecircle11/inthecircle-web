@@ -26,17 +26,18 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const { data: profiles, error } = await supabase
-      .from('profiles')
+    const { data: applications, error } = await supabase
+      .from('applications')
       .select('niche')
+      .eq('status', 'approved')
       .not('niche', 'is', null)
       .neq('niche', '')
     
     if (error) throw error
     
     const nicheMap = new Map<string, number>()
-    profiles?.forEach((p: { niche: string }) => {
-      const niche = p.niche || 'Not specified'
+    applications?.forEach((app: { niche: string }) => {
+      const niche = app.niche || 'Not specified'
       nicheMap.set(niche, (nicheMap.get(niche) || 0) + 1)
     })
     
