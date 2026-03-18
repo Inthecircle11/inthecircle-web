@@ -106,6 +106,7 @@ interface ActiveUser {
   last_seen: string
   full_name: string | null
   username: string | null
+  email: string | null
   profile_image_url: string | null
   niche: string | null
   account_type: string | null
@@ -2288,7 +2289,7 @@ export default function AdminV3Page() {
                     No users active in this time window
                   </div>
                 ) : (
-                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                  <div className="space-y-1 max-h-[400px] overflow-y-auto">
                     {activeUsersData.users.map(user => (
                       <div key={user.user_id}
                         className="flex items-center gap-3 p-2 rounded-lg
@@ -2332,7 +2333,7 @@ export default function AdminV3Page() {
                             )}
                           </div>
                           <div className="text-[11px] text-[#4A5270] truncate">
-                            @{user.username || '—'}
+                            {user.email || `@${user.username}` || '—'}
                             {user.niche && ` · ${user.niche}`}
                           </div>
                         </div>

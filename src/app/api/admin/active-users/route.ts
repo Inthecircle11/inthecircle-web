@@ -10,6 +10,7 @@ interface ActiveUser {
   last_seen: string
   full_name: string | null
   username: string | null
+  email: string | null
   profile_image_url: string | null
   niche: string | null
   account_type: string | null
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest) {
   if (uniqueUserIds.length > 0) {
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('id, name, username, profile_image_url, niche, account_type, location')
+      .select('id, name, username, email, profile_image_url, niche, account_type, location')
       .in('id', uniqueUserIds)
     
     if (!profilesError && profiles) {
@@ -137,6 +138,7 @@ export async function GET(req: NextRequest) {
       last_seen: row.last_seen,
       full_name: profile.name || null,
       username: profile.username || null,
+      email: profile.email || null,
       profile_image_url: profile.profile_image_url || null,
       niche: profile.niche || null,
       account_type: profile.account_type || null,
