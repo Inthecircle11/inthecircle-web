@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
       is_online,
       updated_at,
       profiles!inner (
-        full_name,
+        name,
         username,
         profile_image_url,
         niche,
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
     return {
       user_id: row.user_id,
       last_seen: row.last_seen,
-      full_name: profile.full_name || null,
+      full_name: profile.name || null,
       username: profile.username || null,
       profile_image_url: profile.profile_image_url || null,
       niche: profile.niche || null,
