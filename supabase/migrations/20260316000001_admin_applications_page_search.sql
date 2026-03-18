@@ -12,7 +12,7 @@ RETURNS SETOF applications
 LANGUAGE plpgsql
 SECURITY DEFINER
 STABLE
-SET search_path = public
+SET search_path = public, auth
 AS $$
 DECLARE
   search_term text;
@@ -22,6 +22,7 @@ BEGIN
   SELECT a.*
   FROM applications a
   LEFT JOIN profiles p ON p.id = a.user_id
+  LEFT JOIN auth.users u ON u.id = a.user_id
   WHERE
     CASE p_status
       WHEN 'all' THEN true
@@ -44,6 +45,7 @@ BEGIN
       search_term = '' OR (
         (a.email IS NOT NULL AND a.email ILIKE '%' || search_term || '%')
         OR (p.email IS NOT NULL AND p.email ILIKE '%' || search_term || '%')
+        OR (u.email IS NOT NULL AND u.email::text ILIKE '%' || search_term || '%')
         OR (a.name IS NOT NULL AND a.name ILIKE '%' || search_term || '%')
         OR (p.name IS NOT NULL AND p.name ILIKE '%' || search_term || '%')
         OR (a.username IS NOT NULL AND a.username ILIKE '%' || search_term || '%')
@@ -70,7 +72,7 @@ RETURNS bigint
 LANGUAGE plpgsql
 SECURITY DEFINER
 STABLE
-SET search_path = public
+SET search_path = public, auth
 AS $$
 DECLARE
   search_term text;
@@ -80,6 +82,7 @@ BEGIN
   SELECT count(*)::bigint INTO res
   FROM applications a
   LEFT JOIN profiles p ON p.id = a.user_id
+  LEFT JOIN auth.users u ON u.id = a.user_id
   WHERE
     CASE p_status
       WHEN 'all' THEN true
@@ -102,6 +105,7 @@ BEGIN
       search_term = '' OR (
         (a.email IS NOT NULL AND a.email ILIKE '%' || search_term || '%')
         OR (p.email IS NOT NULL AND p.email ILIKE '%' || search_term || '%')
+        OR (u.email IS NOT NULL AND u.email::text ILIKE '%' || search_term || '%')
         OR (a.name IS NOT NULL AND a.name ILIKE '%' || search_term || '%')
         OR (p.name IS NOT NULL AND p.name ILIKE '%' || search_term || '%')
         OR (a.username IS NOT NULL AND a.username ILIKE '%' || search_term || '%')

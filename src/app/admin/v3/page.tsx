@@ -87,6 +87,96 @@ interface ActivityItem {
   created_at: string
 }
 
+// Country flag utility functions
+function getCountryFlag(location: string | null | undefined): string {
+  if (!location) return ''
+
+  const loc = location.toLowerCase()
+
+  const countryMap: Record<string, string> = {
+    // UAE variants
+    'uae': 'AE', 'united arab emirates': 'AE', 'dubai': 'AE',
+    'abu dhabi': 'AE', 'sharjah': 'AE', 'ajman': 'AE',
+    // Saudi Arabia
+    'saudi': 'SA', 'saudi arabia': 'SA', 'riyadh': 'SA',
+    'jeddah': 'SA', 'mecca': 'SA', 'medina': 'SA',
+    // Egypt
+    'egypt': 'EG', 'cairo': 'EG', 'alexandria': 'EG',
+    // UK
+    'uk': 'GB', 'united kingdom': 'GB', 'england': 'GB',
+    'london': 'GB', 'manchester': 'GB', 'birmingham': 'GB',
+    'scotland': 'GB', 'wales': 'GB',
+    // USA
+    'usa': 'US', 'united states': 'US', 'us': 'US',
+    'new york': 'US', 'los angeles': 'US', 'california': 'US',
+    'texas': 'US', 'florida': 'US', 'ca': 'US',
+    // Qatar
+    'qatar': 'QA', 'doha': 'QA',
+    // Kuwait
+    'kuwait': 'KW', 'kuwait city': 'KW',
+    // Jordan
+    'jordan': 'JO', 'amman': 'JO',
+    // Lebanon
+    'lebanon': 'LB', 'beirut': 'LB',
+    // Bahrain
+    'bahrain': 'BH', 'manama': 'BH',
+    // Oman
+    'oman': 'OM', 'muscat': 'OM',
+    // Sri Lanka
+    'sri lanka': 'LK', 'colombo': 'LK',
+    // Poland
+    'poland': 'PL', 'warsaw': 'PL',
+    // Italy
+    'italy': 'IT', 'italia': 'IT', 'milan': 'IT', 'milano': 'IT',
+    'rome': 'IT', 'roma': 'IT',
+    // Germany
+    'germany': 'DE', 'berlin': 'DE', 'munich': 'DE',
+    // France
+    'france': 'FR', 'paris': 'FR',
+    // Canada
+    'canada': 'CA', 'toronto': 'CA', 'vancouver': 'CA',
+    // Australia
+    'australia': 'AU', 'sydney': 'AU', 'melbourne': 'AU',
+    // India
+    'india': 'IN', 'mumbai': 'IN', 'delhi': 'IN',
+    'bangalore': 'IN', 'chennai': 'IN',
+    // Pakistan
+    'pakistan': 'PK', 'karachi': 'PK', 'lahore': 'PK',
+    // Turkey
+    'turkey': 'TR', 'istanbul': 'TR', 'ankara': 'TR',
+    // Morocco
+    'morocco': 'MA', 'casablanca': 'MA', 'rabat': 'MA',
+    // Nigeria
+    'nigeria': 'NG', 'lagos': 'NG', 'abuja': 'NG',
+    // South Africa
+    'south africa': 'ZA', 'cape town': 'ZA',
+    'johannesburg': 'ZA',
+  }
+
+  // Try to match against each key in the map
+  // Check from longest match to shortest to avoid 'us' matching 'australia'
+  const sortedKeys = Object.keys(countryMap).sort((a, b) => b.length - a.length)
+  
+  for (const key of sortedKeys) {
+    if (loc.includes(key)) {
+      const isoCode = countryMap[key]
+      return isoToFlag(isoCode)
+    }
+  }
+
+  return ''
+}
+
+function isoToFlag(isoCode: string): string {
+  // Convert ISO 3166-1 alpha-2 code to flag emoji
+  // Each letter becomes a regional indicator symbol
+  return isoCode
+    .toUpperCase()
+    .split('')
+    .map(char => String.fromCodePoint(char.charCodeAt(0) + 127397))
+    .join('')
+}
+
 const PANEL_LABELS: Record<PanelId, string> = {
   overview: 'Overview',
   dashboard: 'Dashboard',
@@ -140,6 +230,7 @@ interface ApplicationRow {
   updated_at?: string | null
   profile_image_url?: string | null
   account_type?: string | null
+  location?: string | null
 }
 
 const APPLICATIONS_PAGE_SIZE = 20
@@ -161,6 +252,7 @@ interface UserRow {
   is_verified: boolean
   is_banned: boolean
   created_at: string | null
+  location?: string | null
   niche?: string | null
 }
 
@@ -401,6 +493,10 @@ export default function AdminV3Page() {
   const [accountTypeLoading, setAccountTypeLoading] = useState(false)
   const [accountTypeError, setAccountTypeError] = useState<string | null>(null)
   const [accountTypeCachedAt, setAccountTypeCachedAt] = useState<string | null>(null)
+  
+  const [geoData, setGeoData] = useState<Array<{ location: string; count: number }>>([])
+  const [geoLoading, setGeoLoading] = useState(false)
+  const [geoError, setGeoError] = useState<string | null>(null)
   
   const [activityFeed, setActivityFeed] = useState<ActivityItem[]>([])
   const [activityFeedLoading, setActivityFeedLoading] = useState(false)
@@ -1387,6 +1483,38 @@ export default function AdminV3Page() {
     }
   }, [])
 
+  const loadGeoData = useCallback(async () => {
+    setGeoLoading(true)
+    setGeoError(null)
+    try {
+      const res = await fetch('/api/admin/users?limit=500', { credentials: 'include' })
+      const json = await res.json()
+      const { data } = parseAdminResponse<{ users?: any[] }>(res, json)
+      const users = data?.users || []
+      
+      // Group by location
+      const locationCounts = new Map<string, number>()
+      users.forEach((u: any) => {
+        if (u.location && u.location.trim()) {
+          const loc = u.location.trim()
+          locationCounts.set(loc, (locationCounts.get(loc) || 0) + 1)
+        }
+      })
+      
+      // Convert to array and sort by count
+      const geoArray = Array.from(locationCounts.entries())
+        .map(([location, count]) => ({ location, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10)
+      
+      setGeoData(geoArray)
+    } catch (e: any) {
+      setGeoError(e.message)
+    } finally {
+      setGeoLoading(false)
+    }
+  }, [])
+
   const loadActivityFeed = useCallback(async () => {
     setActivityFeedLoading(true)
     setActivityFeedError(null)
@@ -1438,8 +1566,9 @@ export default function AdminV3Page() {
     }
     if (activePanel === 'analytics') {
       loadNicheData()
+      loadGeoData()
     }
-  }, [authorized, activePanel, loadOverviewStats, loadTrendData, loadMonthlyData, loadAccountTypeData, loadNicheData, loadActivityFeed])
+  }, [authorized, activePanel, loadOverviewStats, loadTrendData, loadMonthlyData, loadAccountTypeData, loadNicheData, loadGeoData, loadActivityFeed])
 
   const saveConfig = useCallback(async (updates: Record<string, string>) => {
     setConfigSaving(true)
@@ -2467,6 +2596,12 @@ export default function AdminV3Page() {
                                 <div>
                                   <div className="tdn">{app.name || app.username || '—'}</div>
                                   <div className="tds">{app.email || '—'}</div>
+                                  {app.location && (
+                                    <div style={{ fontSize: 10, color: '#4A5270', marginTop: 2 }}>
+                                      {getCountryFlag(app.location) && <span style={{ marginRight: 4 }}>{getCountryFlag(app.location)}</span>}
+                                      <span>{app.location}</span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </td>
@@ -2683,6 +2818,12 @@ export default function AdminV3Page() {
                                     <div>
                                       <div className="tdn">{u.name ?? u.username ?? '—'}</div>
                                       <div className="tds">{u.email ?? '—'}</div>
+                                      {u.location && (
+                                        <div className="flex items-center gap-1 text-[11px] text-[#4A5270] mt-0.5">
+                                          {getCountryFlag(u.location) && <span>{getCountryFlag(u.location)}</span>}
+                                          <span>{u.location}</span>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 </td>
@@ -3484,15 +3625,38 @@ export default function AdminV3Page() {
 
                   <ChartCard
                     title="Geographic Distribution"
-                    subtitle="Location data"
-                    loading={false}
-                    error={null}
-                    onRetry={() => {}}
+                    subtitle="Top locations"
+                    loading={geoLoading}
+                    error={geoError}
+                    onRetry={loadGeoData}
                   >
-                    <div style={{ textAlign: 'center', padding: 48, color: 'var(--t3)' }}>
-                      <div style={{ fontSize: 32, marginBottom: 8 }}>🌍</div>
-                      <div style={{ fontSize: 12 }}>Geographic data not available</div>
-                    </div>
+                    {geoData.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: 48, color: 'var(--t3)' }}>
+                        <div style={{ fontSize: 32, marginBottom: 8 }}>🌍</div>
+                        <div style={{ fontSize: 12 }}>No location data</div>
+                      </div>
+                    ) : (
+                      <div style={{ padding: '8px 0' }}>
+                        {geoData.map((item, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: i < geoData.length - 1 ? '1px solid #252A38' : 'none' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontSize: 13, width: 24, textAlign: 'center', color: '#4A5270' }}>
+                                {i + 1}
+                              </span>
+                              <span style={{ fontSize: 13 }}>
+                                {getCountryFlag(item.location)}
+                              </span>
+                              <span style={{ fontSize: 12, color: '#8892AA' }}>
+                                {item.location}
+                              </span>
+                            </div>
+                            <span style={{ fontSize: 12, fontWeight: 'bold', color: '#EEF0F8' }}>
+                              {item.count}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </ChartCard>
 
                   <ChartCard
