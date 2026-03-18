@@ -2322,10 +2322,10 @@ export default function AdminV3Page() {
               </div>
 
               {/* Live User Activity */}
-              <div className="bg-[#13161D] border border-[#252A38] rounded-[18px] mb-6" style={{ padding: isMobile ? 16 : 20 }}>
+              <div className="bg-[#13161D] border border-[#252A38] rounded-[18px] mb-6" style={{ padding: isMobile ? 16 : 20, overflow: 'visible' }}>
                 
                 {/* Header */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4" style={{ position: 'relative' }}>
                   <div>
                     <div className="text-[13px] font-bold text-[#EEF0F8]">
                       Live User Activity
@@ -2334,7 +2334,7 @@ export default function AdminV3Page() {
                       Real-time presence from user_presence table
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 relative z-10">
+                  <div className="flex items-center gap-2" style={{ position: 'relative', zIndex: 10 }}>
                     {/* Auto-refresh indicator */}
                     <div className="flex items-center gap-1.5">
                       <div className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
@@ -2345,8 +2345,13 @@ export default function AdminV3Page() {
                       value={activeUsersCompletionFilter}
                       onChange={e => setActiveUsersCompletionFilter(e.target.value)}
                       className="bg-[#1C2030] border border-[#2E3448] text-[#8892AA]
-                        text-[11px] rounded-lg px-2 py-1 outline-none cursor-pointer
-                        relative z-20 pointer-events-auto"
+                        text-[11px] rounded-lg px-2 py-1 outline-none"
+                      style={{
+                        cursor: 'pointer',
+                        pointerEvents: 'auto',
+                        position: 'relative',
+                        zIndex: 20,
+                      }}
                     >
                       <option value="all">All Users</option>
                       <option value="0-25">0-25% Complete</option>
@@ -2363,8 +2368,13 @@ export default function AdminV3Page() {
                         loadActiveUsers(w)
                       }}
                       className="bg-[#1C2030] border border-[#2E3448] text-[#8892AA]
-                        text-[11px] rounded-lg px-2 py-1 outline-none cursor-pointer
-                        relative z-20 pointer-events-auto"
+                        text-[11px] rounded-lg px-2 py-1 outline-none"
+                      style={{
+                        cursor: 'pointer',
+                        pointerEvents: 'auto',
+                        position: 'relative',
+                        zIndex: 20,
+                      }}
                     >
                       <option value={5}>Last 5 min</option>
                       <option value={60}>Last 1 hour</option>
@@ -2878,6 +2888,7 @@ export default function AdminV3Page() {
                       className="sel"
                       value={appFilter}
                       onChange={(e) => { setAppFilter(e.target.value); setApplicationsPage(1) }}
+                      style={{ cursor: 'pointer', pointerEvents: 'auto', position: 'relative', zIndex: 1 }}
                     >
                       {APP_FILTER_OPTIONS.map((o) => (
                         <option key={o.value || 'all'} value={o.value}>{o.label}</option>
@@ -3467,6 +3478,7 @@ export default function AdminV3Page() {
                     className="sel"
                     value={dataRequestsStatusFilter}
                     onChange={(e) => { setDataRequestsStatusFilter(e.target.value); setDataRequestsPage(1); }}
+                    style={{ cursor: 'pointer', pointerEvents: 'auto', position: 'relative', zIndex: 1 }}
                   >
                     <option value="all">All Status</option>
                     <option value="pending">Pending</option>
@@ -3476,6 +3488,7 @@ export default function AdminV3Page() {
                     className="sel"
                     value={dataRequestsTypeFilter}
                     onChange={(e) => { setDataRequestsTypeFilter(e.target.value); setDataRequestsPage(1); }}
+                    style={{ cursor: 'pointer', pointerEvents: 'auto', position: 'relative', zIndex: 1 }}
                   >
                     <option value="all">All Types</option>
                     <option value="export">Export</option>
@@ -3575,6 +3588,7 @@ export default function AdminV3Page() {
                     className="sel"
                     value={riskLevelFilter}
                     onChange={(e) => setRiskLevelFilter(e.target.value as 'all' | 'high' | 'medium' | 'low')}
+                    style={{ cursor: 'pointer', pointerEvents: 'auto', position: 'relative', zIndex: 1 }}
                   >
                     <option value="all">All Levels</option>
                     <option value="high">High</option>
@@ -3665,6 +3679,7 @@ export default function AdminV3Page() {
                     className="sel"
                     value={approvalsFilter}
                     onChange={(e) => setApprovalsFilter(e.target.value as 'all' | 'active' | 'expired')}
+                    style={{ cursor: 'pointer', pointerEvents: 'auto', position: 'relative', zIndex: 1 }}
                   >
                     <option value="all">All</option>
                     <option value="active">Active</option>
@@ -3916,6 +3931,7 @@ export default function AdminV3Page() {
                         type="button"
                         className={`btn ${analyticsDateRange === range ? 'btn-pr' : 'btn-gh'} bsm`}
                         onClick={() => setAnalyticsDateRange(range)}
+                        style={{ cursor: 'pointer', pointerEvents: 'auto' }}
                       >
                         {range === 'all' ? 'All time' : `Last ${range} days`}
                       </button>
