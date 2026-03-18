@@ -58,7 +58,19 @@ export async function GET(req: NextRequest) {
 
   if (usersError) {
     console.error('[active-users] Failed to fetch users:', usersError)
-    return NextResponse.json({ error: 'Failed to fetch active users' }, { status: 500 })
+    console.error('[active-users] Error details:', JSON.stringify(usersError, null, 2))
+    // Return empty data instead of error to prevent UI breaking
+    return NextResponse.json({
+      ok: true,
+      data: {
+        concurrent: 0,
+        active_hour: 0,
+        active_today: 0,
+        users: [],
+      },
+      fetched_at: new Date().toISOString(),
+      error: usersError.message,
+    })
   }
 
   // Fetch aggregate counts in parallel
@@ -66,7 +78,7 @@ export async function GET(req: NextRequest) {
   const cutoff60min = new Date(Date.now() - 60 * 60 * 1000).toISOString()
   const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
-  const [concurrentRes, activeHourRes, activeTodayRes] = await Promise.all([
+  const [concurrentRes, activeHourRes, activeTodayRes] = await Promise.allSettled([
     supabase
       .from('user_presence')
       .select('*', { count: 'exact', head: true })
@@ -80,6 +92,27 @@ export async function GET(req: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .gt('last_seen', cutoff24h),
   ])
+  
+  const getConcurrentCount = () => {
+    if (concurrentRes.status === 'fulfilled' && !concurrentRes.value.error) {
+      return concurrentRes.value.count ?? 0
+    }
+    return 0
+  }
+  
+  const getActiveHourCount = () => {
+    if (activeHourRes.status === 'fulfilled' && !activeHourRes.value.error) {
+      return activeHourRes.value.count ?? 0
+    }
+    return 0
+  }
+  
+  const getActiveTodayCount = () => {
+    if (activeTodayRes.status === 'fulfilled' && !activeTodayRes.value.error) {
+      return activeTodayRes.value.count ?? 0
+    }
+    return 0
+  }
 
   // Transform the data
   const users: ActiveUser[] = (usersData ?? []).map((row: any) => {
@@ -103,9 +136,9 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     data: {
-      concurrent: concurrentRes.count ?? 0,
-      active_hour: activeHourRes.count ?? 0,
-      active_today: activeTodayRes.count ?? 0,
+      concurrent: getConcurrentCount(),
+      active_hour: getActiveHourCount(),
+      active_today: getActiveTodayCount(),
       users,
     },
     fetched_at: new Date().toISOString(),
