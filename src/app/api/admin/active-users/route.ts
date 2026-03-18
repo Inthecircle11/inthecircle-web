@@ -18,7 +18,7 @@ interface ActiveUser {
   minutes_ago: number
 }
 
-/** GET - List active users from analytics_sessions table. Requires active_sessions permission. */
+/** GET - List active users from user_presence table. Requires active_sessions permission. */
 export async function GET(req: NextRequest) {
   const result = await requireAdmin(req)
   if ('response' in result) return result.response
@@ -33,23 +33,20 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const windowMinutes = parseInt(url.searchParams.get('window') || '5', 10)
 
-  // Calculate the cutoff time - use 24 hours minimum to show recent users
-  // since analytics_sessions may not update in real-time
-  const effectiveWindow = Math.max(windowMinutes, 1440) // At least 24 hours
-  const cutoffTime = new Date(Date.now() - effectiveWindow * 60 * 1000).toISOString()
+  // Calculate the cutoff time
+  const cutoffTime = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString()
 
-  // Fetch users active in the specified window from analytics_sessions
-  const { data: sessionsData, error: sessionsError } = await supabase
-    .from('analytics_sessions')
-    .select('user_id, last_activity_at')
-    .not('user_id', 'is', null)
-    .gte('last_activity_at', cutoffTime)
-    .order('last_activity_at', { ascending: false })
+  // Fetch users active in the specified window from user_presence
+  const { data: presenceData, error: presenceError } = await supabase
+    .from('user_presence')
+    .select('user_id, last_seen, is_online, updated_at')
+    .gte('last_seen', cutoffTime)
+    .order('last_seen', { ascending: false })
     .limit(100)
   
-  if (sessionsError) {
-    console.error('[active-users] Failed to fetch sessions:', sessionsError)
-    console.error('[active-users] Error details:', JSON.stringify(sessionsError, null, 2))
+  if (presenceError) {
+    console.error('[active-users] Failed to fetch presence:', presenceError)
+    console.error('[active-users] Error details:', JSON.stringify(presenceError, null, 2))
     return NextResponse.json({
       ok: true,
       data: {
@@ -59,12 +56,12 @@ export async function GET(req: NextRequest) {
         users: [],
       },
       fetched_at: new Date().toISOString(),
-      error: sessionsError.message,
+      error: presenceError.message,
     })
   }
 
   // Get unique user IDs
-  const uniqueUserIds = [...new Set((sessionsData || []).map((s: any) => s.user_id))]
+  const uniqueUserIds = [...new Set((presenceData || []).map((s: any) => s.user_id))]
   
   // Fetch profile data for these users
   let usersData: any[] = []
@@ -75,37 +72,34 @@ export async function GET(req: NextRequest) {
       .in('id', uniqueUserIds)
     
     if (!profilesError && profiles) {
-      // Map sessions to profiles
+      // Map presence to profiles
       const profileMap = new Map(profiles.map((p: any) => [p.id, p]))
-      usersData = (sessionsData || []).map((session: any) => ({
-        user_id: session.user_id,
-        last_seen: session.last_activity_at,
-        profiles: profileMap.get(session.user_id) || {}
+      usersData = (presenceData || []).map((presence: any) => ({
+        user_id: presence.user_id,
+        last_seen: presence.last_seen,
+        profiles: profileMap.get(presence.user_id) || {}
       }))
     }
   }
 
-  // Fetch aggregate counts in parallel from analytics_sessions
+  // Fetch aggregate counts in parallel from user_presence
   const cutoff5min = new Date(Date.now() - 5 * 60 * 1000).toISOString()
   const cutoff60min = new Date(Date.now() - 60 * 60 * 1000).toISOString()
   const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
 
   const [concurrentRes, activeHourRes, activeTodayRes] = await Promise.allSettled([
     supabase
-      .from('analytics_sessions')
+      .from('user_presence')
       .select('user_id', { count: 'exact', head: true })
-      .not('user_id', 'is', null)
-      .gte('last_activity_at', cutoff5min),
+      .gte('last_seen', cutoff5min),
     supabase
-      .from('analytics_sessions')
+      .from('user_presence')
       .select('user_id', { count: 'exact', head: true })
-      .not('user_id', 'is', null)
-      .gte('last_activity_at', cutoff60min),
+      .gte('last_seen', cutoff60min),
     supabase
-      .from('analytics_sessions')
+      .from('user_presence')
       .select('user_id', { count: 'exact', head: true })
-      .not('user_id', 'is', null)
-      .gte('last_activity_at', cutoff24h),
+      .gte('last_seen', cutoff24h),
   ])
   
   const getConcurrentCount = () => {
