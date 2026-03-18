@@ -80,6 +80,11 @@ interface AccountTypePoint {
   count: number
 }
 
+interface ConnectionPoint {
+  date: string
+  count: number
+}
+
 interface ActivityItem {
   id: string
   action: string
@@ -514,6 +519,11 @@ export default function AdminV3Page() {
   const [accountTypeLoading, setAccountTypeLoading] = useState(false)
   const [accountTypeError, setAccountTypeError] = useState<string | null>(null)
   const [accountTypeCachedAt, setAccountTypeCachedAt] = useState<string | null>(null)
+  
+  const [connectionsData, setConnectionsData] = useState<ConnectionPoint[]>([])
+  const [connectionsLoading, setConnectionsLoading] = useState(false)
+  const [connectionsError, setConnectionsError] = useState<string | null>(null)
+  const [connectionsCachedAt, setConnectionsCachedAt] = useState<string | null>(null)
   
   const [geoData, setGeoData] = useState<Array<{ location: string; count: number }>>([])
   const [geoLoading, setGeoLoading] = useState(false)
@@ -1515,6 +1525,22 @@ export default function AdminV3Page() {
     }
   }, [])
 
+  const loadConnectionsData = useCallback(async (days = 30) => {
+    setConnectionsLoading(true)
+    setConnectionsError(null)
+    try {
+      const res = await fetch(`/api/admin/stats/connections?days=${days}`, { credentials: 'include' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed')
+      setConnectionsData(json.data || [])
+      setConnectionsCachedAt(json.cached_at || null)
+    } catch (e: any) {
+      setConnectionsError(e.message)
+    } finally {
+      setConnectionsLoading(false)
+    }
+  }, [])
+
   const loadGeoData = useCallback(async () => {
     setGeoLoading(true)
     setGeoError(null)
@@ -1598,8 +1624,9 @@ export default function AdminV3Page() {
     if (activePanel === 'analytics') {
       loadNicheData()
       loadGeoData()
+      loadConnectionsData(30)
     }
-  }, [authorized, activePanel, loadOverviewStats, loadTrendData, loadMonthlyData, loadAccountTypeData, loadNicheData, loadGeoData, loadActivityFeed, loadActiveUsers, activeUsersWindow])
+  }, [authorized, activePanel, loadOverviewStats, loadTrendData, loadMonthlyData, loadAccountTypeData, loadNicheData, loadGeoData, loadConnectionsData, loadActivityFeed, loadActiveUsers, activeUsersWindow])
 
   // Auto-refresh active users every 30 seconds when on Overview panel
   useEffect(() => {
@@ -3788,15 +3815,25 @@ export default function AdminV3Page() {
 
                   <ChartCard
                     title="Connections Over Time"
-                    subtitle="Coming soon"
-                    loading={false}
-                    error={null}
-                    onRetry={() => {}}
+                    subtitle={`Last ${analyticsDateRange === 'all' ? '90' : analyticsDateRange} days`}
+                    loading={connectionsLoading}
+                    error={connectionsError}
+                    onRetry={() => loadConnectionsData(analyticsDateRange === 'all' ? 90 : parseInt(analyticsDateRange))}
+                    cachedAt={connectionsCachedAt}
                   >
-                    <div style={{ textAlign: 'center', padding: 48, color: 'var(--t3)' }}>
-                      <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
-                      <div style={{ fontSize: 12 }}>Connection tracking coming soon</div>
-                    </div>
+                    {connectionsData.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: 32, color: 'var(--t3)' }}>No data</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={220}>
+                        <LineChart data={connectionsData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#252A38" />
+                          <XAxis dataKey="date" tick={{ fill: '#8892AA', fontSize: 10 }} interval={Math.floor(connectionsData.length / 7)} />
+                          <YAxis tick={{ fill: '#8892AA', fontSize: 10 }} />
+                          <Tooltip contentStyle={{ background: '#1C2030', border: '1px solid #2E3448', borderRadius: 8 }} />
+                          <Line type="monotone" dataKey="count" stroke="#10B981" strokeWidth={2} dot={false} name="New Connections" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
                   </ChartCard>
                 </div>
 
