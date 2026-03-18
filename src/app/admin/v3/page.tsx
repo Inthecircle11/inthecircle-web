@@ -1519,27 +1519,10 @@ export default function AdminV3Page() {
     setGeoLoading(true)
     setGeoError(null)
     try {
-      const res = await fetch('/api/admin/users?limit=500', { credentials: 'include' })
+      const res = await fetch('/api/admin/stats/geo', { credentials: 'include' })
       const json = await res.json()
-      const { data } = parseAdminResponse<{ users?: any[] }>(res, json)
-      const users = data?.users || []
-      
-      // Group by location
-      const locationCounts = new Map<string, number>()
-      users.forEach((u: any) => {
-        if (u.location && u.location.trim()) {
-          const loc = u.location.trim()
-          locationCounts.set(loc, (locationCounts.get(loc) || 0) + 1)
-        }
-      })
-      
-      // Convert to array and sort by count
-      const geoArray = Array.from(locationCounts.entries())
-        .map(([location, count]) => ({ location, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10)
-      
-      setGeoData(geoArray)
+      if (!res.ok) throw new Error(json.error || 'Failed')
+      setGeoData(json.data || [])
     } catch (e: any) {
       setGeoError(e.message)
     } finally {
