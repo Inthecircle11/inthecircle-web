@@ -132,15 +132,9 @@ We've now added **7 layers** that prevent this:
 1. **✅ DONE:** Remove rewrites from `vercel.json` (only headers now)
 2. **✅ DONE:** Add 7-layer hardening
 3. **✅ DONE:** Add build-time validation (cannot be bypassed)
+4. **✅ DONE:** Move legacy static HTML to `archive/legacy/` (see `archive/legacy/README.md`)
 
 ### Should Consider
-
-4. **Remove or archive static HTML files** (or move to `archive/` folder):
-   - `index.html` → `archive/legacy-index.html`
-   - `signup.html` → `archive/legacy-signup.html`
-   - `admin.html`, `admin-gate.html` → `archive/legacy-admin-*.html`
-   
-   **Why:** If files aren't in root, less temptation to use them.
 
 5. **Add clear README in root** explaining:
    - "This is a Next.js app"

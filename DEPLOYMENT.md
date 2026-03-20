@@ -52,6 +52,8 @@ Run `npm run verify-domain` (uses token from `vercel login` or `VERCEL_TOKEN`). 
 
 Do **not** add `rewrites` in `vercel.json` that map `/`, `/signup`, or `/admin` to root `*.html` files. Those rules override **Next.js App Router** and make production look like the old static “Coming Soon” / legacy signup HTML even when the domain is on the correct project.
 
+**Legacy static HTML** (old pre-Next pages) lives only under **`archive/legacy/`** — not in the repo root — so it is not mistaken for the live app. See `archive/legacy/README.md`.
+
 ### Multi-layer prevention (hardened)
 
 **7 layers of protection** prevent routing regressions:

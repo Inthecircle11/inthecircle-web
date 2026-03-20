@@ -4,7 +4,7 @@
 
 **You have TWO deployment models in the same repo:**
 
-1. **Legacy static site** (files: `index.html`, `signup.html`, `admin.html`)
+1. **Legacy static site** (files: `index.html`, `signup.html`, `admin.html` — now under **`archive/legacy/`** only)
 2. **Current Next.js app** (files: `src/app/page.tsx`, `src/app/signup/page.tsx`)
 
 When someone sees the static HTML files and needs to "fix routing," they naturally add `vercel.json` rewrites to serve those files. **This shadows Next.js and breaks production.**
@@ -27,7 +27,7 @@ Production breaks (serves static HTML instead of Next.js)
 
 ## Why It's So Easy to Make This Mistake
 
-1. **The files are there** - `index.html`, `signup.html` exist in root, so it "makes sense" to use them
+1. **The files were in repo root** — that invited `vercel.json` rewrites; they now live only in **`archive/legacy/`**
 2. **Vercel docs show rewrites** - Examples use `rewrites` for routing
 3. **No immediate error** - Build succeeds, deploy succeeds, but wrong content serves
 4. **Confusion about architecture** - Two models exist side-by-side
@@ -44,36 +44,15 @@ Production breaks (serves static HTML instead of Next.js)
 
 **Most critical:** The **build will fail** if `vercel.json` has rewrites, so even if someone bypasses everything else, they cannot deploy.
 
-## What You Should Consider
+## What We Did (recommended)
 
-### Option 1: Archive Legacy Files (Recommended)
+**Legacy static HTML was moved to `archive/legacy/`** (not in repo root). See `archive/legacy/README.md`.
 
-Move static HTML files to `archive/legacy/` so they're not in root:
+This removes the main source of confusion: files sitting next to `package.json` that looked like “the” web app.
 
-```bash
-mkdir -p archive/legacy
-mv index.html signup.html admin.html admin-gate.html archive/legacy/
-```
+### Option: Remove Legacy Files Entirely (stronger)
 
-**Why:** If files aren't in root, less temptation to use them in `vercel.json`.
-
-### Option 2: Remove Legacy Files Entirely
-
-If you're 100% sure you'll never need them:
-
-```bash
-rm index.html signup.html admin.html admin-gate.html
-```
-
-**Why:** Eliminates the source of confusion entirely.
-
-### Option 3: Keep But Document Clearly
-
-Add a `LEGACY_FILES.md` in root explaining:
-- These are old static site files
-- They are NOT used in production
-- Do NOT add rewrites to serve them
-- Next.js App Router owns all routes
+If you later want zero legacy files in the repo, delete `archive/legacy/` after confirming nothing references it.
 
 ## The Real Fix
 
@@ -82,5 +61,5 @@ Add a `LEGACY_FILES.md` in root explaining:
 ## Next Steps
 
 1. **Review:** Read `docs/ROOT_CAUSE_ANALYSIS.md` for full technical details
-2. **Decide:** Archive, remove, or keep legacy files (with clear docs)
+2. **Optional:** Delete `archive/legacy/` later if you want zero legacy HTML in the repo
 3. **Trust the hardening:** The build-time check will catch it even if someone tries
