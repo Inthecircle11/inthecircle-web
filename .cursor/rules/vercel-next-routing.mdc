@@ -1,0 +1,22 @@
+---
+description: Prevent Next.js app from being shadowed by legacy vercel.json static HTML or global middleware lockdown.
+alwaysApply: true
+---
+
+# Vercel + Next.js routing
+
+## `vercel.json`
+
+- **Do not** add `rewrites` that map `/`, `/signup`, `/admin`, or other app paths to root `*.html` files (`index.html`, `signup.html`, `admin.html`, etc.). That was the legacy static site; it overrides **Next.js App Router** and makes production look like a broken or “old” webapp.
+- **Do not** set `outputDirectory` or empty `buildCommand` for this repo unless you are intentionally using static export (this project is not).
+- Headers-only `vercel.json` (security, `apple-app-site-association`) is fine.
+
+CI runs `npm run check:vercel-routing` to enforce this.
+
+## Middleware
+
+- Do **not** ship a blanket redirect of all routes to `/download` unless it is **only** inside `if (process.env.WEB_LOCKDOWN === 'true')`. Pre-launch lockdown is opt-in via env.
+
+## Domain
+
+- **app.inthecircle.co** must stay on Vercel project **inthecircle-web-v2** only. Run `npm run verify-domain` before/after domain changes.

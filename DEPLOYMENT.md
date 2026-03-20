@@ -52,6 +52,18 @@ Run `npm run verify-domain` (uses token from `vercel login` or `VERCEL_TOKEN`). 
 
 Do **not** add `rewrites` in `vercel.json` that map `/`, `/signup`, or `/admin` to root `*.html` files. Those rules override **Next.js App Router** and make production look like the old static “Coming Soon” / legacy signup HTML even when the domain is on the correct project.
 
+### Automated prevention (CI + local)
+
+| Check | What it does |
+|--------|----------------|
+| **`npm run check:vercel-routing`** | Fails if `vercel.json` contains `rewrites` to `*.html`, or legacy `outputDirectory` / empty `buildCommand`. Runs in **GitHub Actions** on every PR and push to `main`. |
+| **`npm run test:guards`** | Includes `middleware-lockdown.test.ts`: any redirect to `/download` must stay inside `WEB_LOCKDOWN === 'true'`. |
+| **`npm run verify-domain`** | On pushes to `main`, CI runs this when `VERCEL_TOKEN` is set — ensures **app.inthecircle.co** is only on **inthecircle-web-v2**. |
+
+Before pushing: **`npm run ci:local`** (now runs the Vercel routing check + typecheck + build).
+
+**Branch protection:** Keep **required status check “CI / build”** on `main` so regressions cannot merge without a green build (avoid bypass except emergencies).
+
 ### Move domain without CLI (Dashboard only)
 
 If `npx vercel login` fails (e.g. `vc: command not found`) or the script gets 403:

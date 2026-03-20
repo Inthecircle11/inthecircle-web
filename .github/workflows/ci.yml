@@ -33,6 +33,9 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: Vercel routing guard (no legacy HTML rewrites)
+        run: npm run check:vercel-routing
+
       - name: Admin integration tests
         run: npm run test:admin
 
