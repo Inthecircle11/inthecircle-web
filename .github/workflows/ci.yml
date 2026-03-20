@@ -48,11 +48,12 @@ jobs:
       - name: Check for smart quotes in source
         run: node scripts/check-smart-quotes.mjs
 
-      - name: Build
+      - name: Build (includes vercel.json validation in next.config.ts)
         run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+        # Build will FAIL if vercel.json has legacy rewrites (next.config.ts validates at build time)
 
       - name: Verify Vercel domain (main only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

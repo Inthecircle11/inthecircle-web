@@ -19,6 +19,7 @@
     "verify-domain": "node scripts/verify-domain-ownership.mjs",
     "check:migrations": "node scripts/check-migrations.mjs",
     "check:vercel-routing": "node scripts/check-vercel-routing.mjs",
+    "test:production-routing": "PRODUCTION_URL=https://app.inthecircle.co jest tests/guards/production-routing.test.ts --runInBand",
     "preview": "npx vercel",
     "deploy": "node scripts/deploy.mjs",
     "one-time-fix": "node scripts/one-time-fix-domain-and-deploy.mjs",

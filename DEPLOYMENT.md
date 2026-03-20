@@ -52,17 +52,28 @@ Run `npm run verify-domain` (uses token from `vercel login` or `VERCEL_TOKEN`). 
 
 Do **not** add `rewrites` in `vercel.json` that map `/`, `/signup`, or `/admin` to root `*.html` files. Those rules override **Next.js App Router** and make production look like the old static “Coming Soon” / legacy signup HTML even when the domain is on the correct project.
 
-### Automated prevention (CI + local)
+### Multi-layer prevention (hardened)
 
-| Check | What it does |
-|--------|----------------|
-| **`npm run check:vercel-routing`** | Fails if `vercel.json` contains `rewrites` to `*.html`, or legacy `outputDirectory` / empty `buildCommand`. Runs in **GitHub Actions** on every PR and push to `main`. |
-| **`npm run test:guards`** | Includes `middleware-lockdown.test.ts`: any redirect to `/download` must stay inside `WEB_LOCKDOWN === 'true'`. |
-| **`npm run verify-domain`** | On pushes to `main`, CI runs this when `VERCEL_TOKEN` is set — ensures **app.inthecircle.co** is only on **inthecircle-web-v2**. |
+**7 layers of protection** prevent routing regressions:
 
-Before pushing: **`npm run ci:local`** (now runs the Vercel routing check + typecheck + build).
+| Layer | When it runs | What it blocks |
+|-------|--------------|----------------|
+| **1. Pre-commit hook** | Before `git commit` | Blocks commit if `vercel.json` has forbidden rewrites. Changes stay in working directory. |
+| **2. `check:vercel-routing` script** | `npm run ci:local`, CI, pre-commit | Validates `vercel.json` structure (no `*.html` rewrites, no legacy keys). |
+| **3. Build-time check** | `next.config.ts` during `npm run build` | **Build FAILS** if `vercel.json` contains legacy rewrites. Cannot deploy broken config. |
+| **4. CI check** | Every PR/push to `main` | Runs `check:vercel-routing` after typecheck (fails fast). |
+| **5. Runtime health endpoint** | `GET /api/health/routing` | Returns 500 if routing config violates rules. Can be monitored/alerted. |
+| **6. Production smoke test** | `npm run test:production-routing` | Validates production isn't serving static HTML (optional, requires `PRODUCTION_URL`). |
+| **7. Cursor AI rule** | Always (`.cursor/rules/vercel-next-routing.mdc`) | Warns if you try to add static rewrites in editor. |
 
-**Branch protection:** Keep **required status check “CI / build”** on `main` so regressions cannot merge without a green build (avoid bypass except emergencies).
+**Before pushing:** Run **`npm run ci:local`** (includes routing check + typecheck + build).
+
+**Branch protection:** Keep **required status check “CI / build”** on `main` so regressions cannot merge without a green build. The build step itself will **fail** if `vercel.json` is bad (layer 3).
+
+**Emergency bypass:** Only if absolutely necessary:
+- Pre-commit: `git commit --no-verify` (bypasses hook)
+- CI: Bypass branch protection (admin only)
+- ⚠️ **Still blocked by build-time check** — `next.config.ts` validates at build time, so bad config cannot deploy even if CI is bypassed.
 
 ### Move domain without CLI (Dashboard only)
 

@@ -1,4 +1,31 @@
 import type { NextConfig } from "next";
+import fs from 'fs'
+import path from 'path'
+
+// HARDENING: Fail build if vercel.json contains legacy rewrites to *.html (prevents shadowing Next.js routes).
+const vercelPath = path.join(process.cwd(), 'vercel.json')
+if (fs.existsSync(vercelPath)) {
+  try {
+    const vercel = JSON.parse(fs.readFileSync(vercelPath, 'utf8'))
+    if (Array.isArray(vercel.rewrites)) {
+      for (const rule of vercel.rewrites) {
+        const dest = rule?.destination ?? ''
+        if (typeof dest === 'string' && /\.html(\/|$|\?|#)/i.test(dest)) {
+          throw new Error(
+            `BUILD FAILED: vercel.json rewrites must not point to *.html (legacy static shell).\n` +
+            `  Forbidden: ${JSON.stringify(dest)}\n` +
+            `  Next.js App Router owns these routes. Remove static HTML rewrites.\n` +
+            `  Run: npm run check:vercel-routing`
+          )
+        }
+      }
+    }
+  } catch (e: any) {
+    if (e.message?.includes('BUILD FAILED')) throw e
+    // JSON parse error or other - let build continue, but log
+    console.warn('next.config: Could not validate vercel.json:', e.message)
+  }
+}
 
 // Fail production build on Vercel if ADMIN_BASE_PATH is not set (required for header rules and security).
 // Only enforce for Production env; Preview builds may not have the var.

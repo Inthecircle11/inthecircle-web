@@ -11,7 +11,16 @@ alwaysApply: true
 - **Do not** set `outputDirectory` or empty `buildCommand` for this repo unless you are intentionally using static export (this project is not).
 - Headers-only `vercel.json` (security, `apple-app-site-association`) is fine.
 
-CI runs `npm run check:vercel-routing` to enforce this.
+**7 layers of protection enforce this:**
+1. Pre-commit hook (blocks bad commits)
+2. `check:vercel-routing` script (CI + local)
+3. **Build-time validation in `next.config.ts`** (build FAILS if bad)
+4. CI check (GitHub Actions)
+5. Runtime health endpoint (`/api/health/routing`)
+6. Production smoke tests (optional)
+7. This Cursor rule (AI guidance)
+
+Even if someone bypasses CI, **the build will fail** at layer 3.
 
 ## Middleware
 

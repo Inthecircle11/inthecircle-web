@@ -34,19 +34,36 @@ try {
   process.exit(1)
 }
 
+// HARDENING: Multiple checks to prevent routing regressions
 const rewrites = config.rewrites
 if (Array.isArray(rewrites)) {
+  const violations = []
   for (const rule of rewrites) {
     const dest = rule?.destination ?? ''
+    const source = rule?.source ?? ''
+    
+    // Check 1: No *.html destinations (legacy static shell)
     if (typeof dest === 'string' && /\.html(\/|$|\?|#)/i.test(dest)) {
-      console.error(
-        'check-vercel-routing: vercel.json rewrites must not point to *.html (legacy static shell).\n' +
-          `  Forbidden destination: ${JSON.stringify(dest)}\n` +
-          '  Next.js App Router owns /. Remove static index.html/signup.html/admin rewrites.\n' +
-          '  See DEPLOYMENT.md → "Legacy vercel.json rewrites".'
-      )
-      process.exit(1)
+      violations.push(`Rewrite "${source}" → "${dest}" points to legacy HTML file`)
     }
+    
+    // Check 2: No rewrites for core app routes (Next.js owns these)
+    const coreRoutes = ['^/$', '^/signup', '^/login', '^/admin', '^/feed', '^/forgot-password']
+    for (const route of coreRoutes) {
+      const re = new RegExp(route.replace('^', ''))
+      if (re.test(source) && dest && !dest.startsWith('/api/')) {
+        violations.push(`Rewrite "${source}" → "${dest}" shadows Next.js route ${source}`)
+      }
+    }
+  }
+  
+  if (violations.length > 0) {
+    console.error('check-vercel-routing: BLOCKED — vercel.json contains forbidden rewrites:\n')
+    violations.forEach(v => console.error(`  ❌ ${v}`))
+    console.error('\n  Next.js App Router owns these routes. Remove static HTML rewrites.')
+    console.error('  See DEPLOYMENT.md → "Legacy vercel.json rewrites"')
+    console.error('  See .cursor/rules/vercel-next-routing.mdc')
+    process.exit(1)
   }
 }
 
