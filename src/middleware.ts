@@ -29,20 +29,24 @@ export function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // Only allow: download, reset-password flow, and admin panel. Everything else → download.
-  const allowedPaths = new Set([
-    '/download',
-    '/forgot-password',
-    '/update-password',
-  ])
-  const isAdmin = pathname === '/admin' || pathname.startsWith('/admin/')
-  const isAllowed =
-    allowedPaths.has(pathname) ||
-    isAdmin
-  if (!isAllowed) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/download'
-    return NextResponse.redirect(url, 302)
+  /**
+   * Optional pre-launch lockdown (set WEB_LOCKDOWN=true on Vercel): only
+   * /download, password reset, and /admin — everything else → /download.
+   * Default is OFF so the full web app (/, /signup, /feed, etc.) is reachable.
+   */
+  if (process.env.WEB_LOCKDOWN === 'true') {
+    const allowedPaths = new Set([
+      '/download',
+      '/forgot-password',
+      '/update-password',
+    ])
+    const isAdmin = pathname === '/admin' || pathname.startsWith('/admin/')
+    const isAllowed = allowedPaths.has(pathname) || isAdmin
+    if (!isAllowed) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/download'
+      return NextResponse.redirect(url, 302)
+    }
   }
 
   const basePath = process.env.ADMIN_BASE_PATH?.trim()

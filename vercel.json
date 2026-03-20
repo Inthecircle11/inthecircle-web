@@ -1,35 +1,4 @@
 {
-  "buildCommand": "",
-  "outputDirectory": ".",
-  "rewrites": [
-    { "source": "/", "destination": "/index.html" },
-    { "source": "/signup", "destination": "/signup.html" },
-    { "source": "/signup/", "destination": "/signup.html" },
-    { "source": "/auth/reset-password", "destination": "/auth/reset-password/index.html" },
-    { "source": "/auth/reset-password/", "destination": "/auth/reset-password/index.html" },
-    {
-      "source": "/admin",
-      "missing": [{ "type": "cookie", "key": "admin_gate_verified" }],
-      "destination": "/admin-gate.html"
-    },
-    {
-      "source": "/admin/",
-      "missing": [{ "type": "cookie", "key": "admin_gate_verified" }],
-      "destination": "/admin-gate.html"
-    },
-    {
-      "source": "/admin",
-      "has": [{ "type": "cookie", "key": "admin_gate_verified" }],
-      "destination": "/admin.html"
-    },
-    {
-      "source": "/admin/",
-      "has": [{ "type": "cookie", "key": "admin_gate_verified" }],
-      "destination": "/admin.html"
-    },
-    { "source": "/auth/airtable/callback", "destination": "/api/airtable-callback" },
-    { "source": "/auth/notion/callback", "destination": "/api/notion-callback" }
-  ],
   "headers": [
     {
       "source": "/.well-known/apple-app-site-association",

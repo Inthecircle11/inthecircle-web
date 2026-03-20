@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Ensures app.inthecircle.co is ONLY attached to the inthecircle-web project.
+ * Ensures app.inthecircle.co is ONLY attached to the production Next.js project
+ * (default: inthecircle-web-v2 — see .vercel/project.json).
  * Run before deploy or in CI to prevent the domain pointing at the wrong app.
  *
  * Token: VERCEL_TOKEN env, or (if not set) token from `vercel login` auth file.
@@ -8,6 +9,7 @@
  *
  * Usage: node scripts/verify-domain-ownership.mjs
  *        npm run verify-domain
+ *        VERCEL_PROJECT_NAME=inthecircle-web npm run verify-domain   # legacy project name
  */
 
 import { readFileSync } from 'fs'
@@ -15,7 +17,7 @@ import { join } from 'path'
 import { homedir, platform } from 'os'
 
 const PRODUCTION_DOMAIN = 'app.inthecircle.co'
-const OWNER_PROJECT_NAME = process.env.VERCEL_PROJECT_NAME || 'inthecircle-web'
+const OWNER_PROJECT_NAME = process.env.VERCEL_PROJECT_NAME || 'inthecircle-web-v2'
 const TEAM_ID = process.env.TEAM_ID || 'team_pPf6WSH38ILGLhFASbKqYYgL'
 const VERCEL_API = 'https://api.vercel.com'
 

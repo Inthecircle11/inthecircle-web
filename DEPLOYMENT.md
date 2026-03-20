@@ -17,7 +17,7 @@ There is **one admin panel** in this repo: `src/app/admin/page.tsx`. It is serve
 
 ## Rule: one domain, one project
 
-**app.inthecircle.co must be attached only to one Vercel project** (e.g. **inthecircle-web** or **inthecircle web v2**). If another project has this domain, visitors see that project’s app. Always ensure only the intended project has **app.inthecircle.co**.
+**app.inthecircle.co must be attached only to one Vercel project** — production for this repo is **inthecircle-web-v2** (see `.vercel/project.json`). If another project has this domain, visitors see that deployment instead of this Next.js app.
 
 ## Vercel setup
 
@@ -46,7 +46,11 @@ If your production project in Vercel is named **inthecircle web v2** (or **inthe
 
 ## Prevent domain mix-up
 
-Run `npm run verify-domain` (uses token from `vercel login` or `VERCEL_TOKEN`). It checks that **app.inthecircle.co** is only on the expected project (default **inthecircle-web**; set `VERCEL_PROJECT_NAME` if you use e.g. **inthecircle-web-v2**). If another project has the domain, it exits with an error and tells you how to fix it.
+Run `npm run verify-domain` (uses token from `vercel login` or `VERCEL_TOKEN`). It checks that **app.inthecircle.co** is only on the expected project (default **inthecircle-web-v2**; override with `VERCEL_PROJECT_NAME` if needed). If another project has the domain, it exits with an error and tells you how to fix it.
+
+### Legacy `vercel.json` rewrites (do not restore)
+
+Do **not** add `rewrites` in `vercel.json` that map `/`, `/signup`, or `/admin` to root `*.html` files. Those rules override **Next.js App Router** and make production look like the old static “Coming Soon” / legacy signup HTML even when the domain is on the correct project.
 
 ### Move domain without CLI (Dashboard only)
 
