@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="https://inthecircle.co/wp-content/uploads/2026/02/email-logo.jpg" type="image/jpeg" />
+  <title>Inthecircle – Creator-First Platform</title>
+  <!-- Use same logo as welcome email for consistency -->
+  <meta name="logo-url" content="https://inthecircle.co/wp-content/uploads/2026/02/email-logo.jpg" />
+  <!-- Patch unload → pagehide so third-party scripts (e.g. Supabase) don't trigger deprecation warning -->
+  <script>
+  (function() {
+    var add = window.addEventListener;
+    window.addEventListener = function(type, listener, options) {
+      if (type === 'unload' || type === 'beforeunload') {
+        var original = listener;
+        type = 'pagehide';
+        listener = function(ev) {
+          if (typeof original === 'function') original(ev);
+          else if (original && typeof original.handleEvent === 'function') original.handleEvent(ev);
+        };
+      }
+      return add.call(this, type, listener, options);
+    };
+  })();
+  </script>
+  <!-- Clean address bar: remove Google Analytics linker params so URL stays short -->
+  <script>
+  (function() {
+    try {
+      var u = new URL(window.location.href);
+      var changed = false;
+      ['_gl', '_ga', '_ga_L8W1PXNPRZ'].forEach(function(k) {
+        if (u.searchParams.has(k)) { u.searchParams.delete(k); changed = true; }
+      });
+      if (changed && window.history.replaceState) {
+        var clean = u.pathname + (u.search ? u.search : '') + (u.hash || '');
+        window.history.replaceState(null, '', clean);
+      }
+    } catch (e) {}
+  })();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="/config.js"></script>
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --surface: #1a1a1f;
+      --border: #2a2a32;
+      --text: #f0f0f5;
+      --textSecondary: #888;
+      --accent: #8b5cf6;
+      --accent-primary: #6366F1;
+      --accentAlt: #a78bfa;
+      --success: #10b981;
+      --error: #ef4444;
+      --warning: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: radial-gradient(ellipse 120% 80% at 50% -20%, rgba(139, 92, 246, 0.12), transparent), var(--bg);
+    }
+    .page { max-width: 440px; width: 100%; text-align: center; }
+    .brand-lockup { margin-bottom: 28px; }
+    .logo {
+      height: 80px; width: auto; max-width: 200px; margin: 0 auto 16px; display: block; object-fit: contain;
+    }
+    .brand-name { font-size: 2rem; font-weight: 700; letter-spacing: -0.04em; margin: 0 0 8px; }
+    .tagline { font-size: 1rem; color: var(--textSecondary); margin: 0 0 28px; line-height: 1.5; }
+    .form-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+      padding: 28px 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: left;
+    }
+    .field { margin-bottom: 18px; }
+    .field label { display: block; font-size: 0.8125rem; font-weight: 600; color: var(--textSecondary); margin-bottom: 6px; }
+    .field label .required { color: var(--accent); }
+    .referral-tooltip { margin-left: 6px; font-size: 0.875rem; color: var(--textSecondary); cursor: help; opacity: 0.8; vertical-align: middle; }
+    .referral-tooltip:hover { color: var(--accent); opacity: 1; }
+    .field input, .field select {
+      width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px;
+      background: var(--bg); color: var(--text); font-size: 1rem; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .field select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23888' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+    .field input:focus, .field select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2); }
+    .field input::placeholder { color: var(--textSecondary); opacity: 0.7; }
+    .field input.error, .field select.error {
+      border-color: var(--error);
+      background: rgba(239, 68, 68, 0.05);
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+    .field-hint { font-size: 0.75rem; color: var(--textSecondary); margin-top: 4px; }
+    .field-hint.accent { color: var(--accentAlt); font-weight: 500; }
+    .field-error { font-size: 0.75rem; color: var(--error); margin-top: 4px; }
+    .password-wrap { position: relative; }
+    .password-wrap input { padding-right: 72px; }
+    .toggle-pw { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); padding: 6px 12px; border: none; border-radius: 6px; background: var(--bg); color: var(--textSecondary); cursor: pointer; font-size: 0.75rem; font-weight: 600; }
+    .toggle-pw:hover { color: var(--accent); }
+    .strength { font-size: 0.75rem; margin-top: 4px; }
+    .strength.weak { color: var(--error); }
+    .strength.fair { color: var(--warning); }
+    .strength.good { color: var(--success); }
+    .strength.strong { color: var(--accent); }
+    .terms { font-size: 0.8125rem; color: var(--textSecondary); margin: 16px 0 8px; line-height: 1.5; }
+    .terms a { color: var(--accent); text-decoration: none; font-weight: 500; }
+    .terms a:hover { text-decoration: underline; }
+    .submit-btn {
+      width: 100%; padding: 14px; margin-top: 8px;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent)); color: #fff;
+      border: none; border-radius: 12px; font-weight: 600; font-size: 1rem; cursor: pointer;
+      transition: opacity 0.2s, background 0.2s; position: relative;
+    }
+    .submit-btn:hover:not(:disabled):not(.loading) { opacity: 0.95; }
+    .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .submit-btn.loading { color: transparent; pointer-events: none; }
+    .submit-btn .btn-spinner { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    .verify-email-btn { width: 100%; padding: 12px; border: none; border-radius: 12px; background: linear-gradient(135deg, var(--accent-primary), var(--accent)); color: #fff; font-weight: 600; font-size: 0.9375rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; position: relative; transition: opacity 0.2s; }
+    .verify-email-btn:hover:not(:disabled):not(.loading) { opacity: 0.95; }
+    .verify-email-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+    .verify-email-btn.loading { color: transparent; pointer-events: none; }
+    .verify-email-btn .btn-spinner { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      .btn-spinner, .otp-verify-btn.loading::after { animation: none; opacity: 0.8; }
+    }
+    .message { font-size: 0.875rem; margin-top: 14px; padding: 12px; border-radius: 10px; display: none; min-height: 0; opacity: 0; transition: opacity 0.25s ease; }
+    .message.show { display: block; opacity: 1; }
+    .message.success { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .message.error { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .success-cta { margin-top: 16px; display: none; }
+    .success-cta.show { display: block; }
+    .app-store-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 14px 20px; margin-top: 8px;
+      background: #000; color: #fff; border: none; border-radius: 12px;
+      font-weight: 600; font-size: 1rem; text-decoration: none; cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .app-store-btn:hover { opacity: 0.92; color: #fff; }
+    .app-store-btn:active { transform: scale(0.98); }
+    .ig-prefix { display: flex; align-items: stretch; }
+    .ig-prefix .ig-at {
+      display: flex; align-items: center; padding: 0 14px; background: var(--bg); border: 1px solid var(--border);
+      border-right: none; border-radius: 12px 0 0 12px; color: var(--textSecondary); font-size: 1rem; font-weight: 500;
+    }
+    .ig-prefix input { border-radius: 0 12px 12px 0; }
+    .otp-section { margin-bottom: 18px; min-height: 120px; }
+    #email-otp-wrap { min-height: 120px; }
+    .verify-email-btn { width: 100%; padding: 12px; border: none; border-radius: 12px; background: linear-gradient(135deg, var(--accent), var(--accentAlt)); color: #fff; font-weight: 600; font-size: 0.9375rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .verify-email-btn:hover:not(:disabled) { opacity: 0.95; }
+    .verify-email-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+    .otp-sent-block { padding: 16px; border-radius: 12px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.25); }
+    .otp-sent-block p { margin: 0 0 10px; font-size: 0.8125rem; color: var(--textSecondary); }
+    .otp-row { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+    .otp-input { flex: 1; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text); font-size: 1.25rem; letter-spacing: 0.2em; text-align: center; font-variant-numeric: tabular-nums; }
+    .otp-input:focus { outline: none; border-color: var(--accent); }
+    .otp-verify-btn { width: 44px; height: 44px; border: none; border-radius: 10px; background: var(--success); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
+    .otp-verify-btn:disabled { opacity: 0.5; cursor: not-allowed; background: var(--textSecondary); }
+    .otp-verify-btn.loading { color: transparent; pointer-events: none; }
+    .otp-verify-btn.loading::after { content: ''; position: absolute; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    .otp-verify-btn:not(:disabled):hover { opacity: 0.9; }
+    .otp-err { font-size: 0.75rem; color: var(--error); margin-bottom: 8px; }
+    .otp-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 0.8125rem; }
+    .otp-actions button { background: none; border: none; color: var(--textSecondary); cursor: pointer; padding: 0; }
+    .otp-actions button:hover:not(:disabled) { color: var(--accent); }
+    .otp-actions button:disabled { cursor: not-allowed; opacity: 0.5; }
+    .email-verified-block { padding: 12px 16px; border-radius: 10px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .email-verified-block span { color: var(--success); font-size: 0.9375rem; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .email-verified-block button { background: none; border: none; color: var(--textSecondary); cursor: pointer; font-size: 0.8125rem; }
+    .email-verified-block button:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="brand-lockup">
+      <img src="https://inthecircle.co/wp-content/uploads/2026/02/email-logo.jpg" alt="" class="logo" width="80" height="80" />
+      <h1 class="brand-name">Inthecircle</h1>
+    </div>
+    <p class="tagline">Connect with creators, get discovered, grow together.</p>
+    <div class="form-card">
+      <form id="signup-form" novalidate>
+        <div class="field">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" placeholder="Enter your name" required autocomplete="name" maxlength="200" />
+        </div>
+        <div class="field">
+          <label for="username">Instagram Username <span class="required">*</span></label>
+          <div style="margin-bottom: 4px;">
+            <span style="font-size: 0.75rem; color: var(--accent);">Required for verification</span>
+          </div>
+          <div class="ig-prefix">
+            <span class="ig-at">@</span>
+            <input type="text" id="username" name="username" placeholder="your_handle" autocomplete="username" maxlength="20" />
+          </div>
+          <p class="field-hint accent" id="username-hint" style="margin-top: 6px;">
+            <strong>Why Instagram?</strong> We use Instagram to verify your creator profile and connect you with relevant brand opportunities. Enter your handle exactly as it appears on Instagram (without @).
+          </p>
+          <p class="field-hint" style="margin-top: 4px; font-size: 0.7rem; color: var(--textSecondary);">
+            Format: 3-20 characters, letters, numbers, _, .
+          </p>
+          <p class="field-error" id="username-err" style="display:none;"></p>
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" placeholder="your@email.com" required autocomplete="email" />
+        </div>
+        <div class="field otp-section" id="email-otp-wrap" style="display: none;">
+          <div id="email-otp-verify-only" style="display: none;">
+            <button type="button" class="verify-email-btn" id="btn-verify-email">Verify Email</button>
+            <p class="field-hint" style="margin-top: 8px;">Click the button above, or move to the next field — we’ll verify automatically.</p>
+          </div>
+          <div id="email-otp-sent-block" style="display: none;">
+            <p id="otp-sent-message">Enter the 6-digit code sent to your email.</p>
+            <div class="otp-row">
+              <input type="text" id="otp-code" class="otp-input" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code" />
+              <button type="button" class="otp-verify-btn" id="btn-otp-verify" aria-label="Verify code" disabled>✓</button>
+            </div>
+            <p class="otp-err" id="otp-error" style="display: none;"></p>
+            <div class="otp-actions">
+              <button type="button" id="btn-otp-change-email">Change email</button>
+              <button type="button" id="btn-otp-resend" disabled>Resend in <span id="otp-cooldown-sec">60</span>s</button>
+            </div>
+          </div>
+          <div id="email-otp-verified-block" style="display: none;">
+            <div class="email-verified-block">
+              <span>✓ Email verified</span>
+              <button type="button" id="btn-otp-change-verified">Change</button>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="niche">Niche <span class="required">*</span></label>
+          <select id="niche" name="niche" required>
+            <option value="">Select your niche</option>
+            <option value="Fashion & Beauty">Fashion & Beauty</option>
+            <option value="Tech & Gaming">Tech & Gaming</option>
+            <option value="Food">Food</option>
+            <option value="Travel">Travel</option>
+            <option value="Music & Art">Music & Art</option>
+            <option value="Lifestyle & Entertainment">Lifestyle & Entertainment</option>
+            <option value="Business">Business</option>
+            <option value="Finance">Finance</option>
+            <option value="Fitness & Wellness">Fitness & Wellness</option>
+            <option value="Education">Education</option>
+            <option value="Aviation">Aviation</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="combined-followers">Total Combined Followers <span class="required">*</span></label>
+          <p class="field-hint" style="margin-top: 2px; margin-bottom: 6px;">Sum of followers across all your social media accounts (Instagram, TikTok, YouTube, etc.)</p>
+          <select id="combined-followers" name="combined_followers" required>
+            <option value="">Select range</option>
+            <option value="under_10k">Under 10,000</option>
+            <option value="10k_50k">10,000 – 50,000</option>
+            <option value="50k_150k">50,000 – 150,000</option>
+            <option value="150k_500k">150,000 – 500,000</option>
+            <option value="500k_1m">500,000 – 1,000,000</option>
+            <option value="1m_5m">1,000,000 – 5,000,000</option>
+            <option value="5m_10m">5,000,000 – 10,000,000</option>
+            <option value="10m_plus">10,000,000+</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="password-wrap">
+            <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="new-password" minlength="8" />
+            <button type="button" class="toggle-pw" aria-label="Show password">Show</button>
+          </div>
+          <p class="field-hint">8+ characters required</p>
+          <p class="strength" id="password-strength" style="display: block;">Password requirements: At least 8 characters, one uppercase letter, one lowercase letter, one number (special characters optional)</p>
+        </div>
+        <div class="field">
+          <label for="confirm">Confirm password</label>
+          <input type="password" id="confirm" name="confirm" placeholder="Re-enter your password" required autocomplete="new-password" />
+          <p class="field-error" id="confirm-err" style="display:none;"></p>
+        </div>
+        <div class="field">
+          <label for="referral">Referral code (optional) <span class="referral-tooltip" title="Enter the username or 6-digit code of who invited you. They'll get credit and you'll be reviewed first." aria-label="Referral code help">ⓘ</span></label>
+          <input type="text" id="referral" name="referral" placeholder="6-digit code or @username" autocomplete="off" />
+          <p class="field-hint accent" id="referral-hint">Have a referral code? You'll be reviewed first.</p>
+          <p class="field-hint" id="referral-validation" style="display:none;"></p>
+        </div>
+        <p class="terms">By signing up you agree to our <a href="https://inthecircle.co/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="https://inthecircle.co/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>
+        <button type="submit" class="submit-btn" id="submit-btn">Create account</button>
+        <p id="form-message" class="message" role="alert"></p>
+        <div id="success-cta" class="success-cta">
+          <a href="https://apps.apple.com/app/inthecircle-creator-network/id6758384054" target="_blank" rel="noopener noreferrer" class="app-store-btn" id="app-store-btn">Download on the App Store</a>
+        </div>
+      </form>
+    </div>
+  </main>
+  <script>
+(function() {
+  var SUPABASE_URL = window.__SUPABASE_URL__ || '';
+  var SUPABASE_ANON_KEY = window.__SUPABASE_ANON_KEY__ || '';
+  var supabaseClient = null;
+
+  function getSupabaseClient() {
+    if (supabaseClient) return supabaseClient;
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+    if (typeof window.supabase === 'undefined') return null;
+    try {
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      return supabaseClient;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  var form = document.getElementById('signup-form');
+  var msg = document.getElementById('form-message');
+  var btn = document.getElementById('submit-btn');
+  var togglePw = document.querySelector('.toggle-pw');
+
+  // Pre-fill referral from URL (e.g. ?referral=167743 from app share link)
+  (function() {
+    try {
+      var u = new URL(window.location.href);
+      var ref = u.searchParams.get('referral');
+      if (ref && typeof ref === 'string') {
+        var el = document.getElementById('referral');
+        if (el) el.value = ref.trim();
+      }
+    } catch (e) {}
+  })();
+
+  // Email OTP state (match iOS: verify email before Create account)
+  var emailOTPSent = false;
+  var emailOTPVerified = false;
+  var emailOTPCooldown = 0;
+  var otpCooldownTimer = null;
+  var isSendingOTP = false;
+  var isVerifyingOTP = false;
+
+  function isEmailValid(val) {
+    var t = (val || '').trim().toLowerCase();
+    return t.length > 0 && t.indexOf('@') !== -1 && t.indexOf('.') !== -1 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
+  }
+
+  function ensureConfig() {
+    if (SUPABASE_URL && SUPABASE_ANON_KEY) return true;
+    return false;
+  }
+
+  function getConfigErrorMessage() {
+    if (configLoadFailed) return 'Configuration could not be loaded. Check your connection and try again.';
+    return 'Sign-up is not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY in Vercel (Project → Settings → Environment Variables), then redeploy.';
+  }
+
+  // Load config from /api/config on page load so Supabase is ready before user action
+  var configLoadAttempted = false;
+  var configLoadFailed = false;
+  var CONFIG_FETCH_TIMEOUT_MS = 12000;
+
+  function loadConfigFromApi() {
+    if (SUPABASE_URL && SUPABASE_ANON_KEY) return Promise.resolve();
+    configLoadAttempted = true;
+    var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timeoutId = controller ? setTimeout(function() { controller.abort(); }, CONFIG_FETCH_TIMEOUT_MS) : null;
+    var p = fetch('/api/config', { signal: controller ? controller.signal : undefined })
+      .then(function(r) {
+        if (!r.ok) return null;
+        return r.text().then(function(text) {
+          try { return text ? JSON.parse(text) : null; } catch (e) { return null; }
+        });
+      })
+      .then(function(d) {
+        if (d && typeof d === 'object' && d.SUPABASE_URL) window.__SUPABASE_URL__ = d.SUPABASE_URL;
+        if (d && typeof d === 'object' && d.SUPABASE_ANON_KEY) window.__SUPABASE_ANON_KEY__ = d.SUPABASE_ANON_KEY;
+        SUPABASE_URL = window.__SUPABASE_URL__ || '';
+        SUPABASE_ANON_KEY = window.__SUPABASE_ANON_KEY__ || '';
+      });
+    if (timeoutId) p = p.finally(function() { clearTimeout(timeoutId); });
+    return p.catch(function() {
+      configLoadFailed = true;
+      SUPABASE_URL = '';
+      SUPABASE_ANON_KEY = '';
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      loadConfigFromApi().then(function() { trackReferralClickIfPresent(); setupReferralValidation(); });
+    });
+  } else {
+    loadConfigFromApi().then(function() { trackReferralClickIfPresent(); setupReferralValidation(); });
+  }
+
+  function trackReferralClickIfPresent() {
+    try {
+      var u = new URL(window.location.href);
+      var ref = u.searchParams.get('referral');
+      if (!ref || typeof ref !== 'string') return;
+      var supabase = getSupabaseClient();
+      if (supabase) supabase.rpc('insert_referral_funnel_click', { p_code_or_username: ref.trim() }).catch(function() {});
+    } catch (e) {}
+  }
+
+  var referralValidationTimeout = null;
+  function setupReferralValidation() {
+    var input = document.getElementById('referral');
+    var out = document.getElementById('referral-validation');
+    if (!input || !out) return;
+    function runValidation() {
+      var val = (input.value || '').trim();
+      if (!val) { out.style.display = 'none'; out.textContent = ''; return; }
+      var supabase = getSupabaseClient();
+      if (!supabase) return;
+      out.style.display = 'block';
+      out.textContent = 'Checking...';
+      out.style.color = 'var(--textSecondary)';
+      supabase.rpc('validate_referral_code', { p_code_or_username: val })
+        .then(function(res) {
+          var valid = res.data && res.data[0] && res.data[0].valid === true;
+          out.style.display = 'block';
+          out.textContent = valid ? 'Referrer found' : 'Code or username not found (signup still works)';
+          out.style.color = valid ? 'var(--success)' : 'var(--textSecondary)';
+        })
+        .catch(function() { out.style.display = 'none'; out.textContent = ''; });
+    }
+    input.addEventListener('blur', function() {
+      if (referralValidationTimeout) clearTimeout(referralValidationTimeout);
+      referralValidationTimeout = setTimeout(runValidation, 300);
+    });
+  }
+
+  function updateOtpUI() {
+    var emailVal = document.getElementById('email').value;
+    var valid = isEmailValid(emailVal);
+    var wrap = document.getElementById('email-otp-wrap');
+    var verifyOnly = document.getElementById('email-otp-verify-only');
+    var sentBlock = document.getElementById('email-otp-sent-block');
+    var verifiedBlock = document.getElementById('email-otp-verified-block');
+    if (!valid) {
+      wrap.style.display = 'none';
+      return;
+    }
+    wrap.style.display = 'block';
+    if (emailOTPVerified) {
+      verifyOnly.style.display = 'none';
+      sentBlock.style.display = 'none';
+      verifiedBlock.style.display = 'block';
+      btn.disabled = false;
+    } else if (emailOTPSent) {
+      if (valid) btn.disabled = true;
+      verifyOnly.style.display = 'none';
+      sentBlock.style.display = 'block';
+      verifiedBlock.style.display = 'none';
+      document.getElementById('otp-sent-message').textContent = 'Enter the 6-digit code sent to ' + emailVal.trim() + '.';
+      var resendBtn = document.getElementById('btn-otp-resend');
+      var cd = document.getElementById('otp-cooldown-sec');
+      if (emailOTPCooldown > 0) {
+        resendBtn.disabled = true;
+        resendBtn.innerHTML = 'Resend in <span id="otp-cooldown-sec">' + emailOTPCooldown + '</span>s';
+        if (cd) cd.textContent = emailOTPCooldown;
+      } else {
+        resendBtn.disabled = false;
+        resendBtn.textContent = 'Resend code';
+      }
+    } else {
+      verifyOnly.style.display = 'block';
+      sentBlock.style.display = 'none';
+      verifiedBlock.style.display = 'none';
+      if (valid) btn.disabled = true;
+      var verifyEmailBtn = document.getElementById('btn-verify-email');
+      if (verifyEmailBtn) verifyEmailBtn.disabled = isSendingOTP;
+    }
+  }
+
+  function resetEmailOTP() {
+    emailOTPSent = false;
+    emailOTPVerified = false;
+    emailOTPCooldown = 0;
+    if (otpCooldownTimer) { clearInterval(otpCooldownTimer); otpCooldownTimer = null; }
+    document.getElementById('otp-code').value = '';
+    document.getElementById('otp-error').style.display = 'none';
+    document.getElementById('btn-otp-verify').disabled = true;
+    updateOtpUI();
+  }
+
+  function startOtpCooldown(seconds) {
+    emailOTPCooldown = seconds !== undefined ? seconds : 60;
+    if (otpCooldownTimer) clearInterval(otpCooldownTimer);
+    otpCooldownTimer = setInterval(function() {
+      emailOTPCooldown--;
+      var el = document.getElementById('otp-cooldown-sec');
+      if (el) el.textContent = emailOTPCooldown;
+      if (emailOTPCooldown <= 0 && otpCooldownTimer) {
+        clearInterval(otpCooldownTimer);
+        otpCooldownTimer = null;
+      }
+      var resendBtn = document.getElementById('btn-otp-resend');
+      if (resendBtn) {
+        if (emailOTPCooldown > 0) {
+          resendBtn.disabled = true;
+          resendBtn.innerHTML = 'Resend in <span id="otp-cooldown-sec">' + emailOTPCooldown + '</span>s';
+        } else {
+          resendBtn.disabled = false;
+          resendBtn.textContent = 'Resend code';
+        }
+      }
+    }, 1000);
+  }
+
+  async function sendEmailOTP() {
+    var emailVal = document.getElementById('email').value;
+    var email = (emailVal || '').trim().toLowerCase();
+    if (!isEmailValid(email)) {
+      document.getElementById('otp-error').textContent = 'Please enter a valid email address first.';
+      document.getElementById('otp-error').style.display = 'block';
+      document.getElementById('email-otp-wrap').style.display = 'block';
+      return;
+    }
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      try {
+        var r = await fetch('/api/config');
+        if (r.ok) {
+          var d = await r.json();
+          if (d.SUPABASE_URL) window.__SUPABASE_URL__ = d.SUPABASE_URL;
+          if (d.SUPABASE_ANON_KEY) window.__SUPABASE_ANON_KEY__ = d.SUPABASE_ANON_KEY;
+          SUPABASE_URL = window.__SUPABASE_URL__ || '';
+          SUPABASE_ANON_KEY = window.__SUPABASE_ANON_KEY__ || '';
+        }
+      } catch (e) {}
+    }
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      msg.textContent = getConfigErrorMessage();
+      msg.className = 'message show error';
+      msg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
+    }
+    if (typeof window.supabase === 'undefined') {
+      msg.textContent = 'Unable to load auth library. Check your connection and try again.';
+      msg.className = 'message show error';
+      msg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
+    }
+    
+    // CRITICAL: Check if email is already registered BEFORE sending OTP
+    var supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        var checkRes = await supabase.functions.invoke('check-email-available', { body: { email: email } });
+        var checkData = checkRes.data || {};
+        if (checkData.available === false) {
+          document.getElementById('otp-error').textContent = 'This email is already registered. Sign in or use a different email.';
+          document.getElementById('otp-error').style.display = 'block';
+          document.getElementById('email-otp-wrap').style.display = 'block';
+          return;
+        }
+      } catch (checkErr) {
+        // If check fails, proceed anyway (fail open to avoid blocking legitimate users)
+        console.warn('Email availability check failed:', checkErr);
+      }
+    }
+    
+    isSendingOTP = true;
+    document.getElementById('otp-error').style.display = 'none';
+    var verifyBtn = document.getElementById('btn-verify-email');
+    if (verifyBtn) {
+      verifyBtn.disabled = true;
+      verifyBtn.classList.add('loading');
+      verifyBtn.setAttribute('data-prev-text', verifyBtn.textContent);
+      verifyBtn.textContent = 'Sending…';
+      if (!verifyBtn.querySelector('.btn-spinner')) {
+        var vs = document.createElement('span');
+        vs.className = 'btn-spinner';
+        verifyBtn.appendChild(vs);
+      }
+    }
+    var supabase = getSupabaseClient();
+    if (!supabase) {
+      msg.textContent = getConfigErrorMessage();
+      msg.className = 'message show error';
+      msg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      if (verifyBtn) {
+        verifyBtn.disabled = false;
+        verifyBtn.classList.remove('loading');
+        verifyBtn.textContent = verifyBtn.getAttribute('data-prev-text') || 'Verify Email';
+        verifyBtn.removeAttribute('data-prev-text');
+        var vsp = verifyBtn.querySelector('.btn-spinner');
+        if (vsp) vsp.remove();
+      }
+      isSendingOTP = false;
+      updateOtpUI();
+      return;
+    }
+    try {
+      var res = await supabase.functions.invoke('email-otp', { body: { action: 'send', email: email } });
+      var data = res.data || {};
+      var is429 = res.error && (res.error.message || '').indexOf('429') !== -1;
+      var isDisabled = (data && data.code === 'endpoint_disabled') ||
+        (res.error && res.error.message && /410|disabled|Gone|not available/i.test(res.error.message));
+      if (!isDisabled && (res.error || !data.ok)) {
+        var errMsg = (data.error || (res.error && res.error.message)) || 'Failed to send code.';
+        if (data.retryAfter) errMsg = 'Too many requests. Please wait ' + data.retryAfter + 's before requesting a new code.';
+        else if (is429) errMsg = 'Too many requests. Please wait a minute before trying again.';
+        document.getElementById('otp-error').textContent = errMsg;
+        document.getElementById('otp-error').style.display = 'block';
+        if (data.retryAfter || is429) {
+          emailOTPSent = true;
+          startOtpCooldown(data.retryAfter || 60);
+        } else {
+          emailOTPSent = false;
+        }
+      } else if (isDisabled || (data.code === 'endpoint_disabled')) {
+        // Pre-signup OTP is disabled; allow user to continue (Supabase will send confirmation after signup)
+        emailOTPVerified = true;
+        document.getElementById('otp-error').style.display = 'none';
+        updateOtpUI();
+      } else {
+        emailOTPSent = true;
+        document.getElementById('email').dataset.otpEmail = email;
+        startOtpCooldown();
+      }
+    } catch (err) {
+      document.getElementById('otp-error').textContent = err.message || 'Failed to send code. Try again.';
+      document.getElementById('otp-error').style.display = 'block';
+    }
+    isSendingOTP = false;
+    if (verifyBtn) {
+      verifyBtn.disabled = false;
+      verifyBtn.classList.remove('loading');
+      verifyBtn.textContent = verifyBtn.getAttribute('data-prev-text') || 'Verify Email';
+      verifyBtn.removeAttribute('data-prev-text');
+      var vsp = verifyBtn.querySelector('.btn-spinner');
+      if (vsp) vsp.remove();
+    }
+    updateOtpUI();
+  }
+
+  async function verifyEmailOTP() {
+    var emailVal = document.getElementById('email').value;
+    var email = (emailVal || '').trim().toLowerCase();
+    var code = (document.getElementById('otp-code').value || '').trim();
+    if (!email || code.length !== 6) return;
+    var supabase = getSupabaseClient();
+    if (!supabase) return;
+    isVerifyingOTP = true;
+    document.getElementById('otp-error').style.display = 'none';
+    var otpVerifyBtn = document.getElementById('btn-otp-verify');
+    otpVerifyBtn.disabled = true;
+    otpVerifyBtn.classList.add('loading');
+    try {
+      var res = await supabase.functions.invoke('email-otp', { body: { action: 'verify', email: email, code: code } });
+      var data = res.data || {};
+      if (res.error || !data.ok || !data.verified) {
+        var errMsg = data.error || (res.error && res.error.message) || 'Invalid code.';
+        if (res.error && res.error.context && typeof res.error.context.json === 'function') {
+          try {
+            var errBody = await res.error.context.json();
+            if (errBody && errBody.error) errMsg = errBody.error;
+          } catch (_) {}
+        }
+        document.getElementById('otp-error').textContent = errMsg;
+        document.getElementById('otp-error').style.display = 'block';
+        otpVerifyBtn.disabled = false;
+        otpVerifyBtn.classList.remove('loading');
+      } else {
+        emailOTPVerified = true;
+        if (otpCooldownTimer) { clearInterval(otpCooldownTimer); otpCooldownTimer = null; }
+        otpVerifyBtn.classList.remove('loading');
+        updateOtpUI();
+      }
+    } catch (err) {
+      document.getElementById('otp-error').textContent = err.message || 'Verification failed. Try again.';
+      document.getElementById('otp-error').style.display = 'block';
+      otpVerifyBtn.disabled = false;
+      otpVerifyBtn.classList.remove('loading');
+    }
+    isVerifyingOTP = false;
+  }
+
+  document.getElementById('email').addEventListener('input', function() {
+    if (emailOTPSent || emailOTPVerified) {
+      var current = (this.value || '').trim().toLowerCase();
+      var prev = (emailOTPSent || emailOTPVerified) ? (document.getElementById('email').dataset.otpEmail || '') : '';
+      if (current !== prev && (emailOTPSent || emailOTPVerified)) resetEmailOTP();
+    }
+    document.getElementById('email').dataset.otpEmail = (this.value || '').trim().toLowerCase();
+    updateOtpUI();
+  });
+  document.getElementById('email').addEventListener('blur', function() {
+    updateOtpUI();
+    // Auto-trigger verify when email is valid so user doesn't have to click "Verify Email" (e.g. when OTP is disabled we get 410 and enable Create account)
+    var emailVal = (this.value || '').trim().toLowerCase();
+    if (isEmailValid(emailVal) && !emailOTPSent && !emailOTPVerified && !isSendingOTP) {
+      sendEmailOTP();
+    }
+  });
+
+  document.getElementById('btn-verify-email').addEventListener('click', function() {
+    try {
+      if (!isSendingOTP) sendEmailOTP();
+    } catch (err) {
+      msg.textContent = err.message || 'Something went wrong. Try again.';
+      msg.className = 'message show error';
+    }
+  });
+  document.getElementById('otp-code').addEventListener('input', function() {
+    var v = this.value.replace(/\D/g, '').slice(0, 6);
+    this.value = v;
+    document.getElementById('btn-otp-verify').disabled = v.length !== 6;
+    if (v.length === 6) verifyEmailOTP();
+  });
+  document.getElementById('btn-otp-verify').addEventListener('click', function() {
+    if (document.getElementById('otp-code').value.trim().length === 6 && !isVerifyingOTP) verifyEmailOTP();
+  });
+  document.getElementById('btn-otp-change-email').addEventListener('click', resetEmailOTP);
+  document.getElementById('btn-otp-change-verified').addEventListener('click', resetEmailOTP);
+  document.getElementById('btn-otp-resend').addEventListener('click', function() {
+    if (emailOTPCooldown <= 0 && !isSendingOTP) sendEmailOTP();
+  });
+
+  // Password strength (match iOS: weak/fair/good/strong, need good+)
+  function getPasswordStrength(pwd) {
+    var score = 0;
+    if (pwd.length >= 8) score += 1;
+    if (pwd.length >= 12) score += 1;
+    if (pwd.length >= 16) score += 1;
+    if (/[A-Z]/.test(pwd)) score += 1;
+    if (/[a-z]/.test(pwd)) score += 1;
+    if (/[0-9]/.test(pwd)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+    if (score <= 2) return { level: 1, label: 'Weak' };
+    if (score <= 4) return { level: 2, label: 'Fair' };
+    if (score <= 6) return { level: 3, label: 'Good' };
+    return { level: 4, label: 'Strong' };
+  }
+
+  function showMessage(text, isError) {
+    msg.textContent = text;
+    msg.className = 'message show ' + (isError ? 'error' : 'success');
+    msg.setAttribute('role', 'alert');
+    msg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    var cta = document.getElementById('success-cta');
+    if (cta) cta.classList.toggle('show', !isError);
+  }
+
+  function setError(id, text) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (text) { el.textContent = text; el.style.display = 'block'; } else { el.textContent = ''; el.style.display = 'none'; }
+  }
+
+  // Instagram username: 3–20 chars, letters/numbers/underscores/dots (no leading/trailing dots)
+  function validateUsername(val) {
+    var t = val.replace(/^@/, '').trim().toLowerCase().replace(/\s/g, '_').replace(/^\.+|\.+$/g, '');
+    if (t.length < 3) return 'At least 3 characters';
+    if (t.length > 20) return 'Maximum 20 characters';
+    if (!/^[a-z0-9_.]+$/.test(t)) return 'Only letters, numbers, _ and .';
+    return null;
+  }
+
+  togglePw && togglePw.addEventListener('click', function() {
+    var input = document.getElementById('password');
+    var isPw = input.type === 'password';
+    input.type = isPw ? 'text' : 'password';
+    togglePw.textContent = isPw ? 'Hide' : 'Show';
+  });
+
+  document.getElementById('username').addEventListener('input', function() {
+    var v = this.value.replace(/^@/, '').toLowerCase().replace(/\s/g, '_').replace(/[^a-z0-9_.]/g, '').replace(/^\.+|\.+$/g, '');
+    if (this.value !== v) this.value = v;
+    setError('username-err', validateUsername(v));
+    document.getElementById('username-hint').style.display = v.length < 3 ? 'block' : 'none';
+  });
+
+  document.getElementById('password').addEventListener('input', function() {
+    var s = getPasswordStrength(this.value);
+    var el = document.getElementById('password-strength');
+    if (!this.value) { 
+      el.textContent = 'Password requirements: At least 8 characters, one uppercase letter, one lowercase letter, one number';
+      el.className = 'strength';
+      return;
+    }
+    el.textContent = 'Password strength: ' + s.label;
+    el.className = 'strength ' + s.label.toLowerCase();
+  });
+
+  document.getElementById('confirm').addEventListener('input', function() {
+    var p = document.getElementById('password').value;
+    var c = this.value;
+    setError('confirm-err', (c && p !== c) ? 'Passwords don\'t match' : '');
+  });
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var name = (document.getElementById('name').value || '').trim();
+    var usernameRaw = (document.getElementById('username').value || '').trim().replace(/^@/, '').toLowerCase().replace(/^\.+|\.+$/g, '');
+    var email = (document.getElementById('email').value || '').trim().toLowerCase();
+    var niche = (document.getElementById('niche').value || '').trim();
+    var combinedFollowersBracket = (document.getElementById('combined-followers').value || '').trim();
+    var password = document.getElementById('password').value;
+    var confirm = document.getElementById('confirm').value;
+    var referral = (document.getElementById('referral').value || '').trim() || null;
+
+    msg.className = 'message';
+    msg.textContent = '';
+    setError('username-err', '');
+    setError('confirm-err', '');
+    document.getElementById('success-cta').classList.remove('show');
+
+    var btnOriginalText = btn.textContent;
+    function setButtonLoading(loading) {
+      btn.disabled = loading;
+      btn.classList.toggle('loading', loading);
+      var spinner = btn.querySelector('.btn-spinner');
+      if (loading) {
+        btn.textContent = 'Creating account…';
+        if (!spinner) { spinner = document.createElement('span'); spinner.className = 'btn-spinner'; btn.appendChild(spinner); }
+        form.querySelectorAll('input, select, button').forEach(function(el) {
+          if (el !== btn) el.disabled = true;
+        });
+        form.setAttribute('aria-busy', 'true');
+      } else {
+        btn.textContent = btnOriginalText;
+        if (spinner) spinner.remove();
+        form.querySelectorAll('input, select').forEach(function(el) { el.disabled = false; });
+        form.querySelectorAll('button').forEach(function(el) {
+          if (el.id !== 'submit-btn') el.disabled = false;
+        });
+        form.removeAttribute('aria-busy');
+        var vb = document.getElementById('btn-verify-email');
+        if (vb) vb.disabled = isSendingOTP;
+      }
+    }
+    setButtonLoading(true);
+
+    // Helper to scroll to first error field
+    function scrollToFirstError() {
+      var firstError = document.querySelector('.field input.error, .field select.error, .field-error[style*="block"]');
+      if (firstError) {
+        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (firstError.tagName === 'INPUT' || firstError.tagName === 'SELECT') {
+          firstError.focus();
+        }
+      }
+    }
+    
+    // Helper to mark field as error
+    function markFieldError(fieldId, hasError) {
+      var field = document.getElementById(fieldId);
+      if (field) {
+        if (hasError) {
+          field.classList.add('error');
+        } else {
+          field.classList.remove('error');
+        }
+      }
+    }
+    
+    // Clear all error states
+    document.querySelectorAll('.field input, .field select').forEach(function(el) { el.classList.remove('error'); });
+    
+    if (name.length < 2) { showMessage('Name is too short', true); markFieldError('name', true); setButtonLoading(false); scrollToFirstError(); return; }
+    if (name.length > 200) { showMessage('Name must be 200 characters or less', true); markFieldError('name', true); setButtonLoading(false); scrollToFirstError(); return; }
+    var uErr = validateUsername(usernameRaw);
+    if (uErr) { setError('username-err', uErr); markFieldError('username', true); showMessage(uErr, true); setButtonLoading(false); scrollToFirstError(); return; }
+    if (!usernameRaw) { showMessage('Instagram username is required', true); markFieldError('username', true); setButtonLoading(false); scrollToFirstError(); return; }
+    if (!email || !email.includes('@') || !email.includes('.')) { showMessage('Please enter a valid email address.', true); markFieldError('email', true); setButtonLoading(false); scrollToFirstError(); return; }
+    if (!emailOTPVerified) { showMessage('Please verify your email with the code we sent you.', true); setButtonLoading(false); scrollToFirstError(); return; }
+    if (!niche) { showMessage('Please select your niche.', true); markFieldError('niche', true); setButtonLoading(false); scrollToFirstError(); return; }
+    if (!combinedFollowersBracket) { showMessage('Please select your combined followers range.', true); markFieldError('combined-followers', true); setButtonLoading(false); scrollToFirstError(); return; }
+    var strength = getPasswordStrength(password);
+    if (password.length < 8) { showMessage('Password must be at least 8 characters.', true); markFieldError('password', true); setButtonLoading(false); scrollToFirstError(); return; }
+    if (strength.level < 3) { showMessage('Password must be at least 8 characters with uppercase, lowercase, and a number', true); markFieldError('password', true); setButtonLoading(false); scrollToFirstError(); return; }
+    if (password !== confirm) { setError('confirm-err', 'Passwords don\'t match'); markFieldError('confirm', true); showMessage('Passwords don\'t match', true); setButtonLoading(false); scrollToFirstError(); return; }
+
+    // If config.js had placeholders, try production config from Vercel env (e.g. /api/config)
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      try {
+        var configRes = await fetch('/api/config');
+        if (configRes.ok) {
+          var configData = await configRes.json();
+          if (configData.SUPABASE_URL) window.__SUPABASE_URL__ = configData.SUPABASE_URL;
+          if (configData.SUPABASE_ANON_KEY) window.__SUPABASE_ANON_KEY__ = configData.SUPABASE_ANON_KEY;
+          SUPABASE_URL = window.__SUPABASE_URL__ || '';
+          SUPABASE_ANON_KEY = window.__SUPABASE_ANON_KEY__ || '';
+        }
+      } catch (configErr) {}
+    }
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      showMessage(getConfigErrorMessage(), true);
+      setButtonLoading(false);
+      return;
+    }
+    if (typeof window.supabase === 'undefined') {
+      showMessage('Unable to load auth library. Check your connection and try again.', true);
+      setButtonLoading(false);
+      return;
+    }
+
+    setButtonLoading(true);
+    var supabase = getSupabaseClient();
+
+    try {
+      var allowed = true;
+      var checkError = null;
+      try {
+        var res = await supabase.functions.invoke('check-signup-allowed', { body: {} });
+        if (res.error) checkError = res.error.message || 'Request failed';
+        else allowed = (res.data && res.data.allowed !== false);
+      } catch (err) {
+        checkError = err && err.message ? err.message : 'Request failed';
+      }
+
+      if (!checkError && allowed === false) {
+        showMessage('Sign-up is not available from this device or network.', true);
+        setButtonLoading(false);
+        return;
+      }
+      // If check failed (network/CORS/function not deployed), proceed with signup anyway (fail open)
+
+      var meta = { name: name, username: usernameRaw, instagram_username: usernameRaw, niche: niche, combined_followers_bracket: combinedFollowersBracket };
+      var { data, error } = await supabase.auth.signUp({
+        email: email,
+        password: password,
+        options: { data: meta }
+      });
+
+      if (error) {
+        var errMsg = error.message || 'Sign up failed.';
+        if (/already been registered|already registered|already exists/i.test(errMsg)) errMsg = 'This email is already registered. Sign in or use a different email.';
+        showMessage(errMsg, true);
+        setButtonLoading(false);
+        return;
+      }
+
+      if (data.session) {
+        var referralWarning = null;
+        if (referral) {
+          var referrerUsername = referral.replace(/^@/, '').trim().toLowerCase();
+          if (referrerUsername) {
+            try {
+              var refRes = await supabase.functions.invoke('record-referral', {
+                body: { p_referred_user_id: data.user.id, p_referrer_username: referrerUsername }
+              });
+              if (refRes.error) throw refRes.error;
+              var errMsg = (refRes.data && refRes.data.message) ? refRes.data.message : (refRes.data && refRes.data.error ? refRes.data.error : '');
+              if (errMsg.includes('REFERRER_QUOTA_EXCEEDED')) {
+                referralWarning = 'Note: This referrer has used their 5 referrals for this year. Your account was created successfully.';
+              } else if (errMsg.includes('REFERRER_NOT_ELIGIBLE')) {
+                referralWarning = 'Note: This referrer is not eligible to refer others. Your account was created successfully.';
+              } else if (errMsg.includes('REFERRAL_RATE_LIMIT') || errMsg.includes('Too many referral')) {
+                referralWarning = 'Referral could not be recorded from this network right now. Your account was created successfully.';
+              }
+            } catch (refErr) {
+              var errMsg = refErr && refErr.message ? refErr.message : '';
+              if (errMsg.includes('REFERRER_QUOTA_EXCEEDED')) {
+                referralWarning = 'Note: This referrer has used their 5 referrals for this year. Your account was created successfully.';
+              } else if (errMsg.includes('REFERRER_NOT_ELIGIBLE')) {
+                referralWarning = 'Note: This referrer is not eligible to refer others. Your account was created successfully.';
+              } else if (errMsg.includes('REFERRAL_RATE_LIMIT') || errMsg.includes('Too many referral')) {
+                referralWarning = 'Referral could not be recorded from this network right now. Your account was created successfully.';
+              }
+            }
+          }
+        }
+        showMessage(referralWarning || 'You\'re all set!');
+        form.reset();
+        resetEmailOTP();
+        document.getElementById('password-strength').textContent = '';
+      } else {
+        showMessage('Check your email to confirm your account, then sign in.');
+        form.reset();
+        resetEmailOTP();
+        document.getElementById('password-strength').textContent = '';
+      }
+    } catch (err) {
+      showMessage(err.message || 'Something went wrong. Please try again.', true);
+    }
+    setButtonLoading(false);
+  });
+})();
+  </script>
+</body>
+</html>

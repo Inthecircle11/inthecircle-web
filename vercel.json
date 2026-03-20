@@ -1,6 +1,57 @@
 {
-  "buildCommand": "npm run build",
-  "installCommand": "npm ci",
-  "framework": "nextjs",
-  "regions": ["iad1"]
+  "buildCommand": "",
+  "outputDirectory": ".",
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/signup", "destination": "/signup.html" },
+    { "source": "/signup/", "destination": "/signup.html" },
+    { "source": "/auth/reset-password", "destination": "/auth/reset-password/index.html" },
+    { "source": "/auth/reset-password/", "destination": "/auth/reset-password/index.html" },
+    {
+      "source": "/admin",
+      "missing": [{ "type": "cookie", "key": "admin_gate_verified" }],
+      "destination": "/admin-gate.html"
+    },
+    {
+      "source": "/admin/",
+      "missing": [{ "type": "cookie", "key": "admin_gate_verified" }],
+      "destination": "/admin-gate.html"
+    },
+    {
+      "source": "/admin",
+      "has": [{ "type": "cookie", "key": "admin_gate_verified" }],
+      "destination": "/admin.html"
+    },
+    {
+      "source": "/admin/",
+      "has": [{ "type": "cookie", "key": "admin_gate_verified" }],
+      "destination": "/admin.html"
+    },
+    { "source": "/auth/airtable/callback", "destination": "/api/airtable-callback" },
+    { "source": "/auth/notion/callback", "destination": "/api/notion-callback" }
+  ],
+  "headers": [
+    {
+      "source": "/.well-known/apple-app-site-association",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" },
+        { "key": "Cache-Control", "value": "max-age=86400" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-XSS-Protection", "value": "1; mode=block" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), interest-cohort=()" },
+        { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains; preload" },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.supabase.in; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+        }
+      ]
+    }
+  ]
 }

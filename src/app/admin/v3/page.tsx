@@ -80,6 +80,11 @@ interface AccountTypePoint {
   count: number
 }
 
+interface ConnectionPoint {
+  date: string
+  count: number
+}
+
 interface ActivityItem {
   id: string
   action: string
@@ -88,15 +93,26 @@ interface ActivityItem {
   created_at: string
 }
 
+interface ActiveUsersData {
+  concurrent_now: number
+  active_this_hour: number
+  active_today: number
+  recent_users: Array<{ id: string; name: string | null; username: string | null; last_activity: string }>
+  cached_at: string
+}
+
 interface ActiveUser {
   user_id: string
   last_seen: string
   full_name: string | null
+  name: string | null
   username: string | null
+  email: string | null
   profile_image_url: string | null
   niche: string | null
   account_type: string | null
   location: string | null
+  about: string | null
   minutes_ago: number
 }
 
@@ -126,7 +142,7 @@ function getCountryFlag(location: string | null | undefined): string {
     // Qatar
     'qatar': 'QA', 'doha': 'QA',
     // Kuwait
-    'kuwait': 'KW', 'kuwait city': 'KW',
+    'kuwait': 'KW', 'kuwait city': 'KW', 'al kuwayt': 'KW', 'hawalli': 'KW',
     // Jordan
     'jordan': 'JO', 'amman': 'JO',
     // Lebanon
@@ -228,6 +244,233 @@ function fmtDate(s: string | null | undefined): string {
   const d = new Date(s)
   if (isNaN(d.getTime())) return '-'
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function calculateProfileCompletion(user: ActiveUser): number {
+  // Core fields (required for basic profile)
+  const coreFields = [
+    user.name,
+    user.username,
+    user.email,
+  ]
+  
+  // Optional but important fields
+  const optionalFields = [
+    user.niche,
+    user.location,
+    user.about,
+    user.profile_image_url,
+  ]
+  
+  const coreScore = coreFields.filter(f => f && f.trim() !== '').length
+  const optionalScore = optionalFields.filter(f => f && f.trim() !== '').length
+  
+  // Core fields are worth 60%, optional fields are worth 40%
+  const corePercentage = (coreScore / coreFields.length) * 60
+  const optionalPercentage = (optionalScore / optionalFields.length) * 40
+  
+  return Math.round(corePercentage + optionalPercentage)
+}
+
+function normalizeLocation(raw: string): {
+  city: string
+  country: string
+  countryCode: string
+} {
+  if (!raw) return { city: '', country: 'Unknown', countryCode: '' }
+
+  const s = raw.trim()
+
+  // Country normalization map: keyword → { country, code }
+  const countryMap: Array<{
+    keywords: string[]
+    country: string
+    code: string
+  }> = [
+    { keywords: ['uae', 'united arab emirates', 'dubai', 'abu dhabi',
+        'sharjah', 'ajman', 'fujairah', 'ras al khaimah', 'al ain'],
+      country: 'United Arab Emirates', code: 'AE' },
+    { keywords: ['saudi', 'saudi arabia', 'riyadh', 'jeddah',
+        'mecca', 'medina', 'dammam', 'khobar'],
+      country: 'Saudi Arabia', code: 'SA' },
+    { keywords: ['egypt', 'cairo', 'alexandria', 'giza'],
+      country: 'Egypt', code: 'EG' },
+    { keywords: ['uk', 'united kingdom', 'england', 'london',
+        'manchester', 'birmingham', 'scotland', 'wales', 'britain'],
+      country: 'United Kingdom', code: 'GB' },
+    { keywords: ['usa', 'united states', 'america', 'new york',
+        'los angeles', 'california', 'texas', 'florida', 'chicago',
+        ', ca', ', ny', ', tx', ', fl'],
+      country: 'United States', code: 'US' },
+    { keywords: ['qatar', 'doha'],
+      country: 'Qatar', code: 'QA' },
+    { keywords: ['kuwait', 'al kuwayt', 'hawalli', 'al kuwait',
+        'kuwait city'],
+      country: 'Kuwait', code: 'KW' },
+    { keywords: ['jordan', 'amman', 'zarqa'],
+      country: 'Jordan', code: 'JO' },
+    { keywords: ['lebanon', 'beirut'],
+      country: 'Lebanon', code: 'LB' },
+    { keywords: ['bahrain', 'manama'],
+      country: 'Bahrain', code: 'BH' },
+    { keywords: ['oman', 'muscat', 'salalah'],
+      country: 'Oman', code: 'OM' },
+    { keywords: ['sri lanka', 'colombo', 'kandy'],
+      country: 'Sri Lanka', code: 'LK' },
+    { keywords: ['poland', 'warsaw', 'krakow', 'polska'],
+      country: 'Poland', code: 'PL' },
+    { keywords: ['italy', 'italia', 'milan', 'milano', 'rome',
+        'roma', 'florence', 'naples'],
+      country: 'Italy', code: 'IT' },
+    { keywords: ['germany', 'berlin', 'munich', 'hamburg',
+        'frankfurt', 'cologne'],
+      country: 'Germany', code: 'DE' },
+    { keywords: ['france', 'paris', 'lyon', 'marseille'],
+      country: 'France', code: 'FR' },
+    { keywords: ['canada', 'toronto', 'vancouver', 'montreal',
+        'calgary'],
+      country: 'Canada', code: 'CA' },
+    { keywords: ['australia', 'sydney', 'melbourne', 'brisbane',
+        'perth'],
+      country: 'Australia', code: 'AU' },
+    { keywords: ['india', 'mumbai', 'delhi', 'bangalore',
+        'chennai', 'hyderabad', 'pune'],
+      country: 'India', code: 'IN' },
+    { keywords: ['pakistan', 'karachi', 'lahore', 'islamabad'],
+      country: 'Pakistan', code: 'PK' },
+    { keywords: ['turkey', 'turkiye', 'istanbul', 'ankara',
+        'izmir'],
+      country: 'Turkey', code: 'TR' },
+    { keywords: ['morocco', 'casablanca', 'rabat', 'marrakech'],
+      country: 'Morocco', code: 'MA' },
+    { keywords: ['nigeria', 'lagos', 'abuja', 'kano'],
+      country: 'Nigeria', code: 'NG' },
+    { keywords: ['south africa', 'cape town', 'johannesburg',
+        'durban'],
+      country: 'South Africa', code: 'ZA' },
+    { keywords: ['singapore'],
+      country: 'Singapore', code: 'SG' },
+    { keywords: ['malaysia', 'kuala lumpur', 'kl'],
+      country: 'Malaysia', code: 'MY' },
+  ]
+
+  const lower = s.toLowerCase()
+
+  // Find matching country
+  let matchedCountry = 'Unknown'
+  let matchedCode = ''
+
+  // Sort by keyword length descending to match longest first
+  const allKeywords = countryMap.flatMap(c =>
+    c.keywords.map(k => ({ keyword: k, country: c.country, code: c.code }))
+  ).sort((a, b) => b.keyword.length - a.keyword.length)
+
+  for (const { keyword, country, code } of allKeywords) {
+    if (lower.includes(keyword)) {
+      matchedCountry = country
+      matchedCode = code
+      break
+    }
+  }
+
+  // Extract city: take the part before the first comma
+  // or the whole string if no comma
+  const parts = s.split(',')
+  let city = parts[0].trim()
+
+  // Normalize city names
+  const cityNorm: Record<string, string> = {
+    'dubai': 'Dubai',
+    'abu dhabi': 'Abu Dhabi',
+    'sharjah': 'Sharjah',
+    'london': 'London',
+    'cairo': 'Cairo',
+    'riyadh': 'Riyadh',
+    'jeddah': 'Jeddah',
+    'doha': 'Doha',
+    'kuwait city': 'Kuwait City',
+    'al kuwayt': 'Kuwait City',
+    'hawalli': 'Hawalli',
+    'los angeles': 'Los Angeles',
+    'new york': 'New York',
+    'paris': 'Paris',
+    'milan': 'Milan',
+    'milano': 'Milan',
+    'berlin': 'Berlin',
+    'toronto': 'Toronto',
+    'sydney': 'Sydney',
+    'mumbai': 'Mumbai',
+    'singapore': 'Singapore',
+  }
+
+  const cityLower = city.toLowerCase()
+  for (const [key, normalized] of Object.entries(cityNorm)) {
+    if (cityLower === key || cityLower.startsWith(key)) {
+      city = normalized
+      break
+    }
+  }
+
+  // If city is just the country name, set it to empty
+  if (city.toLowerCase() === matchedCountry.toLowerCase() ||
+      city.toLowerCase() === matchedCode.toLowerCase()) {
+    city = ''
+  }
+
+  return { city, country: matchedCountry, countryCode: matchedCode }
+}
+
+interface GeoCountry {
+  country: string
+  countryCode: string
+  flag: string
+  total: number
+  cities: Array<{ city: string; count: number }>
+}
+
+function groupLocationsByCountry(
+  locations: Array<{ location: string; count: number }>
+): GeoCountry[] {
+  const countryMap = new Map<string, GeoCountry>()
+
+  for (const { location, count } of locations) {
+    const { city, country, countryCode } = normalizeLocation(location)
+    const flag = countryCode ? isoToFlag(countryCode) : ''
+
+    if (!countryMap.has(country)) {
+      countryMap.set(country, {
+        country,
+        countryCode,
+        flag,
+        total: 0,
+        cities: [],
+      })
+    }
+
+    const entry = countryMap.get(country)!
+    entry.total += count
+
+    if (city) {
+      const existingCity = entry.cities.find(
+        c => c.city.toLowerCase() === city.toLowerCase()
+      )
+      if (existingCity) {
+        existingCity.count += count
+      } else {
+        entry.cities.push({ city, count })
+      }
+    }
+  }
+
+  // Sort cities within each country by count desc
+  for (const entry of countryMap.values()) {
+    entry.cities.sort((a, b) => b.count - a.count)
+  }
+
+  // Return sorted by total count desc
+  return Array.from(countryMap.values())
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10)
 }
 
 interface ApplicationRow {
@@ -383,6 +626,8 @@ export default function AdminV3Page() {
   const [lastUpd, setLastUpd] = useState<Date | null>(null)
   const [toasts, setToasts] = useState<{ id: number; msg: string; type: 'ok' | 'err' | 'info' }[]>([])
   const toastIdRef = useRef(0)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   // Data
   const [stats, setStats] = useState<Stats | null>(null)
@@ -507,6 +752,11 @@ export default function AdminV3Page() {
   const [accountTypeError, setAccountTypeError] = useState<string | null>(null)
   const [accountTypeCachedAt, setAccountTypeCachedAt] = useState<string | null>(null)
   
+  const [connectionsData, setConnectionsData] = useState<ConnectionPoint[]>([])
+  const [connectionsLoading, setConnectionsLoading] = useState(false)
+  const [connectionsError, setConnectionsError] = useState<string | null>(null)
+  const [connectionsCachedAt, setConnectionsCachedAt] = useState<string | null>(null)
+  
   const [geoData, setGeoData] = useState<Array<{ location: string; count: number }>>([])
   const [geoLoading, setGeoLoading] = useState(false)
   const [geoError, setGeoError] = useState<string | null>(null)
@@ -525,6 +775,10 @@ export default function AdminV3Page() {
   const [activeUsersLoading, setActiveUsersLoading] = useState(true)
   const [activeUsersWindow, setActiveUsersWindow] = useState(5)
   const [activeUsersFetchedAt, setActiveUsersFetchedAt] = useState<string | null>(null)
+  const [activeUsersCompletionFilter, setActiveUsersCompletionFilter] = useState<string>('all')
+
+  // Geographic view mode
+  const [geoView, setGeoView] = useState<'country' | 'city'>('country')
 
   // Settings (config)
   const [config, setConfig] = useState<Record<string, string>>({})
@@ -559,6 +813,14 @@ export default function AdminV3Page() {
     window.addEventListener('unhandledrejection', handler)
     return () => window.removeEventListener('unhandledrejection', handler)
   }, [showToast])
+
+  // Check if mobile
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   // Gate check on mount
   useEffect(() => {
@@ -1507,31 +1769,30 @@ export default function AdminV3Page() {
     }
   }, [])
 
+  const loadConnectionsData = useCallback(async (days = 30) => {
+    setConnectionsLoading(true)
+    setConnectionsError(null)
+    try {
+      const res = await fetch(`/api/admin/stats/connections?days=${days}`, { credentials: 'include' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed')
+      setConnectionsData(json.data || [])
+      setConnectionsCachedAt(json.cached_at || null)
+    } catch (e: any) {
+      setConnectionsError(e.message)
+    } finally {
+      setConnectionsLoading(false)
+    }
+  }, [])
+
   const loadGeoData = useCallback(async () => {
     setGeoLoading(true)
     setGeoError(null)
     try {
-      const res = await fetch('/api/admin/users?limit=500', { credentials: 'include' })
+      const res = await fetch('/api/admin/stats/geo', { credentials: 'include' })
       const json = await res.json()
-      const { data } = parseAdminResponse<{ users?: any[] }>(res, json)
-      const users = data?.users || []
-      
-      // Group by location
-      const locationCounts = new Map<string, number>()
-      users.forEach((u: any) => {
-        if (u.location && u.location.trim()) {
-          const loc = u.location.trim()
-          locationCounts.set(loc, (locationCounts.get(loc) || 0) + 1)
-        }
-      })
-      
-      // Convert to array and sort by count
-      const geoArray = Array.from(locationCounts.entries())
-        .map(([location, count]) => ({ location, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10)
-      
-      setGeoData(geoArray)
+      if (!res.ok) throw new Error(json.error || 'Failed')
+      setGeoData(json.data || [])
     } catch (e: any) {
       setGeoError(e.message)
     } finally {
@@ -1607,8 +1868,9 @@ export default function AdminV3Page() {
     if (activePanel === 'analytics') {
       loadNicheData()
       loadGeoData()
+      loadConnectionsData(30)
     }
-  }, [authorized, activePanel, loadOverviewStats, loadTrendData, loadMonthlyData, loadAccountTypeData, loadNicheData, loadGeoData, loadActivityFeed, loadActiveUsers, activeUsersWindow])
+  }, [authorized, activePanel, loadOverviewStats, loadTrendData, loadMonthlyData, loadAccountTypeData, loadNicheData, loadGeoData, loadConnectionsData, loadActivityFeed, loadActiveUsers, activeUsersWindow])
 
   // Auto-refresh active users every 30 seconds when on Overview panel
   useEffect(() => {
@@ -1930,6 +2192,13 @@ export default function AdminV3Page() {
 
   const isStale = lastUpd && (Date.now() - lastUpd.getTime() > 5 * 60 * 1000)
 
+  // Helper for responsive grids
+  const gridCols = (mobile: number, desktop: number): React.CSSProperties => ({
+    display: 'grid',
+    gridTemplateColumns: `repeat(${isMobile ? mobile : desktop}, 1fr)`,
+    gap: isMobile ? '12px' : '16px',
+  })
+
   function ChartCard({
     title,
     subtitle,
@@ -2001,8 +2270,49 @@ export default function AdminV3Page() {
       >
         Skip to main content
       </a>
+      {/* Mobile backdrop */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            zIndex: 40,
+          }}
+        />
+      )}
+      
       <div id="shell">
-        <nav id="sb">
+        <nav
+          id="sb"
+          style={{
+            transform: isMobile && !sidebarOpen ? 'translateX(-100%)' : 'translateX(0)',
+            transition: 'transform 300ms ease-in-out',
+          }}
+        >
+          {/* Close button - mobile only */}
+          {isMobile && (
+            <button
+              onClick={() => setSidebarOpen(false)}
+              style={{
+                position: 'absolute',
+                top: 16,
+                right: 16,
+                background: 'none',
+                border: 'none',
+                color: '#8892AA',
+                fontSize: 20,
+                cursor: 'pointer',
+                zIndex: 51,
+                padding: 4,
+              }}
+              aria-label="Close menu"
+            >
+              ✕
+            </button>
+          )}
+          
           <div className="sb-brand">
             <div className="sb-orb" />
             <div>
@@ -2011,54 +2321,54 @@ export default function AdminV3Page() {
             </div>
           </div>
           <div className="sb-sec">Operations</div>
-          <button type="button" className={`ni ${activePanel === 'overview' ? 'active' : ''}`} onClick={() => nav('overview')}>
+          <button type="button" className={`ni ${activePanel === 'overview' ? 'active' : ''}`} onClick={() => { nav('overview'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">🏠</span>Overview
           </button>
-          <button type="button" className={`ni ${activePanel === 'dashboard' ? 'active' : ''}`} onClick={() => nav('dashboard')}>
+          <button type="button" className={`ni ${activePanel === 'dashboard' ? 'active' : ''}`} onClick={() => { nav('dashboard'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">📊</span>Dashboard
           </button>
-          <button type="button" className={`ni ${activePanel === 'analytics' ? 'active' : ''}`} onClick={() => nav('analytics')}>
+          <button type="button" className={`ni ${activePanel === 'analytics' ? 'active' : ''}`} onClick={() => { nav('analytics'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">📈</span>Product Analytics
           </button>
           <div className="sb-sec">Community</div>
-          <button type="button" className={`ni ${activePanel === 'applications' ? 'active' : ''}`} onClick={() => nav('applications')}>
+          <button type="button" className={`ni ${activePanel === 'applications' ? 'active' : ''}`} onClick={() => { nav('applications'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">📋</span>Applications
             {pendingCount > 0 && <span className="nbdg w">{pendingCount > 99 ? '99+' : pendingCount}</span>}
           </button>
-          <button type="button" className={`ni ${activePanel === 'users' ? 'active' : ''}`} onClick={() => nav('users')}>
+          <button type="button" className={`ni ${activePanel === 'users' ? 'active' : ''}`} onClick={() => { nav('users'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">👥</span>Users
           </button>
-          <button type="button" className={`ni ${activePanel === 'verifications' ? 'active' : ''}`} onClick={() => nav('verifications')}>
+          <button type="button" className={`ni ${activePanel === 'verifications' ? 'active' : ''}`} onClick={() => { nav('verifications'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">✅</span>Verifications
           </button>
           <div className="sb-sec">Moderation</div>
-          <button type="button" className={`ni ${activePanel === 'inbox' ? 'active' : ''}`} onClick={() => nav('inbox')}>
+          <button type="button" className={`ni ${activePanel === 'inbox' ? 'active' : ''}`} onClick={() => { nav('inbox'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">📬</span>Inbox
           </button>
-          <button type="button" className={`ni ${activePanel === 'reports' ? 'active' : ''}`} onClick={() => nav('reports')}>
+          <button type="button" className={`ni ${activePanel === 'reports' ? 'active' : ''}`} onClick={() => { nav('reports'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">🚩</span>Reports
             {reportsCount > 0 && <span className="nbdg">{reportsCount > 99 ? '99+' : reportsCount}</span>}
           </button>
-          <button type="button" className={`ni ${activePanel === 'data-requests' ? 'active' : ''}`} onClick={() => nav('data-requests')}>
+          <button type="button" className={`ni ${activePanel === 'data-requests' ? 'active' : ''}`} onClick={() => { nav('data-requests'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">📂</span>Data Requests
           </button>
-          <button type="button" className={`ni ${activePanel === 'risk' ? 'active' : ''}`} onClick={() => nav('risk')}>
+          <button type="button" className={`ni ${activePanel === 'risk' ? 'active' : ''}`} onClick={() => { nav('risk'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">⚠</span>Risk
           </button>
-          <button type="button" className={`ni ${activePanel === 'approvals' ? 'active' : ''}`} onClick={() => nav('approvals')}>
+          <button type="button" className={`ni ${activePanel === 'approvals' ? 'active' : ''}`} onClick={() => { nav('approvals'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">✔</span>Approvals
           </button>
           <div className="sb-sec">System</div>
-          <button type="button" className={`ni ${activePanel === 'audit-log' ? 'active' : ''}`} onClick={() => nav('audit-log')}>
+          <button type="button" className={`ni ${activePanel === 'audit-log' ? 'active' : ''}`} onClick={() => { nav('audit-log'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">📝</span>Audit Log
           </button>
-          <button type="button" className={`ni ${activePanel === 'compliance' ? 'active' : ''}`} onClick={() => nav('compliance')}>
+          <button type="button" className={`ni ${activePanel === 'compliance' ? 'active' : ''}`} onClick={() => { nav('compliance'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">🛡</span>Compliance
           </button>
-          <button type="button" className={`ni ${activePanel === 'invite' ? 'active' : ''}`} onClick={() => nav('invite')}>
+          <button type="button" className={`ni ${activePanel === 'invite' ? 'active' : ''}`} onClick={() => { nav('invite'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">✉</span>Invite Creator
           </button>
-          <button type="button" className={`ni ${activePanel === 'settings' ? 'active' : ''}`} onClick={() => nav('settings')}>
+          <button type="button" className={`ni ${activePanel === 'settings' ? 'active' : ''}`} onClick={() => { nav('settings'); if (isMobile) setSidebarOpen(false) }}>
             <span className="nico">⚙</span>Settings
           </button>
           <div className="sh">
@@ -2088,22 +2398,47 @@ export default function AdminV3Page() {
             </div>
           </div>
         </nav>
-        <div id="mn">
-          <div id="hdr">
-            <div className="hbc">
-              <span className="hbr">Admin</span>
-              <span className="hbs">/</span>
-              <span className="hbc-cur">{PANEL_LABELS[activePanel]}</span>
+        <div id="mn" className="flex-1 flex flex-col overflow-hidden min-w-0 w-full">
+          <div id="hdr" className="px-4 lg:px-6">
+            <div className="hbc flex items-center gap-3">
+              {/* Hamburger button - mobile only */}
+              {isMobile && (
+                <button
+                  onClick={() => setSidebarOpen(true)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 4,
+                    padding: 6,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                  aria-label="Open menu"
+                >
+                  <span style={{ width: 20, height: 2, background: '#EEF0F8', display: 'block' }} />
+                  <span style={{ width: 20, height: 2, background: '#EEF0F8', display: 'block' }} />
+                  <span style={{ width: 20, height: 2, background: '#EEF0F8', display: 'block' }} />
+                </button>
+              )}
+              <div className="flex items-center gap-2">
+                {!isMobile && <span className="hbr">Admin</span>}
+                {!isMobile && <span className="hbs">/</span>}
+                <span className="hbc-cur">{PANEL_LABELS[activePanel]}</span>
+              </div>
             </div>
             <div className="hdr-r">
-              <span className="hlive">
-                <span className="hldot" />
-                Live
-              </span>
-              <span className="hupd" id="hupd">{lastUpd ? `Updated ${relT(lastUpd.toISOString())}` : 'Not synced'}</span>
-              {adminRoles[0] && <span className="hrole">{adminRoles[0]}</span>}
+              {!isMobile && (
+                <span className="hlive">
+                  <span className="hldot" />
+                  Live
+                </span>
+              )}
+              {!isMobile && <span className="hupd" id="hupd">{lastUpd ? `Updated ${relT(lastUpd.toISOString())}` : 'Not synced'}</span>}
+              {!isMobile && adminRoles[0] && <span className="hrole">{adminRoles[0]}</span>}
               <button type="button" className="href" onClick={refreshCurrent}>
-                ↻ Refresh
+                <span>↻</span>
+                {!isMobile && <span style={{ marginLeft: 6 }}>Refresh</span>}
               </button>
             </div>
           </div>
@@ -2132,14 +2467,14 @@ export default function AdminV3Page() {
               </button>
             </div>
           )}
-          <div id="ct">
+          <div id="ct" style={{ padding: isMobile ? '16px' : '24px 26px' }}>
             {/* Overview panel */}
             <div id="panel-overview" className={`panel ${activePanel === 'overview' ? 'active' : ''}`}>
-              <div className="ptit">Overview</div>
-              <div className="pdesc">Real-time health snapshot and key metrics</div>
+              <div className="ptit" style={{ fontSize: isMobile ? 18 : 20 }}>Overview</div>
+              <div className="pdesc" style={{ fontSize: isMobile ? 12 : 12.5 }}>Real-time health snapshot and key metrics</div>
               
               {/* Row 1: KPI Cards */}
-              <div className="sg sg4" style={{ marginBottom: 16 }}>
+              <div className="sg sg4" style={{ ...gridCols(2, 4), marginBottom: 16 }}>
                 <div className="sc" style={{ ['--c' as string]: 'var(--ap)', cursor: 'pointer' }} onClick={() => nav('applications')}>
                   <div className="sc-lbl">Total Applications</div>
                   <div className="sc-val">{overviewStats ? fmt(overviewStats.total_applications) : '—'}</div>
@@ -2167,7 +2502,7 @@ export default function AdminV3Page() {
               </div>
 
               {/* Row 2: KPI Cards */}
-              <div className="sg sg4" style={{ marginBottom: 24 }}>
+              <div className="sg sg4" style={{ ...gridCols(2, 4), marginBottom: 24 }}>
                 <div className="sc" style={{ ['--c' as string]: 'var(--info)' }}>
                   <div className="sc-lbl">Verified Members</div>
                   <div className="sc-val">{overviewStats ? fmt(overviewStats.verified_members) : '—'}</div>
@@ -2191,10 +2526,10 @@ export default function AdminV3Page() {
               </div>
 
               {/* Live User Activity */}
-              <div className="bg-[#13161D] border border-[#252A38] rounded-[18px] p-5 mb-6">
+              <div className="bg-[#13161D] border border-[#252A38] rounded-[18px] mb-6" style={{ padding: isMobile ? 16 : 20, overflow: 'visible' }}>
                 
                 {/* Header */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4" style={{ position: 'relative' }}>
                   <div>
                     <div className="text-[13px] font-bold text-[#EEF0F8]">
                       Live User Activity
@@ -2203,12 +2538,31 @@ export default function AdminV3Page() {
                       Real-time presence from user_presence table
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2" style={{ position: 'relative', zIndex: 10 }}>
                     {/* Auto-refresh indicator */}
                     <div className="flex items-center gap-1.5">
                       <div className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
                       <span className="text-[11px] text-[#4A5270]">Live</span>
                     </div>
+                    {/* Completion filter */}
+                    <select
+                      value={activeUsersCompletionFilter}
+                      onChange={e => setActiveUsersCompletionFilter(e.target.value)}
+                      className="bg-[#1C2030] border border-[#2E3448] text-[#8892AA]
+                        text-[11px] rounded-lg px-2 py-1 outline-none"
+                      style={{
+                        cursor: 'pointer',
+                        pointerEvents: 'auto',
+                        position: 'relative',
+                        zIndex: 20,
+                      }}
+                    >
+                      <option value="all">All Users</option>
+                      <option value="0-25">0-25% Complete</option>
+                      <option value="26-50">26-50% Complete</option>
+                      <option value="51-75">51-75% Complete</option>
+                      <option value="76-100">76-100% Complete</option>
+                    </select>
                     {/* Window selector */}
                     <select
                       value={activeUsersWindow}
@@ -2218,7 +2572,13 @@ export default function AdminV3Page() {
                         loadActiveUsers(w)
                       }}
                       className="bg-[#1C2030] border border-[#2E3448] text-[#8892AA]
-                        text-[11px] rounded-lg px-2 py-1 outline-none cursor-pointer"
+                        text-[11px] rounded-lg px-2 py-1 outline-none"
+                      style={{
+                        cursor: 'pointer',
+                        pointerEvents: 'auto',
+                        position: 'relative',
+                        zIndex: 20,
+                      }}
                     >
                       <option value={5}>Last 5 min</option>
                       <option value={60}>Last 1 hour</option>
@@ -2228,27 +2588,27 @@ export default function AdminV3Page() {
                 </div>
 
                 {/* 3 count stats */}
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  <div className="bg-[#1C2030] rounded-xl p-3 text-center">
-                    <div className="text-[22px] font-bold text-[#EEF0F8]">
+                <div className="grid grid-cols-3 gap-2 lg:gap-3 mb-4">
+                  <div className="bg-[#1C2030] rounded-xl p-2 lg:p-3 text-center">
+                    <div className="text-[18px] lg:text-[22px] font-bold text-[#EEF0F8]">
                       {activeUsersData?.concurrent ?? '—'}
                     </div>
-                    <div className="text-[10px] text-[#4A5270] mt-1">Concurrent Now</div>
-                    <div className="text-[10px] text-[#10B981] mt-0.5">last 5 min</div>
+                    <div className="text-[9px] lg:text-[10px] text-[#4A5270] mt-1">Concurrent Now</div>
+                    <div className="text-[9px] lg:text-[10px] text-[#10B981] mt-0.5">last 5 min</div>
                   </div>
-                  <div className="bg-[#1C2030] rounded-xl p-3 text-center">
-                    <div className="text-[22px] font-bold text-[#EEF0F8]">
+                  <div className="bg-[#1C2030] rounded-xl p-2 lg:p-3 text-center">
+                    <div className="text-[18px] lg:text-[22px] font-bold text-[#EEF0F8]">
                       {activeUsersData?.active_hour ?? '—'}
                     </div>
-                    <div className="text-[10px] text-[#4A5270] mt-1">Active This Hour</div>
-                    <div className="text-[10px] text-[#8892AA] mt-0.5">last 60 min</div>
+                    <div className="text-[9px] lg:text-[10px] text-[#4A5270] mt-1">Active This Hour</div>
+                    <div className="text-[9px] lg:text-[10px] text-[#8892AA] mt-0.5">last 60 min</div>
                   </div>
-                  <div className="bg-[#1C2030] rounded-xl p-3 text-center">
-                    <div className="text-[22px] font-bold text-[#EEF0F8]">
+                  <div className="bg-[#1C2030] rounded-xl p-2 lg:p-3 text-center">
+                    <div className="text-[18px] lg:text-[22px] font-bold text-[#EEF0F8]">
                       {activeUsersData?.active_today ?? '—'}
                     </div>
-                    <div className="text-[10px] text-[#4A5270] mt-1">Active Today</div>
-                    <div className="text-[10px] text-[#8892AA] mt-0.5">last 24 hours</div>
+                    <div className="text-[9px] lg:text-[10px] text-[#4A5270] mt-1">Active Today</div>
+                    <div className="text-[9px] lg:text-[10px] text-[#8892AA] mt-0.5">last 24 hours</div>
                   </div>
                 </div>
 
@@ -2270,57 +2630,75 @@ export default function AdminV3Page() {
                     No users active in this time window
                   </div>
                 ) : (
-                  <div className="space-y-1 max-h-64 overflow-y-auto">
-                    {activeUsersData.users.map(user => (
-                      <div key={user.user_id}
-                        className="flex items-center gap-3 p-2 rounded-lg
-                          hover:bg-[#1C2030] transition-colors">
-                        
-                        {/* Avatar */}
-                        <div className="relative flex-shrink-0">
-                          {user.profile_image_url ? (
-                            <img
-                              src={user.profile_image_url}
-                              alt={user.full_name || ''}
-                              className="w-8 h-8 rounded-full object-cover"
-                              onError={e => {
-                                e.currentTarget.style.display = 'none'
-                              }}
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br
-                              from-[#6366F1] to-[#A78BFA] flex items-center
-                              justify-center text-[11px] font-bold text-white">
-                              {(user.full_name || user.username || '?')[0].toUpperCase()}
+                  <div className="space-y-1 max-h-[400px] overflow-y-auto">
+                    {activeUsersData.users
+                      .filter(user => {
+                        if (activeUsersCompletionFilter === 'all') return true
+                        const completion = calculateProfileCompletion(user)
+                        const [min, max] = activeUsersCompletionFilter.split('-').map(Number)
+                        return completion >= min && completion <= max
+                      })
+                      .map(user => {
+                        const completion = calculateProfileCompletion(user)
+                        return (
+                          <div key={user.user_id}
+                            className="flex items-center gap-3 p-3 lg:p-2 rounded-lg
+                              hover:bg-[#1C2030] transition-colors">
+                            
+                            {/* Avatar */}
+                            <div className="relative flex-shrink-0">
+                              {user.profile_image_url ? (
+                                <img
+                                  src={user.profile_image_url}
+                                  alt={user.full_name || ''}
+                                  className="w-8 h-8 rounded-full object-cover"
+                                  onError={e => {
+                                    e.currentTarget.style.display = 'none'
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br
+                                  from-[#6366F1] to-[#A78BFA] flex items-center
+                                  justify-center text-[11px] font-bold text-white">
+                                  {(user.full_name || user.username || '?')[0].toUpperCase()}
+                                </div>
+                              )}
+                              {/* Online dot — only for last 5 min */}
+                              {user.minutes_ago < 5 && (
+                                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5
+                                  rounded-full bg-[#10B981] border-2 border-[#13161D]" />
+                              )}
                             </div>
-                          )}
-                          {/* Online dot — only for last 5 min */}
-                          {user.minutes_ago < 5 && (
-                            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5
-                              rounded-full bg-[#10B981] border-2 border-[#13161D]" />
-                          )}
-                        </div>
 
-                        {/* User info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[12.5px] font-600 text-[#EEF0F8] truncate">
-                              {user.full_name || user.username || 'Unknown'}
-                            </span>
-                            {user.location && (
-                              <span className="text-[12px]">
-                                {getCountryFlag(user.location)}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[11px] text-[#4A5270] truncate">
-                            @{user.username || '—'}
-                            {user.niche && ` · ${user.niche}`}
-                          </div>
-                        </div>
+                            {/* User info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[12.5px] font-600 text-[#EEF0F8] truncate">
+                                  {user.full_name || user.username || 'Unknown'}
+                                </span>
+                                {user.location && (
+                                  <span className="text-[12px]">
+                                    {getCountryFlag(user.location)}
+                                  </span>
+                                )}
+                                {/* Completion badge */}
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                  completion >= 76 ? 'bg-[#10B981]/10 text-[#10B981]' :
+                                  completion >= 51 ? 'bg-[#F59E0B]/10 text-[#F59E0B]' :
+                                  completion >= 26 ? 'bg-[#EF4444]/10 text-[#EF4444]' :
+                                  'bg-[#6B7280]/10 text-[#6B7280]'
+                                }`}>
+                                  {completion}%
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-[#4A5270] truncate">
+                                {user.email || `@${user.username}` || '—'}
+                                {user.niche && ` · ${user.niche}`}
+                              </div>
+                            </div>
 
-                        {/* Last seen */}
-                        <div className="flex-shrink-0 text-right">
+                            {/* Last seen */}
+                            <div className="flex-shrink-0 text-right min-w-[50px]">
                           <div className={`text-[11px] font-600 ${
                             user.minutes_ago < 5 ? 'text-[#10B981]' :
                             user.minutes_ago < 60 ? 'text-[#F59E0B]' :
@@ -2335,7 +2713,8 @@ export default function AdminV3Page() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )
+                  })}
                   </div>
                 )}
 
@@ -2350,7 +2729,12 @@ export default function AdminV3Page() {
               </div>
 
               {/* Row 3: Charts */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 24 }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr',
+                gap: isMobile ? 12 : 16,
+                marginBottom: 24,
+              }}>
                 <ChartCard
                   title="Application Trend"
                   subtitle="Last 14 days"
@@ -2413,7 +2797,7 @@ export default function AdminV3Page() {
               </div>
 
               {/* Row 4: Status Donut and Activity Feed */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={gridCols(1, 2)}>
                 <ChartCard
                   title="Status Breakdown"
                   subtitle="All-time distribution"
@@ -2487,11 +2871,11 @@ export default function AdminV3Page() {
 
             {/* Dashboard panel */}
             <div id="panel-dashboard" className={`panel ${activePanel === 'dashboard' ? 'active' : ''}`}>
-              <div className="ptit">Dashboard</div>
-              <div className="pdesc">Operational metrics and trends</div>
+              <div className="ptit" style={{ fontSize: isMobile ? 18 : 20 }}>Dashboard</div>
+              <div className="pdesc" style={{ fontSize: isMobile ? 12 : 12.5 }}>Operational metrics and trends</div>
               
               {/* Row 1: Stat cards */}
-              <div className="sg sg4" style={{ marginBottom: 16 }}>
+              <div className="sg sg4" style={{ ...gridCols(2, 4), marginBottom: 16 }}>
                 <div className="sc" style={{ ['--c' as string]: 'var(--ap)' }}>
                   <div className="sc-lbl">Total</div>
                   <div className="sc-val">{overviewStats ? fmt(overviewStats.total_applications) : '—'}</div>
@@ -2514,7 +2898,7 @@ export default function AdminV3Page() {
                 </div>
               </div>
 
-              <div className="sg sg4" style={{ marginBottom: 24 }}>
+              <div className="sg sg4" style={{ ...gridCols(2, 4), marginBottom: 24 }}>
                 <div className="sc" style={{ ['--c' as string]: 'var(--ap2)' }}>
                   <div className="sc-lbl">Signups 7d</div>
                   <div className="sc-val">{overviewStats ? fmt(overviewStats.signups_7d) : '—'}</div>
@@ -2538,7 +2922,7 @@ export default function AdminV3Page() {
               </div>
 
               {/* Row 2: Three charts */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
+              <div style={{ ...gridCols(1, 3), marginBottom: 24 }}>
                 <ChartCard
                   title="30-Day Signups"
                   subtitle="Daily applications"
@@ -2637,7 +3021,7 @@ export default function AdminV3Page() {
               </div>
 
               {/* Row 3: Monthly volume and weekly activity */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={gridCols(1, 2)}>
                 <ChartCard
                   title="Monthly Volume"
                   subtitle="Last 6 months"
@@ -2689,15 +3073,15 @@ export default function AdminV3Page() {
 
             {/* Applications panel */}
             <div id="panel-applications" className={`panel ${activePanel === 'applications' ? 'active' : ''}`}>
-              <div className="ptit">Applications</div>
-              <div className="pdesc">Review, approve, reject or waitlist applicants</div>
+              <div className="ptit" style={{ fontSize: isMobile ? 18 : 20 }}>Applications</div>
+              <div className="pdesc" style={{ fontSize: isMobile ? 12 : 12.5 }}>Review, approve, reject or waitlist applicants</div>
               <div className="tc">
                 <div className="tch">
                   <div className="tct">All Applications</div>
-                  <div className="tca">
+                  <div className="tca" style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 8, alignItems: isMobile ? 'stretch' : 'center' }}>
                     <input
                       className="inp"
-                      style={{ width: 200 }}
+                      style={{ width: isMobile ? '100%' : 200 }}
                       type="text"
                       placeholder="Search name or email…"
                       value={appSearch}
@@ -2708,6 +3092,7 @@ export default function AdminV3Page() {
                       className="sel"
                       value={appFilter}
                       onChange={(e) => { setAppFilter(e.target.value); setApplicationsPage(1) }}
+                      style={{ cursor: 'pointer', pointerEvents: 'auto', position: 'relative', zIndex: 1 }}
                     >
                       {APP_FILTER_OPTIONS.map((o) => (
                         <option key={o.value || 'all'} value={o.value}>{o.label}</option>
@@ -2716,15 +3101,20 @@ export default function AdminV3Page() {
                     <button type="button" className="btn btn-gh bsm" onClick={() => loadApplications()} disabled={applicationsLoading}>
                       {applicationsLoading ? '…' : '↻'} Apply
                     </button>
-                    <button type="button" className="btn btn-gh bsm" onClick={exportApplicationsPage} disabled={applications.length === 0}>
-                      Export this page
-                    </button>
-                    <button type="button" className="btn btn-gh bsm" onClick={exportApplicationsFiltered} disabled={exportLoading}>
-                      {exportLoading ? 'Exporting…' : 'Export all filtered'}
-                    </button>
+                    {!isMobile && (
+                      <>
+                        <button type="button" className="btn btn-gh bsm" onClick={exportApplicationsPage} disabled={applications.length === 0}>
+                          Export this page
+                        </button>
+                        <button type="button" className="btn btn-gh bsm" onClick={exportApplicationsFiltered} disabled={exportLoading}>
+                          {exportLoading ? 'Exporting…' : 'Export all filtered'}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
-                <table className="tbl">
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginLeft: isMobile ? -16 : 0, marginRight: isMobile ? -16 : 0 }}>
+                  <table className="tbl" style={{ minWidth: isMobile ? 600 : '100%' }}>
                   <thead>
                     <tr>
                       <th style={{ width: 40 }}>
@@ -2741,10 +3131,10 @@ export default function AdminV3Page() {
                       </th>
                       <th>Applicant</th>
                       <th>Type</th>
-                      <th>Niche</th>
+                      <th style={{ display: isMobile ? 'none' : 'table-cell' }}>Niche</th>
                       <th>Status</th>
                       <th>Applied</th>
-                      <th>Referrer</th>
+                      <th style={{ display: isMobile ? 'none' : 'table-cell' }}>Referrer</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -2820,14 +3210,14 @@ export default function AdminV3Page() {
                                 <span className={`badge ${accountType === 'brand' ? 'ba' : 'bp'}`}>{accountType === 'brand' ? 'brand' : 'creator'}</span>
                               ) : '—'}
                             </td>
-                            <td style={{ fontSize: 11, color: 'var(--t3)' }}>{app.niche || '—'}</td>
+                            <td style={{ display: isMobile ? 'none' : 'table-cell', fontSize: 11, color: 'var(--t3)' }}>{app.niche || '—'}</td>
                             <td>
                               <span className={`badge ${isApproved ? 'ba' : isRejected ? 'br' : isWaitlisted ? 'bw' : 'bp'}`}>
                                 {st === 'waitlist' ? 'Waitlist' : st.charAt(0).toUpperCase() + st.slice(1)}
                               </span>
                             </td>
                             <td style={{ fontSize: 11, color: 'var(--t3)' }}>{fmtDate(app.application_date)}</td>
-                            <td style={{ fontSize: 11, color: 'var(--t3)' }}>{app.referrer_username ? `@${app.referrer_username}` : '—'}</td>
+                            <td style={{ display: isMobile ? 'none' : 'table-cell', fontSize: 11, color: 'var(--t3)' }}>{app.referrer_username ? `@${app.referrer_username}` : '—'}</td>
                             <td>
                               <div className="ag">
                                 {!isApproved && (
@@ -2874,6 +3264,7 @@ export default function AdminV3Page() {
                     )}
                   </tbody>
                 </table>
+                </div>
                 <div className="tpg">
                   <div className="tpgi">
                     {applicationsTotal > 0
@@ -2902,44 +3293,45 @@ export default function AdminV3Page() {
               </div>
               {selectedAppIds.size > 0 && (
                 <div style={{
-                  position: 'sticky',
+                  position: 'fixed',
                   bottom: 0,
-                  left: 0,
+                  left: isMobile ? 0 : 228,
                   right: 0,
-                  background: 'var(--card-bg)',
-                  borderTop: '1px solid var(--border)',
-                  padding: '12px 16px',
+                  background: '#13161D',
+                  borderTop: '1px solid #252A38',
+                  padding: isMobile ? 12 : 16,
                   display: 'flex',
+                  flexWrap: 'wrap',
                   alignItems: 'center',
-                  gap: 12,
-                  zIndex: 10,
-                  boxShadow: '0 -2px 8px rgba(0,0,0,0.1)'
+                  gap: 8,
+                  zIndex: 30,
                 }}>
-                  <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 500 }}>
+                  <span className="text-[13px] font-semibold text-[#EEF0F8]">
                     {selectedAppIds.size} selected
                   </span>
-                  <button
-                    type="button"
-                    className="btn btn-ok bsm"
-                    disabled={bulkActionLoading}
-                    onClick={() => doBulkAction('approve')}
-                  >
-                    {bulkActionLoading ? '...' : 'Approve All'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-er bsm"
-                    disabled={bulkActionLoading}
-                    onClick={() => doBulkAction('reject')}
-                  >
-                    {bulkActionLoading ? '...' : 'Reject All'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-wa bsm"
-                    disabled={bulkActionLoading}
-                    onClick={() => doBulkAction('waitlist')}
-                  >
+                  <div className="flex flex-wrap gap-2 ml-auto">
+                    <button
+                      type="button"
+                      className="btn btn-ok bsm"
+                      disabled={bulkActionLoading}
+                      onClick={() => doBulkAction('approve')}
+                    >
+                      {bulkActionLoading ? '...' : 'Approve'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-er bsm"
+                      disabled={bulkActionLoading}
+                      onClick={() => doBulkAction('reject')}
+                    >
+                      {bulkActionLoading ? '...' : 'Reject'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-wa bsm"
+                      disabled={bulkActionLoading}
+                      onClick={() => doBulkAction('waitlist')}
+                    >
                     {bulkActionLoading ? '...' : 'Waitlist All'}
                   </button>
                   <button
@@ -2951,6 +3343,7 @@ export default function AdminV3Page() {
                   >
                     Clear
                   </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -3289,6 +3682,7 @@ export default function AdminV3Page() {
                     className="sel"
                     value={dataRequestsStatusFilter}
                     onChange={(e) => { setDataRequestsStatusFilter(e.target.value); setDataRequestsPage(1); }}
+                    style={{ cursor: 'pointer', pointerEvents: 'auto', position: 'relative', zIndex: 1 }}
                   >
                     <option value="all">All Status</option>
                     <option value="pending">Pending</option>
@@ -3298,6 +3692,7 @@ export default function AdminV3Page() {
                     className="sel"
                     value={dataRequestsTypeFilter}
                     onChange={(e) => { setDataRequestsTypeFilter(e.target.value); setDataRequestsPage(1); }}
+                    style={{ cursor: 'pointer', pointerEvents: 'auto', position: 'relative', zIndex: 1 }}
                   >
                     <option value="all">All Types</option>
                     <option value="export">Export</option>
@@ -3397,6 +3792,7 @@ export default function AdminV3Page() {
                     className="sel"
                     value={riskLevelFilter}
                     onChange={(e) => setRiskLevelFilter(e.target.value as 'all' | 'high' | 'medium' | 'low')}
+                    style={{ cursor: 'pointer', pointerEvents: 'auto', position: 'relative', zIndex: 1 }}
                   >
                     <option value="all">All Levels</option>
                     <option value="high">High</option>
@@ -3487,6 +3883,7 @@ export default function AdminV3Page() {
                     className="sel"
                     value={approvalsFilter}
                     onChange={(e) => setApprovalsFilter(e.target.value as 'all' | 'active' | 'expired')}
+                    style={{ cursor: 'pointer', pointerEvents: 'auto', position: 'relative', zIndex: 1 }}
                   >
                     <option value="all">All</option>
                     <option value="active">Active</option>
@@ -3593,26 +3990,28 @@ export default function AdminV3Page() {
                   <div className="te"><div className="tei">📋</div>No audit entries.</div>
                 ) : (
                   <>
-                    <div className="admin-v3-table-wrap">
-                      <table className="admin-v3-table">
-                        <thead>
-                          <tr><th>Time</th><th>Admin</th><th>Action</th><th>Target</th><th>Details</th></tr>
-                        </thead>
-                        <tbody>
-                          {auditEntries.map((e) => (
-                            <tr key={e.id}>
-                              <td style={{ fontSize: 11 }}>{e.created_at ? new Date(e.created_at).toLocaleString() : '—'}</td>
-                              <td>{e.admin_email ?? '—'}</td>
-                              <td>{e.action}</td>
-                              <td>{e.target_type && e.target_id ? `${e.target_type}: ${e.target_id}` : (e.target_type ?? '—')}</td>
-                              <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.details != null ? JSON.stringify(e.details).slice(0, 80) : '—'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div className="overflow-x-auto -mx-4 lg:mx-0">
+                      <div className="admin-v3-table-wrap">
+                        <table className="admin-v3-table min-w-[600px] lg:min-w-full">
+                          <thead>
+                            <tr><th>Time</th><th>Admin</th><th>Action</th><th>Target</th><th className="hidden lg:table-cell">Details</th></tr>
+                          </thead>
+                          <tbody>
+                            {auditEntries.map((e) => (
+                              <tr key={e.id}>
+                                <td style={{ fontSize: 11 }}>{e.created_at ? new Date(e.created_at).toLocaleString() : '—'}</td>
+                                <td>{e.admin_email ?? '—'}</td>
+                                <td>{e.action}</td>
+                                <td>{e.target_type && e.target_id ? `${e.target_type}: ${e.target_id}` : (e.target_type ?? '—')}</td>
+                                <td className="hidden lg:table-cell max-w-[200px] overflow-hidden" style={{ textOverflow: 'ellipsis' }}>{e.details != null ? JSON.stringify(e.details).slice(0, 80) : '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                     <div className="admin-v3-pagination">
-                      <button type="button" className="admin-v3-btn admin-v3-btn-sm" disabled={auditPage <= 1 || auditLoading} onClick={() => setAuditPage((p) => Math.max(1, p - 1))}>Previous</button>
+                      <button type="button" className="admin-v3-btn admin-v3-btn-sm min-h-[40px] px-4 lg:px-3 lg:min-h-[auto]" disabled={auditPage <= 1 || auditLoading} onClick={() => setAuditPage((p) => Math.max(1, p - 1))}>Previous</button>
                       <span className="admin-v3-muted">
                         Page {auditPage} of {Math.ceil(auditTotal / AUDIT_PAGE_SIZE) || 1} · {fmt(auditTotal)} total
                       </span>
@@ -3680,7 +4079,7 @@ export default function AdminV3Page() {
                 ) : (
                   <>
                     {complianceHealth && (
-                      <div className="sg sg4" style={{ marginBottom: '1rem' }}>
+                      <div className="sg sg4" style={{ ...gridCols(1, 2), marginBottom: 16 }}>
                         <div className="sc" style={{ ['--c' as string]: 'var(--ok)' }}>
                           <div className="sc-lbl">Overall score</div>
                           <div className="sc-val">{complianceHealth.overall_score ?? '—'}</div>
@@ -3691,11 +4090,12 @@ export default function AdminV3Page() {
                         </div>
                       </div>
                     )}
-                    <div className="admin-v3-table-wrap">
-                      <table className="admin-v3-table">
-                        <thead>
-                          <tr><th>Control</th><th>Status</th><th>Score</th><th>Last checked</th></tr>
-                        </thead>
+                    <div className="overflow-x-auto -mx-4 lg:mx-0">
+                      <div className="admin-v3-table-wrap">
+                        <table className="admin-v3-table min-w-[500px] lg:min-w-full">
+                          <thead>
+                            <tr><th>Control</th><th>Status</th><th>Score</th><th>Last checked</th></tr>
+                          </thead>
                         <tbody>
                           {(complianceHealth?.controls ?? []).map((c) => (
                             <tr key={c.control_code}>
@@ -3713,6 +4113,7 @@ export default function AdminV3Page() {
                           )}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   </>
                 )}
@@ -3722,18 +4123,19 @@ export default function AdminV3Page() {
             {/* Product Analytics panel */}
             {activePanel === 'analytics' && (
               <div id="panel-analytics" className="panel active">
-                <div className="ptit">Product Analytics</div>
-                <div className="pdesc">Engagement metrics, trends, and insights</div>
+                <div className="ptit" style={{ fontSize: isMobile ? 18 : 20 }}>Product Analytics</div>
+                <div className="pdesc" style={{ fontSize: isMobile ? 12 : 12.5 }}>Engagement metrics, trends, and insights</div>
                 
                 {/* Row 1: Date range selector */}
-                <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
-                  <div style={{ display: 'flex', gap: 8 }}>
+                <div className="flex flex-wrap gap-2 mb-4 items-center">
+                  <div className="flex flex-wrap gap-2">
                     {['7', '30', '90', 'all'].map((range) => (
                       <button
                         key={range}
                         type="button"
                         className={`btn ${analyticsDateRange === range ? 'btn-pr' : 'btn-gh'} bsm`}
                         onClick={() => setAnalyticsDateRange(range)}
+                        style={{ cursor: 'pointer', pointerEvents: 'auto' }}
                       >
                         {range === 'all' ? 'All time' : `Last ${range} days`}
                       </button>
@@ -3746,7 +4148,7 @@ export default function AdminV3Page() {
 
                 {/* Row 2: Stat cards */}
                 {analyticsData?.overview && (
-                  <div className="sg sg4" style={{ marginBottom: 24 }}>
+                  <div className="sg sg4" style={{ ...gridCols(2, 4), marginBottom: 24 }}>
                     <div className="sc" style={{ ['--c' as string]: 'var(--ap)' }}>
                       <div className="sc-lbl">Signups (range)</div>
                       <div className="sc-val">{overviewStats ? fmt(analyticsDateRange === '7' ? overviewStats.signups_7d : overviewStats.signups_30d) : '—'}</div>
@@ -3771,7 +4173,7 @@ export default function AdminV3Page() {
                 )}
 
                 {/* Row 3: Two line charts */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                <div style={{ ...gridCols(1, 2), marginBottom: 24 }}>
                   <ChartCard
                     title="Signups Over Time"
                     subtitle={`Last ${analyticsDateRange === 'all' ? '90' : analyticsDateRange} days`}
@@ -3797,20 +4199,30 @@ export default function AdminV3Page() {
 
                   <ChartCard
                     title="Connections Over Time"
-                    subtitle="Coming soon"
-                    loading={false}
-                    error={null}
-                    onRetry={() => {}}
+                    subtitle={`Last ${analyticsDateRange === 'all' ? '90' : analyticsDateRange} days`}
+                    loading={connectionsLoading}
+                    error={connectionsError}
+                    onRetry={() => loadConnectionsData(analyticsDateRange === 'all' ? 90 : parseInt(analyticsDateRange))}
+                    cachedAt={connectionsCachedAt}
                   >
-                    <div style={{ textAlign: 'center', padding: 48, color: 'var(--t3)' }}>
-                      <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
-                      <div style={{ fontSize: 12 }}>Connection tracking coming soon</div>
-                    </div>
+                    {connectionsData.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: 32, color: 'var(--t3)' }}>No data</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={220}>
+                        <LineChart data={connectionsData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#252A38" />
+                          <XAxis dataKey="date" tick={{ fill: '#8892AA', fontSize: 10 }} interval={Math.floor(connectionsData.length / 7)} />
+                          <YAxis tick={{ fill: '#8892AA', fontSize: 10 }} />
+                          <Tooltip contentStyle={{ background: '#1C2030', border: '1px solid #2E3448', borderRadius: 8 }} />
+                          <Line type="monotone" dataKey="count" stroke="#10B981" strokeWidth={2} dot={false} name="New Connections" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
                   </ChartCard>
                 </div>
 
                 {/* Row 4: Three sections */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 24 }}>
+                <div style={{ ...gridCols(1, 3), marginBottom: 24 }}>
                   <ChartCard
                     title="Top Niches"
                     subtitle="Approved members"
@@ -3833,41 +4245,225 @@ export default function AdminV3Page() {
                     )}
                   </ChartCard>
 
-                  <ChartCard
-                    title="Geographic Distribution"
-                    subtitle="Top locations"
-                    loading={geoLoading}
-                    error={geoError}
-                    onRetry={loadGeoData}
-                  >
-                    {geoData.length === 0 ? (
+                  <div className="bg-[#13161D] border border-[#252A38] rounded-[18px] p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <div className="text-[13px] font-bold text-[#EEF0F8]">Geographic Distribution</div>
+                        <div className="text-[11px] text-[#4A5270] mt-0.5">Top locations</div>
+                      </div>
+                      {/* View toggle */}
+                      <div className="flex gap-1 bg-[#1C2030] rounded-lg p-1">
+                        <button
+                          onClick={() => setGeoView('country')}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: geoView === 'country' ? '#6366F1' : 'transparent',
+                            color: geoView === 'country' ? '#fff' : '#8892AA',
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          Country
+                        </button>
+                        <button
+                          onClick={() => setGeoView('city')}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: geoView === 'city' ? '#6366F1' : 'transparent',
+                            color: geoView === 'city' ? '#fff' : '#8892AA',
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          City
+                        </button>
+                      </div>
+                    </div>
+
+                    {geoLoading ? (
+                      <div style={{ textAlign: 'center', padding: 48, color: 'var(--t3)' }}>
+                        <div style={{ fontSize: 12 }}>Loading...</div>
+                      </div>
+                    ) : geoError ? (
+                      <div style={{ textAlign: 'center', padding: 48, color: 'var(--err)' }}>
+                        <div style={{ fontSize: 12, marginBottom: 8 }}>{geoError}</div>
+                        <button
+                          onClick={loadGeoData}
+                          className="btn btn-gh bsm"
+                          style={{ marginTop: 8 }}
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    ) : geoData.length === 0 ? (
                       <div style={{ textAlign: 'center', padding: 48, color: 'var(--t3)' }}>
                         <div style={{ fontSize: 32, marginBottom: 8 }}>🌍</div>
                         <div style={{ fontSize: 12 }}>No location data</div>
                       </div>
-                    ) : (
-                      <div style={{ padding: '8px 0' }}>
-                        {geoData.map((item, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: i < geoData.length - 1 ? '1px solid #252A38' : 'none' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span style={{ fontSize: 13, width: 24, textAlign: 'center', color: '#4A5270' }}>
+                    ) : geoView === 'country' ? (
+                      /* Country view */
+                      <div className="space-y-1">
+                        {groupLocationsByCountry(geoData).map((country, i) => (
+                          <div key={country.country}>
+                            {/* Country row */}
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                padding: '8px 4px',
+                                borderBottom: '1px solid #252A38',
+                              }}
+                            >
+                              <span style={{
+                                fontSize: '11px',
+                                color: '#4A5270',
+                                width: '18px',
+                                textAlign: 'center',
+                                flexShrink: 0,
+                              }}>
                                 {i + 1}
                               </span>
-                              <span style={{ fontSize: 13 }}>
-                                {getCountryFlag(item.location)}
+                              <span style={{ fontSize: '16px', flexShrink: 0 }}>
+                                {country.flag}
                               </span>
-                              <span style={{ fontSize: 12, color: '#8892AA' }}>
-                                {item.location}
+                              <span style={{
+                                fontSize: '13px',
+                                color: '#EEF0F8',
+                                fontWeight: 600,
+                                flex: 1,
+                              }}>
+                                {country.country}
+                              </span>
+                              <span style={{
+                                fontSize: '13px',
+                                fontWeight: 700,
+                                color: '#EEF0F8',
+                              }}>
+                                {country.total}
                               </span>
                             </div>
-                            <span style={{ fontSize: 12, fontWeight: 'bold', color: '#EEF0F8' }}>
-                              {item.count}
-                            </span>
+                            {/* City breakdown */}
+                            {country.cities.length > 0 && (
+                              <div style={{ paddingLeft: '44px' }}>
+                                {country.cities.map(city => (
+                                  <div
+                                    key={city.city}
+                                    style={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      padding: '4px 4px 4px 0',
+                                      borderBottom: '1px solid #1C2030',
+                                      fontSize: '11.5px',
+                                    }}
+                                  >
+                                    <span style={{ color: '#8892AA' }}>
+                                      {city.city}
+                                    </span>
+                                    <span style={{ color: '#4A5270' }}>
+                                      {city.count}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
+                    ) : (
+                      /* City view — flat list but normalized */
+                      <div>
+                        {geoData
+                          .map(item => ({
+                            ...item,
+                            normalized: normalizeLocation(item.location),
+                          }))
+                          .reduce((acc, item) => {
+                            // Merge same normalized city+country
+                            const key = `${item.normalized.city}-${item.normalized.country}`
+                            const existing = acc.find(a => a.key === key)
+                            if (existing) {
+                              existing.count += item.count
+                            } else {
+                              acc.push({
+                                key,
+                                city: item.normalized.city || item.normalized.country,
+                                country: item.normalized.country,
+                                countryCode: item.normalized.countryCode,
+                                flag: item.normalized.countryCode
+                                  ? isoToFlag(item.normalized.countryCode) : '',
+                                count: item.count,
+                              })
+                            }
+                            return acc
+                          }, [] as Array<{
+                            key: string
+                            city: string
+                            country: string
+                            countryCode: string
+                            flag: string
+                            count: number
+                          }>)
+                          .sort((a, b) => b.count - a.count)
+                          .slice(0, 15)
+                          .map((item, i) => (
+                            <div
+                              key={item.key}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                padding: '8px 4px',
+                                borderBottom: '1px solid #252A38',
+                              }}
+                            >
+                              <span style={{
+                                fontSize: '11px',
+                                color: '#4A5270',
+                                width: '18px',
+                                textAlign: 'center',
+                                flexShrink: 0,
+                              }}>
+                                {i + 1}
+                              </span>
+                              <span style={{ fontSize: '16px', flexShrink: 0 }}>
+                                {item.flag}
+                              </span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{
+                                  fontSize: '12.5px',
+                                  color: '#EEF0F8',
+                                  fontWeight: 500,
+                                }}>
+                                  {item.city}
+                                </div>
+                                <div style={{
+                                  fontSize: '10.5px',
+                                  color: '#4A5270',
+                                }}>
+                                  {item.country}
+                                </div>
+                              </div>
+                              <span style={{
+                                fontSize: '13px',
+                                fontWeight: 700,
+                                color: '#EEF0F8',
+                              }}>
+                                {item.count}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
                     )}
-                  </ChartCard>
+                  </div>
 
                   <ChartCard
                     title="Platform Usage"

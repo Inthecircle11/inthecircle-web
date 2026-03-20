@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reset password — Inthecircle</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #0a0a0a;
+      color: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 400px;
+      background: #141414;
+      border: 1px solid #262626;
+      border-radius: 12px;
+      padding: 32px;
+    }
+    h1 { font-size: 20px; font-weight: 600; margin: 0 0 8px; }
+    .sub { color: #a3a3a3; font-size: 14px; margin-bottom: 24px; }
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 16px;
+      border: 1px solid #404040;
+      border-radius: 8px;
+      background: #262626;
+      color: #f5f5f5;
+      margin-bottom: 12px;
+    }
+    input::placeholder { color: #737373; }
+    input:focus { outline: none; border-color: #8B5CF6; }
+    button {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      background: #8B5CF6;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    button:hover { background: #7C3AED; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .error { color: #f87171; font-size: 14px; margin-top: 8px; }
+    .success { color: #4ade80; font-size: 14px; margin-top: 16px; }
+    .brand { color: #a3a3a3; font-size: 13px; margin-top: 24px; text-align: center; }
+    a { color: #8B5CF6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="state-loading">
+      <p class="sub">Checking your reset link…</p>
+    </div>
+    <div id="state-invalid" class="hidden">
+      <h1>Invalid or expired link</h1>
+      <p class="sub">This password reset link is invalid or has expired. Request a new one from the app.</p>
+      <p class="brand"><a href="inthecircle://">Open Inthecircle app</a></p>
+    </div>
+    <div id="state-form" class="hidden">
+      <h1>Set a new password</h1>
+      <p class="sub">Choose a strong password (at least 8 characters).</p>
+      <form id="form">
+        <input type="password" id="password" placeholder="New password" required minlength="8" autocomplete="new-password">
+        <input type="password" id="confirm" placeholder="Confirm password" required minlength="8" autocomplete="new-password">
+        <p id="form-error" class="error hidden"></p>
+        <button type="submit" id="submit-btn">Update password</button>
+      </form>
+    </div>
+    <div id="state-done" class="hidden">
+      <h1>Password updated</h1>
+      <p class="success">You can now sign in with your new password.</p>
+      <p class="brand"><a href="inthecircle://">Open Inthecircle app</a></p>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    (function() {
+      var SUPABASE_URL = '';
+      var SUPABASE_ANON_KEY = '';
+      var supabase = null;
+
+      function getClient() {
+        if (supabase) return supabase;
+        if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+          supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+          return supabase;
+        }
+        return null;
+      }
+
+      function show(id) {
+        ['state-loading', 'state-invalid', 'state-form', 'state-done'].forEach(function(s) {
+          document.getElementById(s).classList.toggle('hidden', s !== id);
+        });
+      }
+
+      function getHashParams() {
+        var hash = window.location.hash.slice(1);
+        if (!hash) return {};
+        return hash.split('&').reduce(function(acc, pair) {
+          var i = pair.indexOf('=');
+          if (i === -1) return acc;
+          acc[decodeURIComponent(pair.slice(0, i))] = decodeURIComponent(pair.slice(i + 1));
+          return acc;
+        }, {});
+      }
+
+      function getQueryParams() {
+        var q = window.location.search.slice(1);
+        if (!q) return {};
+        return q.split('&').reduce(function(acc, pair) {
+          var i = pair.indexOf('=');
+          if (i === -1) return acc;
+          acc[decodeURIComponent(pair.slice(0, i))] = decodeURIComponent(pair.slice(i + 1));
+          return acc;
+        }, {});
+      }
+
+      function run() {
+        var hash = getHashParams();
+        var query = getQueryParams();
+        var client = getClient();
+        if (!client) {
+          show('state-invalid');
+          var invalidEl = document.querySelector('#state-invalid .sub');
+          if (invalidEl) invalidEl.textContent = 'Reset password is not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY in Vercel (or /api/config), then redeploy.';
+          return;
+        }
+
+        if (query.type === 'recovery' && query.code) {
+          client.auth.exchangeCodeForSession(query.code).then(function(result) {
+            if (result.error) { show('state-invalid'); return; }
+            show('state-form');
+          }).catch(function() { show('state-invalid'); });
+          return;
+        }
+
+        if (hash.type === 'recovery' && hash.access_token && hash.refresh_token) {
+          client.auth.setSession({
+            access_token: hash.access_token,
+            refresh_token: hash.refresh_token
+          }).then(function(result) {
+            if (result.error) { show('state-invalid'); return; }
+            show('state-form');
+            window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+          }).catch(function() { show('state-invalid'); });
+          return;
+        }
+
+        client.auth.getSession().then(function(result) {
+          if (result.data.session) { show('state-form'); return; }
+          show('state-invalid');
+        }).catch(function() { show('state-invalid'); });
+      }
+
+      document.getElementById('form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var client = getClient();
+        if (!client) return;
+        var password = document.getElementById('password').value;
+        var confirm = document.getElementById('confirm').value;
+        var errEl = document.getElementById('form-error');
+        var btn = document.getElementById('submit-btn');
+        errEl.classList.add('hidden');
+        if (password.length < 8) {
+          errEl.textContent = 'Password must be at least 8 characters.';
+          errEl.classList.remove('hidden');
+          return;
+        }
+        if (password !== confirm) {
+          errEl.textContent = 'Passwords do not match.';
+          errEl.classList.remove('hidden');
+          return;
+        }
+        btn.disabled = true;
+        client.auth.updateUser({ password: password }).then(function(result) {
+          if (result.error) {
+            errEl.textContent = result.error.message || 'Failed to update password.';
+            errEl.classList.remove('hidden');
+            btn.disabled = false;
+            return;
+          }
+          client.auth.signOut();
+          show('state-done');
+        }).catch(function(err) {
+          errEl.textContent = err.message || 'Something went wrong.';
+          errEl.classList.remove('hidden');
+          btn.disabled = false;
+        });
+      });
+
+      // Load config from /api/config (same pattern as signup.html); no hardcoded keys in repo.
+      var CONFIG_TIMEOUT_MS = 12000;
+      function loadConfigThenRun() {
+        var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        var timeoutId = controller ? setTimeout(function() { controller.abort(); }, CONFIG_TIMEOUT_MS) : null;
+        var p = fetch('/api/config', { signal: controller ? controller.signal : undefined })
+          .then(function(r) {
+            if (!r.ok) return null;
+            return r.text().then(function(text) {
+              try { return text ? JSON.parse(text) : null; } catch (e) { return null; }
+            });
+          })
+          .then(function(d) {
+            if (d && typeof d === 'object' && d.SUPABASE_URL) SUPABASE_URL = d.SUPABASE_URL;
+            if (d && typeof d === 'object' && d.SUPABASE_ANON_KEY) SUPABASE_ANON_KEY = d.SUPABASE_ANON_KEY;
+            run();
+          });
+        if (timeoutId) p = p.finally(function() { clearTimeout(timeoutId); });
+        p.catch(function() {
+          show('state-invalid');
+          var invalidEl = document.querySelector('#state-invalid .sub');
+          if (invalidEl) invalidEl.textContent = 'Configuration could not be loaded. Check your connection and try again.';
+        });
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadConfigThenRun);
+      } else {
+        loadConfigThenRun();
+      }
+    })();
+  </script>
+</body>
+</html>

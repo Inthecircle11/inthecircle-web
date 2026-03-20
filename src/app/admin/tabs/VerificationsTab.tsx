@@ -30,7 +30,7 @@ export function VerificationsTab({
         </div>
       ) : (
         <div className="space-y-4">
-          {pendingVerifications.map((v) => (
+          {(pendingVerifications ?? []).map((v) => (
             <div key={v.id} className="bg-[var(--surface)] p-4 rounded-xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">

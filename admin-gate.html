@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="https://inthecircle.co/wp-content/uploads/2026/02/email-logo.jpg" type="image/jpeg" />
+  <title>Admin – Inthecircle</title>
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --surface: #1a1a1f;
+      --border: #2a2a32;
+      --text: #f0f0f5;
+      --textSecondary: #888;
+      --accent: #8b5cf6;
+      --accentAlt: #a78bfa;
+      --error: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: radial-gradient(ellipse 120% 80% at 50% -20%, rgba(139, 92, 246, 0.12), transparent), var(--bg);
+    }
+    .page { max-width: 360px; width: 100%; text-align: center; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      text-align: left;
+    }
+    h1 { font-size: 1.25rem; font-weight: 700; margin: 0 0 8px; }
+    .sub { font-size: 0.875rem; color: var(--textSecondary); margin: 0 0 20px; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 0.8125rem; font-weight: 600; color: var(--textSecondary); margin-bottom: 6px; }
+    .field input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1rem;
+    }
+    .field input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+    }
+    .error { font-size: 0.8125rem; color: var(--error); margin-top: 8px; }
+    .submit-btn {
+      width: 100%;
+      padding: 12px 14px;
+      margin-top: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--accentAlt));
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .submit-btn:hover { opacity: 0.95; }
+    .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="card">
+      <h1>Admin access</h1>
+      <p class="sub">Enter the gate password to continue.</p>
+      <form id="gate-form" method="post" action="/api/admin-gate">
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required autofocus />
+        </div>
+        <p id="error" class="error" aria-live="polite" hidden></p>
+        <button type="submit" class="submit-btn" id="btn">Continue</button>
+      </form>
+    </div>
+  </main>
+  <script>
+    (function() {
+      var form = document.getElementById('gate-form');
+      var password = document.getElementById('password');
+      var errorEl = document.getElementById('error');
+      var btn = document.getElementById('btn');
+
+      form.addEventListener('submit', function(ev) {
+        ev.preventDefault();
+        errorEl.hidden = true;
+        errorEl.textContent = '';
+        btn.disabled = true;
+
+        var body = new URLSearchParams();
+        body.set('password', password.value);
+
+        fetch('/api/admin-gate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body.toString(),
+          redirect: 'manual'
+        }).then(function(res) {
+          // With redirect: 'manual', browser turns 302 into opaque redirect (status 0, no headers).
+          // Treat that as success and go to /admin; cookie was already set by the 302 response.
+          if (res.status === 302 || res.status === 301 || res.status === 0 || res.type === 'opaqueredirect') {
+            var loc = res.headers.get('Location') || '/admin';
+            window.location.href = loc;
+            return;
+          }
+          if (res.status === 429) {
+            errorEl.textContent = 'Too many attempts. Try again later.';
+            errorEl.hidden = false;
+            btn.disabled = false;
+            return;
+          }
+          if (res.status === 401) {
+            errorEl.textContent = 'Invalid password.';
+            errorEl.hidden = false;
+            btn.disabled = false;
+            return;
+          }
+          if (res.status === 400) {
+            errorEl.textContent = 'Please enter the password.';
+            errorEl.hidden = false;
+            btn.disabled = false;
+            return;
+          }
+          if (res.status === 500) {
+            res.text().then(function(t) {
+              errorEl.textContent = t && t.indexOf('configured') !== -1
+                ? 'Admin gate is not configured. Set ADMIN_GATE_PASSWORD in Vercel (Project → Settings → Environment Variables), then redeploy.'
+                : (t || 'Server error. Try again.');
+              errorEl.hidden = false;
+              btn.disabled = false;
+            });
+            return;
+          }
+          errorEl.textContent = 'Something went wrong. Try again.';
+          errorEl.hidden = false;
+          btn.disabled = false;
+        }).catch(function() {
+          errorEl.textContent = 'Network error. Try again.';
+          errorEl.hidden = false;
+          btn.disabled = false;
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,2662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="https://inthecircle.co/wp-content/uploads/2026/02/email-logo.jpg" type="image/png" />
+  <script src="/config.js"></script>
+  <title>Inthecircle Admin</title>
+  <style>
+    /* Design system: variables */
+    :root {
+      --bg: #0f0f12;
+      --surface: #1a1a1f;
+      --border: #2a2a32;
+      --text: #f0f0f5;
+      --textSecondary: #888;
+      --accent: #8b5cf6;
+      --accentAlt: #a78bfa;
+      --success: #10b981;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 20px;
+      --space-6: 24px;
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+      --radius-2xl: 20px;
+      --shadow-card: 0 2px 8px rgba(0,0,0,0.2);
+      --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.25);
+      --font-xs: 0.75rem;
+      --font-sm: 0.8125rem;
+      --font-base: 0.875rem;
+      --font-md: 1rem;
+      --font-lg: 1.125rem;
+      --font-xl: 1.25rem;
+      --font-2xl: 1.375rem;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; background: var(--bg); color: var(--text); min-height: 100vh; font-size: var(--font-base); }
+    .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 1.5rem; margin: 0 0 24px; }
+    .auth-page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--space-6); background: radial-gradient(ellipse 120% 80% at 50% -20%, rgba(139, 92, 246, 0.15), transparent), var(--bg); }
+    .auth-page .auth-section { margin: 0; animation: auth-card-in 0.4s ease; }
+    @keyframes auth-card-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .auth-section { max-width: 420px; width: 100%; padding: var(--space-6) var(--space-5); background: var(--surface); border-radius: var(--radius-2xl); border: 1px solid var(--border); box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.03); }
+    .auth-section h2 { margin: 0 0 var(--space-1); font-size: var(--font-2xl); font-weight: 600; letter-spacing: -0.02em; }
+    .auth-section .auth-subtitle { font-size: var(--font-base); color: var(--textSecondary); margin: 0 0 var(--space-6); line-height: 1.45; }
+    .auth-section input { width: 100%; padding: var(--space-3) var(--space-4); margin-bottom: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg); color: var(--text); font-size: var(--font-md); transition: border-color 0.2s, box-shadow 0.2s; }
+    .auth-section input:hover { border-color: #3a3a44; }
+    .auth-section input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2); outline: none; }
+    .auth-section input::placeholder { color: var(--textSecondary); opacity: 0.7; }
+    .auth-section .auth-field { margin-bottom: var(--space-5); }
+    .auth-section .auth-field label { display: block; font-size: var(--font-sm); font-weight: 600; color: var(--textSecondary); margin-bottom: var(--space-2); letter-spacing: 0.01em; }
+    .auth-section .auth-btn { width: 100%; padding: var(--space-4); min-height: 44px; background: linear-gradient(135deg, var(--accent), var(--accentAlt)); color: #fff; border: none; border-radius: var(--radius-lg); font-weight: 600; font-size: var(--font-md); cursor: pointer; margin-top: var(--space-3); transition: opacity 0.2s, transform 0.1s; }
+    .auth-section .auth-btn:hover:not(:disabled) { opacity: 0.95; transform: translateY(-1px); }
+    .auth-section .auth-btn:active:not(:disabled) { transform: translateY(0); }
+    .auth-section .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .auth-section .auth-btn.loading { pointer-events: none; }
+    .auth-btn .btn-spinner { display: none; width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto; }
+    .auth-btn.loading .btn-spinner { display: block; }
+    .auth-btn.loading .btn-text { display: none; }
+    .config-row { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-5); }
+    .config-row label { font-size: var(--font-sm); font-weight: 600; color: var(--textSecondary); }
+    .config-row input { padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); color: var(--text); font-size: var(--font-base); }
+    .config-row .password-wrap input { padding-right: 72px; }
+    .config-row.config-actions { flex-direction: row; justify-content: flex-end; margin-top: var(--space-3); margin-bottom: 0; }
+    .config-row.config-actions .btn-primary { min-height: 44px; }
+    .auth-help { font-size: var(--font-sm); color: var(--textSecondary); margin-top: var(--space-6); padding: var(--space-3) var(--space-4); background: var(--bg); border-radius: var(--radius-md); border: 1px solid var(--border); line-height: 1.55; }
+    .auth-help strong { color: var(--text); font-weight: 600; }
+    .auth-help code { font-size: 0.75em; padding: 2px 6px; background: var(--surface); border-radius: 4px; color: var(--textSecondary); }
+    .auth-config-note { font-size: var(--font-sm); color: var(--textSecondary); margin: calc(-1 * var(--space-2)) 0 var(--space-4) 0; padding: var(--space-3) var(--space-3); background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: var(--radius-md); }
+    .auth-config-note .auth-config-link { color: var(--accentAlt); font-weight: 600; text-decoration: none; }
+    .auth-config-note .auth-config-link:hover { text-decoration: underline; }
+    .hidden { display: none !important; }
+    /* Buttons: primary, secondary, ghost */
+    .btn-primary { padding: var(--space-2) var(--space-4); min-height: 44px; border: none; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--accent), var(--accentAlt)); color: #fff; font-weight: 600; font-size: var(--font-md); cursor: pointer; transition: opacity 0.2s, transform 0.1s; }
+    .btn-primary:hover:not(:disabled) { opacity: 0.95; transform: translateY(-1px); }
+    .btn-primary:active:not(:disabled) { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-secondary { padding: var(--space-2) var(--space-5); min-height: 44px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--text); font-weight: 500; font-size: var(--font-base); cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accentAlt); }
+    .btn-ghost { padding: var(--space-2) var(--space-4); min-height: 44px; border: none; border-radius: var(--radius-md); background: transparent; color: var(--textSecondary); font-size: var(--font-base); cursor: pointer; transition: background 0.2s, color 0.2s; }
+    .btn-ghost:hover { background: var(--bg); color: var(--text); }
+    .tabs { display: flex; gap: var(--space-1); margin-bottom: var(--space-5); flex-wrap: wrap; }
+    .tabs button { padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--textSecondary); cursor: pointer; }
+    .tabs button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat { padding: 16px; background: var(--surface); border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .stat .value { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+    .stat .label { font-size: 0.7rem; color: var(--textSecondary); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 4px; }
+    .list { display: flex; flex-direction: column; gap: 12px; }
+    .card { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-5) var(--space-5); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); cursor: pointer; transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s; user-select: none; box-shadow: var(--shadow-card); }
+    .card:hover { border-color: var(--accent); box-shadow: var(--shadow-card-hover); transform: translateY(-2px); }
+    .card-chevron { margin-left: auto; color: var(--textSecondary); font-size: var(--font-xl); flex-shrink: 0; align-self: center; }
+    .card:hover .card-chevron { color: var(--accent); }
+    .card-avatar { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accentAlt)); object-fit: cover; flex-shrink: 0; }
+    .card-avatar.placeholder { display: flex; align-items: center; justify-content: center; font-size: var(--font-xl); font-weight: 700; color: #fff; }
+    .card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+    .card-name { font-weight: 600; }
+    .card-meta { font-size: var(--font-base); color: var(--textSecondary); }
+    .card-badges { display: flex; gap: var(--space-1); margin-top: var(--space-1); flex-wrap: wrap; align-items: center; }
+    .badge { font-size: 0.7rem; padding: 4px 10px; border-radius: 999px; font-weight: 500; }
+    .badge.submitted { background: #3b82f620; color: #60a5fa; }
+    .badge.approved { background: #10b98120; color: var(--success); }
+    .badge.rejected { background: #ef444420; color: var(--error); }
+    .badge.waitlisted { background: #f59e0b20; color: var(--warning); }
+    .badge.suspended { background: #6b728020; color: #9ca3af; }
+    .badge.brand { background: var(--accent)20; color: var(--accentAlt); }
+    .panel-title { font-size: var(--font-2xl); font-weight: 700; margin: 0 0 var(--space-1); }
+    .panel-subtitle { font-size: var(--font-base); color: var(--textSecondary); margin: 0 0 var(--space-5); line-height: 1.45; }
+    .section-heading { margin: 0 0 12px; font-size: 1rem; font-weight: 600; color: var(--text); }
+    .card-date { font-size: 0.75rem; color: var(--textSecondary); margin-left: 8px; font-weight: 400; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin-bottom: var(--space-5); }
+    .toolbar .search-input { margin-bottom: 0; max-width: 280px; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); font-size: var(--font-base); }
+    .toolbar select { padding: var(--space-3) var(--space-4); min-height: 44px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--text); font-size: var(--font-base); min-width: 160px; }
+    .toolbar select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2); }
+    .btn-export { padding: var(--space-3) var(--space-4); min-height: 44px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--textSecondary); cursor: pointer; font-size: var(--font-base); }
+    .btn-export:hover { color: var(--text); border-color: var(--accent); }
+    .btn-copy { padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--textSecondary); cursor: pointer; font-size: 0.75rem; margin-left: 8px; }
+    .btn-copy:hover { color: var(--accent); }
+    .detail-row .value-wrap { display: flex; align-items: center; flex-wrap: wrap; }
+    .quick-links { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .quick-link { display: block; padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; color: var(--text); text-decoration: none; font-weight: 500; transition: border-color 0.2s; }
+    .quick-link:hover { border-color: var(--accent); }
+    .quick-link .qty { font-size: 1.25rem; font-weight: 700; color: var(--accentAlt); }
+    .quick-link .label { font-size: 0.8rem; color: var(--textSecondary); margin-top: 4px; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; padding: var(--space-5); overflow-y: auto; transition: opacity 0.2s ease; }
+    .modal-overlay:not(.hidden) { opacity: 1; }
+    .modal { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); max-width: 520px; width: 100%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--surface); }
+    .modal .modal-body { overflow-y: auto; flex: 1; min-height: 120px; }
+    .modal-header h2 { margin: 0; font-size: var(--font-lg); }
+    .modal-close { background: none; border: none; color: var(--textSecondary); font-size: 1.5rem; cursor: pointer; padding: 0 4px; line-height: 1; min-height: 44px; min-width: 44px; }
+    .modal-body { padding: var(--space-5); }
+    .detail-section { margin-bottom: 24px; }
+    .detail-section-title { font-size: 0.75rem; text-transform: uppercase; color: var(--textSecondary); margin-bottom: 8px; font-weight: 600; }
+    .detail-block { background: var(--bg); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+    .detail-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-row .icon { width: 20px; color: var(--textSecondary); }
+    .detail-row .label { min-width: 90px; font-size: 0.875rem; color: var(--textSecondary); }
+    .detail-row .value { flex: 1; font-size: 0.875rem; }
+    .profile-header { text-align: center; padding: 20px 0; }
+    .profile-header .avatar { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); margin-bottom: 12px; }
+    .profile-header .avatar.placeholder { background: linear-gradient(135deg, var(--accent), var(--accentAlt)); display: inline-flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: #fff; }
+    .profile-header .name { font-size: 1.25rem; font-weight: 600; margin: 0; }
+    .profile-header .handle { font-size: 0.9rem; color: var(--textSecondary); margin: 4px 0 12px; }
+    .profile-header .badges { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+    .notes-input { width: 100%; min-height: 80px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text); font-family: inherit; resize: vertical; margin-bottom: 16px; }
+    .notes-label { font-size: 0.75rem; color: var(--textSecondary); margin-bottom: 6px; display: block; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-top: var(--space-4); }
+    .actions button { padding: var(--space-3) var(--space-4); min-height: 44px; border: none; border-radius: var(--radius-md); font-weight: 600; cursor: pointer; font-size: var(--font-base); }
+    .actions .approve { background: linear-gradient(135deg, var(--success), #059669); color: #fff; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35); }
+    .actions .reject { background: transparent; color: var(--error); border: 2px solid var(--error); }
+    .actions .waitlist { background: #f59e0b20; color: var(--warning); }
+    .actions .suspend { background: transparent; color: #9ca3af; border: 2px solid #6b7280; }
+    .actions-row2 { display: flex; gap: 10px; margin-top: 8px; }
+    .actions-row2 button { flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--textSecondary); cursor: pointer; font-size: 0.9rem; }
+    .error-msg { color: var(--error); font-size: 0.875rem; margin-top: 8px; }
+    .empty-state { color: var(--textSecondary); font-size: 0.875rem; padding: 24px 16px; text-align: center; }
+    .empty-state-block { padding: 40px 24px; text-align: center; background: var(--surface); border: 1px dashed var(--border); border-radius: 12px; }
+    .empty-state-block .empty-icon { font-size: 2rem; margin-bottom: 12px; opacity: 0.6; }
+    .empty-state-block .empty-msg { color: var(--textSecondary); font-size: 0.9rem; margin: 0; }
+    .platform-tag { display: inline-block; padding: 6px 12px; border-radius: 20px; background: var(--bg); font-size: 0.8rem; margin-right: 6px; margin-bottom: 6px; }
+    .main-header { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; box-shadow: var(--shadow-card); }
+    .main-header-title { margin: 0; font-size: var(--font-xl); font-weight: 700; }
+    .header-refresh { padding: var(--space-2) var(--space-4); min-height: 44px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); color: var(--textSecondary); cursor: pointer; font-size: var(--font-base); }
+    .header-refresh:hover { color: var(--text); border-color: var(--accent); }
+    .admin-layout { display: flex; flex-direction: column; min-height: 100vh; }
+    .admin-body { display: flex; flex: 1; min-height: 0; }
+    .admin-sidebar { position: sticky; top: 0; align-self: flex-start; width: 220px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); padding: var(--space-4) 0; max-height: 100vh; overflow-y: auto; }
+    .admin-content { flex: 1; min-width: 0; overflow-y: auto; padding: var(--space-6); max-width: 1280px; }
+    .nav-tabs { display: flex; flex-direction: column; gap: var(--space-1); padding: 0 var(--space-3); }
+    .nav-tabs button { width: 100%; padding: var(--space-3) var(--space-4); min-height: 44px; border: none; border-radius: var(--radius-md); background: transparent; color: var(--textSecondary); cursor: pointer; font-size: var(--font-base); font-weight: 500; display: flex; align-items: center; gap: var(--space-2); text-align: left; border-left: 3px solid transparent; }
+    .nav-tabs button:hover { background: var(--bg); color: var(--text); }
+    .nav-tabs button.active { background: var(--accent)20; color: var(--accentAlt); border-left-color: var(--accent); }
+    .nav-tabs button .nav-tab-icon { font-size: 1rem; line-height: 1; opacity: 0.85; flex-shrink: 0; }
+    .nav-tabs button .badge-num { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: rgba(255,255,255,0.25); font-size: var(--font-xs); font-weight: 700; margin-left: auto; }
+    .nav-tabs button:not(.active) .badge-num { background: var(--error); color: #fff; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .dashboard-card { padding: var(--space-4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); transition: box-shadow 0.2s, transform 0.2s; }
+    .dashboard-card:hover { box-shadow: var(--shadow-card-hover); transform: translateY(-2px); }
+    .dashboard-card .value { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+    .dashboard-card .label { font-size: var(--font-xs); color: var(--textSecondary); text-transform: uppercase; letter-spacing: 0.04em; margin-top: var(--space-1); }
+    .dashboard-card .trend { font-size: var(--font-xs); color: var(--textSecondary); margin-top: var(--space-1); }
+    .activity-list { list-style: none; margin: 0; padding: 0; }
+    .activity-list li { padding: 10px 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; font-size: 0.875rem; }
+    .activity-list li:last-child { border-bottom: none; }
+    .search-input { width: 100%; max-width: 320px; padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); color: var(--text); font-size: var(--font-base); }
+    .search-input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2); }
+    .search-input::placeholder { color: var(--textSecondary); }
+    input[type="text"], input[type="password"], input[type="url"], select { padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--text); font-size: var(--font-base); }
+    input:focus, select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2); }
+    input::placeholder { color: var(--textSecondary); }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: var(--font-base); }
+    .data-table th, .data-table td { padding: var(--space-3) var(--space-3); text-align: left; border-bottom: 1px solid var(--border); }
+    .data-table th { color: var(--textSecondary); font-weight: 600; background: var(--surface); position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+    .data-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+    .btn-sm { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-size: 0.8rem; margin-right: 6px; }
+    .btn-sm.danger { border-color: var(--error); color: var(--error); }
+    .btn-sm.success { border-color: var(--success); color: var(--success); }
+    .settings-actions { display: flex; flex-direction: column; gap: 12px; max-width: 320px; }
+    .settings-actions button { padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer; text-align: left; }
+    .settings-actions button.signout { border-color: var(--error); color: var(--error); }
+    .settings-actions button.btn-secondary { border-color: var(--textSecondary); color: var(--textSecondary); }
+    .settings-actions button.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .security-notice { margin-top: 24px; padding: 14px 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; font-size: 0.8125rem; color: var(--textSecondary); line-height: 1.5; max-width: 420px; }
+    .security-notice strong { color: var(--text); }
+    .analytics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+    .analytics-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
+    .analytics-section-title { margin: 0 0 14px; font-size: 0.9375rem; font-weight: 600; color: var(--text); letter-spacing: 0.01em; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+    .analytics-section .section-heading { margin: 0 0 12px; font-size: 1rem; font-weight: 600; color: var(--text); }
+    .analytics-cards { display: flex; flex-wrap: wrap; gap: 10px; }
+    .analytics-card { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 76px; padding: 12px 14px; background: var(--bg); border-radius: 10px; border: 1px solid var(--border); }
+    .analytics-card .analytics-value { font-size: 1.375rem; font-weight: 700; color: var(--text); line-height: 1.2; }
+    .analytics-card .analytics-label { font-size: 0.6875rem; color: var(--textSecondary); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 6px; line-height: 1.2; text-align: center; }
+    .shared-device-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; margin-bottom: 20px; background: rgba(139, 92, 246, 0.12); border: 1px solid rgba(139, 92, 246, 0.35); border-radius: 10px; font-size: 0.875rem; color: var(--text); }
+    .shared-device-banner.hidden { display: none !important; }
+    .shared-device-banner-dismiss { flex-shrink: 0; width: 28px; height: 28px; padding: 0; border: none; border-radius: 6px; background: transparent; color: var(--textSecondary); font-size: 1.25rem; line-height: 1; cursor: pointer; }
+    .shared-device-banner-dismiss:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+    .toast-container { position: fixed; top: var(--space-4); left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: var(--space-2); pointer-events: none; }
+    .toast { padding: var(--space-3) var(--space-5); border-radius: var(--radius-lg); font-size: var(--font-base); font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.3); animation: toast-in 0.3s ease; max-width: min(400px, 90vw); }
+    .toast.success { background: var(--success); color: #fff; }
+    .toast.error { background: var(--error); color: #fff; }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    .panel-loading { position: relative; min-height: 120px; }
+    .panel-loading::after { content: ''; position: absolute; inset: 0; background: var(--surface); opacity: 0.7; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-lg); }
+    .spinner-wrap { display: flex; align-items: center; justify-content: center; padding: 32px; color: var(--textSecondary); }
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .skeleton { background: linear-gradient(90deg, var(--surface) 0%, var(--border) 50%, var(--surface) 100%); background-size: 200% 100%; animation: skeleton-shimmer 1.2s ease-in-out infinite; border-radius: var(--radius-sm); }
+    @keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .skeleton-card { height: 80px; border-radius: var(--radius-lg); }
+    .skeleton-row { height: 48px; margin-bottom: var(--space-2); border-radius: var(--radius-md); }
+    .skeleton-text { height: 1em; margin-bottom: var(--space-1); border-radius: 4px; }
+    .skeleton-avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; }
+    .panel-loading-skeleton { display: flex; flex-direction: column; gap: var(--space-4); }
+    .confirm-modal { max-width: 400px; }
+    .confirm-message { margin: 0 0 20px; }
+    .confirm-actions { display: flex; gap: 12px; justify-content: flex-end; }
+    .panel-meta { font-size: var(--font-sm); color: var(--textSecondary); margin: 0 0 12px 0; }
+    .config-test-result { font-size: var(--font-base); margin: 8px 0 0; min-height: 1.4em; }
+    .config-actions-inline { display: flex; gap: 12px; flex-wrap: wrap; }
+    .settings-block { margin-top: 24px; }
+    .settings-version-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .settings-version-input { width: 120px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); color: var(--text); }
+    .settings-version-status { font-size: var(--font-base); color: var(--textSecondary); }
+    .settings-load-audit-btn { margin-bottom: 12px; }
+    .analytics-toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+    .analytics-last-updated { font-size: var(--font-base); color: var(--textSecondary); }
+    .signups-chart { display: flex; align-items: flex-end; gap: 6px; height: 120px; margin-bottom: 16px; }
+    .signups-chart-bar { flex: 1; min-width: 20px; background: linear-gradient(to top, var(--accent), var(--accentAlt)); border-radius: 6px 6px 0 0; }
+    .btn-secondary { padding: 10px 20px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer; font-weight: 500; }
+    .btn-danger { padding: 10px 20px; border: 2px solid var(--error); border-radius: 8px; background: transparent; color: var(--error); cursor: pointer; font-weight: 600; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .modal-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    .auth-brand-wrap { text-align: center; margin-bottom: 28px; }
+    .auth-brand-mark { height: 52px; width: auto; max-width: 140px; margin: 0 auto 14px; display: block; object-fit: contain; }
+    .auth-brand { font-size: 1.5rem; font-weight: 700; margin: 0; color: var(--text); letter-spacing: -0.03em; }
+    .auth-section .auth-field.password-wrap { margin-bottom: 22px; }
+    .password-wrap { position: relative; }
+    .password-wrap input { padding-right: 72px; }
+    .toggle-password { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: auto; min-width: auto; padding: 8px 14px; border: none; border-radius: 8px; background: var(--bg); color: var(--textSecondary); cursor: pointer; font-size: 0.8125rem; font-weight: 600; transition: color 0.2s; }
+    .toggle-password:hover { color: var(--accent); }
+    .auth-back { width: 100%; margin-top: var(--space-5); padding: var(--space-3) var(--space-4); min-height: 44px; background: transparent; border: 1px solid var(--border); border-radius: var(--radius-lg); color: var(--textSecondary); cursor: pointer; font-size: var(--font-base); font-weight: 500; transition: border-color 0.2s, color 0.2s; }
+    .auth-back:hover { border-color: var(--textSecondary); color: var(--text); }
+    .auth-error-box { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4); background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: var(--radius-md); font-size: var(--font-base); color: #fca5a5; line-height: 1.45; font-weight: 500; }
+    .auth-error-box.hidden { display: none !important; }
+    .auth-error-box::before { content: '!'; flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--error); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: var(--font-xs); }
+    @media (max-width: 1024px) {
+      .admin-content { padding: var(--space-4); }
+    }
+    @media (max-width: 768px) {
+      .admin-body { flex-direction: column; }
+      .admin-sidebar { position: static; width: 100%; max-height: none; border-right: none; border-bottom: 1px solid var(--border); padding: var(--space-3); }
+      .nav-tabs { flex-direction: row; flex-wrap: wrap; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; gap: var(--space-1); padding: var(--space-2); }
+      .nav-tabs button { width: auto; min-width: 44px; flex-shrink: 0; border-left: none; border-bottom: 3px solid transparent; }
+      .nav-tabs button.active { border-left: none; border-bottom-color: var(--accent); }
+      .admin-content { padding: var(--space-4); }
+      .header-refresh, .btn-export { min-height: 44px; }
+    }
+    @media (max-width: 640px) {
+      .modal { max-height: 85vh; }
+      .modal .actions { grid-template-columns: 1fr; }
+      .modal .actions-row2 { flex-wrap: wrap; }
+      .auth-page { padding: 16px; }
+      .auth-section { padding: 28px 24px; }
+    }
+    .skip-link { position: absolute; left: -9999px; z-index: 9999; padding: var(--space-2) var(--space-4); background: var(--accent); color: #fff; border-radius: var(--radius-md); font-weight: 600; text-decoration: none; }
+    .skip-link:focus { left: var(--space-4); top: var(--space-4); }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <a href="#main-content" id="skip-to-main" class="skip-link">Skip to main content</a>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  <div id="app">
+    <div class="auth-page" id="auth-page">
+      <div id="config-section" class="auth-section" tabindex="-1">
+        <h2>Connect project</h2>
+        <p class="auth-subtitle">Enter your Supabase project URL and anon key. You only need to do this once per device.</p>
+        <p class="auth-config-note"><strong>Use always:</strong> <a href="https://app.inthecircle.co/admin" class="auth-config-link">app.inthecircle.co/admin</a> — then you set this once and it stays. The anon key is for frontend use only; security is your admin sign-in and Supabase.</p>
+        <p class="auth-config-note" style="margin-top:8px;font-size:0.8125rem;">Config is saved per browser and per exact URL. If you see this again, you may have opened a different address (e.g. localhost or another tab) or the browser cleared site data. Re-enter below and always use the link above.</p>
+        <div class="config-row">
+          <label for="supabase-url">Project URL</label>
+          <input type="text" id="supabase-url" placeholder="https://xxxxx.supabase.co" aria-label="Supabase project URL" autocomplete="off" />
+        </div>
+        <div class="config-row">
+          <label for="supabase-key">Anon key</label>
+          <div class="password-wrap">
+            <input type="password" id="supabase-key" placeholder="Paste your anon (public) key" aria-label="Supabase anon key" autocomplete="off" />
+            <button type="button" id="config-toggle-key" class="toggle-password" aria-label="Show anon key">Show</button>
+          </div>
+        </div>
+        <div class="config-row config-actions config-actions-inline">
+          <button type="button" id="test-connection" class="btn-secondary">Test connection</button>
+          <button type="button" id="save-config" class="btn-primary">Save & continue</button>
+        </div>
+        <p id="config-test-result" class="config-test-result" aria-live="polite"></p>
+        <p class="auth-help"><strong>Where to find these:</strong> Supabase Dashboard → your project → <strong>Settings</strong> → <strong>API</strong>. Use the Project URL and the <code>anon</code> public key.</p>
+      </div>
+      <div id="login-section" class="auth-section hidden" tabindex="-1">
+        <div class="auth-brand-wrap">
+          <img src="https://inthecircle.co/wp-content/uploads/2026/02/email-logo.jpg" alt="Inthecircle" class="auth-brand-mark" />
+          <p class="auth-brand" aria-hidden="true">Inthecircle Admin</p>
+        </div>
+        <h2>Sign in</h2>
+        <p class="auth-subtitle">Use your admin account to access the panel.</p>
+        <div class="auth-field">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" placeholder="admin@example.com" aria-label="Admin email" autocomplete="email" />
+        </div>
+        <div class="auth-field password-wrap">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" placeholder="••••••••" aria-label="Password" autocomplete="current-password" />
+          <button type="button" id="login-toggle-password" class="toggle-password" aria-label="Show password">Show</button>
+        </div>
+        <div id="login-error" class="auth-error-box hidden" role="alert" aria-live="polite"></div>
+        <button type="button" id="login-btn" class="auth-btn"><span class="btn-spinner"></span><span class="btn-text">Sign in</span></button>
+        <button type="button" id="login-change-config" class="auth-back">Change project config</button>
+      </div>
+    </div>
+    <div id="main-section" class="admin-layout hidden">
+      <header class="main-header">
+        <h1 class="main-header-title">Admin Panel</h1>
+        <button type="button" class="header-refresh" id="header-refresh-btn" aria-label="Refresh">Refresh</button>
+      </header>
+      <div class="admin-body">
+        <aside class="admin-sidebar" aria-label="Navigation">
+          <div class="nav-tabs" id="nav-tabs" role="tablist"></div>
+        </aside>
+        <main id="main-content" class="admin-content" tabindex="-1">
+      <div id="shared-device-banner" class="shared-device-banner hidden" role="status">
+        <span>Using a shared device? When you're done, go to <strong>Settings</strong> → <strong>Sign out and clear saved config</strong>.</span>
+        <button type="button" class="shared-device-banner-dismiss" id="shared-device-banner-dismiss" aria-label="Dismiss">×</button>
+      </div>
+      <div id="panel-dashboard" class="panel" role="tabpanel" aria-labelledby="tab-dashboard">
+        <h2 class="panel-title">Dashboard</h2>
+        <p class="panel-subtitle">Overview of users, applications, and activity.</p>
+        <div id="dashboard-admin-error-banner" class="shared-device-banner hidden" role="alert" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4);"></div>
+        <p id="dashboard-last-refreshed" class="panel-meta" aria-live="polite"></p>
+        <div class="quick-links" id="dashboard-quick-links"></div>
+        <div class="dashboard-grid" id="dashboard-stats"></div>
+        <h3 class="section-heading">Recent activity</h3>
+        <div class="detail-block"><ul class="activity-list" id="dashboard-activity"></ul></div>
+      </div>
+      <div id="panel-analytics" class="panel" role="tabpanel" aria-labelledby="tab-analytics">
+        <h2 class="panel-title">Analytics</h2>
+        <p class="panel-subtitle">End-to-end analysis of the app: users, applications, reports, connections, signups, and activity.</p>
+        <div id="analytics-content" class="analytics-content"></div>
+      </div>
+      <div id="panel-applications" class="panel active" role="tabpanel" aria-labelledby="tab-applications">
+        <h2 class="panel-title">Applications</h2>
+        <p class="panel-subtitle">Review and manage creator and brand applications.</p>
+        <div class="stats" id="stats"></div>
+        <div class="tabs" id="tabs"></div>
+        <div class="toolbar">
+          <input type="text" class="search-input" id="applications-search" placeholder="Search name, handle, email, niche..." aria-label="Search applications" />
+          <select id="applications-sort" aria-label="Sort applications">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="followers">Most followers</option>
+            <option value="name">Name A–Z</option>
+            <option value="status">Status</option>
+          </select>
+          <select id="applications-combined-followers" aria-label="Filter by combined followers">
+            <option value="">Combined followers: Any</option>
+            <option value="under_10k">Under 10k</option>
+            <option value="10k_50k">10k – 50k</option>
+            <option value="50k_150k">50k – 150k</option>
+            <option value="150k_500k">150k – 500k</option>
+            <option value="500k_1m">500k – 1M</option>
+            <option value="1m_5m">1M – 5M</option>
+            <option value="5m_10m">5M – 10M</option>
+            <option value="10m_plus">10M+</option>
+          </select>
+          <button type="button" class="btn-export" id="applications-export" aria-label="Export applications as CSV">Export CSV</button>
+        </div>
+        <div class="list" id="list"></div>
+      </div>
+      <div id="panel-users" class="panel" role="tabpanel" aria-labelledby="tab-users">
+        <h2 class="panel-title">Users</h2>
+        <p class="panel-subtitle">Search and view registered users.</p>
+        <div class="toolbar">
+          <input type="text" class="search-input" id="users-search" placeholder="Search by name, username, email..." aria-label="Search users" />
+          <select id="users-sort" aria-label="Sort users">
+            <option value="name">Name A–Z</option>
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
+          <button type="button" class="btn-export" id="users-export" aria-label="Export users as CSV">Export CSV</button>
+        </div>
+        <p id="users-count-hint" class="panel-meta" aria-live="polite"></p>
+        <div class="list" id="users-list"></div>
+      </div>
+      <div id="panel-reports" class="panel" role="tabpanel" aria-labelledby="tab-reports">
+        <h2 class="panel-title">Reports</h2>
+        <p class="panel-subtitle">Review and resolve user reports.</p>
+        <div class="tabs" id="reports-tabs"></div>
+        <div class="toolbar">
+          <input type="text" class="search-input" id="reports-search" placeholder="Search by reporter, reported user, reason..." aria-label="Search reports" />
+          <button type="button" class="btn-export" id="reports-export" aria-label="Export reports as CSV">Export CSV</button>
+        </div>
+        <p id="reports-count-hint" class="panel-meta"></p>
+        <div class="list" id="reports-list"></div>
+      </div>
+      <div id="panel-board" class="panel" role="tabpanel" aria-labelledby="tab-board">
+        <h2 class="panel-title">Board</h2>
+        <p class="panel-subtitle">Flagged community board posts.</p>
+        <div class="tabs" id="board-tabs"></div>
+        <p id="board-count-hint" class="panel-meta"></p>
+        <div class="list" id="board-list"></div>
+      </div>
+      <div id="panel-verifications" class="panel" role="tabpanel" aria-labelledby="tab-verifications">
+        <h2 class="panel-title">Verifications</h2>
+        <p class="panel-subtitle">Pending verification requests.</p>
+        <div class="toolbar">
+          <input type="text" class="search-input" id="verifications-search" placeholder="Search by name, username, reason..." aria-label="Search verifications" />
+          <button type="button" class="btn-export" id="verifications-export" aria-label="Export verifications as CSV">Export CSV</button>
+        </div>
+        <div class="list" id="verifications-list"></div>
+      </div>
+      <div id="panel-versions" class="panel" role="tabpanel" aria-labelledby="tab-versions">
+        <h2 class="panel-title">App versions</h2>
+        <p class="panel-subtitle">Version reports from installed apps.</p>
+        <p id="versions-last-loaded" class="panel-meta" aria-live="polite"></p>
+        <div class="table-wrap"><table class="data-table" id="versions-table"></table></div>
+      </div>
+      <div id="panel-invite" class="panel" role="tabpanel" aria-labelledby="tab-invite">
+        <h2 class="panel-title">Invite Creator</h2>
+        <p class="panel-subtitle">Send a personal invitation email to a creator you want to join Inthecircle.</p>
+        <div class="invite-form" style="max-width: 480px;">
+          <div class="config-row">
+            <label for="invite-email">Email address</label>
+            <input type="email" id="invite-email" placeholder="creator@example.com" autocomplete="off" />
+          </div>
+          <div class="config-row">
+            <label for="invite-name">Creator name</label>
+            <input type="text" id="invite-name" placeholder="John Smith" autocomplete="off" />
+          </div>
+          <div class="config-row">
+            <label for="invite-niche">Niche (optional)</label>
+            <input type="text" id="invite-niche" placeholder="fashion, tech, fitness..." autocomplete="off" />
+          </div>
+          <div class="config-row">
+            <label for="invite-variant">Email variant</label>
+            <select id="invite-variant" style="padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); color: var(--text); font-size: var(--font-base);">
+              <option value="creator">English (Creator invite)</option>
+              <option value="course">Arabic (Course alumni)</option>
+            </select>
+          </div>
+          <div class="config-row config-actions" style="margin-top: var(--space-4);">
+            <button type="button" id="invite-send-btn" class="btn-primary">
+              <span class="btn-text">Send Invite</span>
+              <span class="btn-spinner"></span>
+            </button>
+          </div>
+          <div id="invite-status" style="margin-top: var(--space-4);"></div>
+          <div id="invite-history" style="margin-top: var(--space-6);">
+            <h3 class="section-heading">Recent invites</h3>
+            <div id="invite-history-list" class="detail-block" style="font-size: var(--font-sm); color: var(--textSecondary);">No invites sent yet this session.</div>
+          </div>
+        </div>
+      </div>
+      <div id="panel-settings" class="panel" role="tabpanel" aria-labelledby="tab-settings">
+        <h2 class="panel-title">Settings</h2>
+        <p class="panel-subtitle">Account and data refresh.</p>
+        <div class="settings-actions">
+          <button type="button" class="signout" id="signout-btn">Sign out</button>
+          <button type="button" id="signout-clear-config-btn" class="btn-secondary">Sign out and clear saved config</button>
+          <button type="button" id="refresh-all-btn">Refresh dashboard & current panel</button>
+        </div>
+        <div class="settings-block">
+          <h3 class="section-heading">Minimum app version</h3>
+          <p class="panel-subtitle" style="margin-bottom:8px;">Force users to update (e.g. 1.0.6). Leave 0.0.0 to allow all.</p>
+          <div class="settings-version-row">
+            <input type="text" id="settings-min-version" class="settings-version-input" placeholder="0.0.0" aria-label="Minimum app version" />
+            <button type="button" id="settings-save-version" class="btn-secondary">Save</button>
+            <span id="settings-version-status" class="settings-version-status"></span>
+          </div>
+        </div>
+        <div class="settings-block">
+          <h3 class="section-heading">Audit log</h3>
+          <p class="panel-subtitle" style="margin-bottom:8px;">Recent admin actions.</p>
+          <button type="button" id="settings-load-audit" class="btn-secondary settings-load-audit-btn">Load audit log</button>
+          <div id="settings-audit-list" class="table-wrap"></div>
+        </div>
+        <div class="security-notice" role="status">
+          <strong>Security (9/10):</strong> Enable MFA for your admin account in Supabase Dashboard → Authentication → MFA. Use “Sign out and clear saved config” on shared devices.
+        </div>
+      </div>
+        </main>
+      </div>
+    </div>
+  </div>
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h2 id="modal-title">Application Review</h2>
+        <button type="button" class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+  <div id="confirm-overlay" class="modal-overlay hidden">
+    <div class="modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <div class="modal-header">
+        <h2 id="confirm-title">Confirm</h2>
+      </div>
+      <div class="modal-body">
+        <p id="confirm-message" class="confirm-message"></p>
+        <div class="confirm-actions">
+          <button type="button" id="confirm-cancel" class="btn-secondary">Cancel</button>
+          <button type="button" id="confirm-ok" class="btn-danger">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js" crossorigin="anonymous" integrity="sha384-NNePyabYRaJyedI6EQAY7SV5Z8/0sQkuQ5WVfhKm0H+j0KSugkI2ZMNzw/QtzAWz" referrerpolicy="no-referrer"></script>
+  <script>
+    (function() {
+      var STORAGE_URL = 'inthecircle_admin_supabase_url';
+      var STORAGE_KEY = 'inthecircle_admin_supabase_anon_key';
+      function showConfigResult(msg, isError) {
+        var el = document.getElementById('config-test-result');
+        if (el) { el.textContent = msg || ''; el.style.color = isError ? 'var(--error)' : 'var(--success)'; }
+      }
+      function showSection(id) {
+        ['config-section', 'login-section', 'main-section'].forEach(function(s) {
+          var el = document.getElementById(s);
+          if (el) el.classList.toggle('hidden', s !== id);
+        });
+        var authPage = document.getElementById('auth-page');
+        if (authPage) authPage.classList.toggle('hidden', id === 'main-section');
+      }
+      document.getElementById('save-config').addEventListener('click', function() {
+        var url = (document.getElementById('supabase-url').value || '').trim();
+        var key = (document.getElementById('supabase-key').value || '').trim();
+        if (!url || !key) {
+          showConfigResult('Enter both Project URL and Anon key.', true);
+          return;
+        }
+        showConfigResult('');
+        try {
+          localStorage.setItem(STORAGE_URL, url);
+          localStorage.setItem(STORAGE_KEY, key);
+          if (window.supabase && typeof window.supabase.createClient === 'function') {
+            try { window.supabase.createClient(url, key); } catch (e) { console.warn(e); }
+          }
+        } catch (e) { console.warn(e); }
+        showSection('login-section');
+      });
+      document.getElementById('test-connection').addEventListener('click', function() {
+        var url = (document.getElementById('supabase-url').value || '').trim();
+        var key = (document.getElementById('supabase-key').value || '').trim();
+        var el = document.getElementById('config-test-result');
+        if (!el) return;
+        if (!url || !key) { showConfigResult('Enter URL and anon key first.', true); return; }
+        el.textContent = 'Testing…';
+        el.style.color = 'var(--textSecondary)';
+        try {
+          var client = window.supabase.createClient(url, key);
+          client.auth.getSession().then(function(r) {
+            if (r.error) throw r.error;
+            showConfigResult('Connection OK. You can save and continue.', false);
+          }).catch(function(e) {
+            showConfigResult('Connection failed: ' + (e && e.message ? e.message : String(e)), true);
+          });
+        } catch (e) {
+          showConfigResult('Connection failed: ' + (e && e.message ? e.message : String(e)), true);
+        }
+      });
+      var urlEl = document.getElementById('supabase-url');
+      var keyEl = document.getElementById('supabase-key');
+      if (urlEl && keyEl) {
+        try {
+          var savedUrl = localStorage.getItem(STORAGE_URL) || '';
+          var savedKey = localStorage.getItem(STORAGE_KEY) || '';
+          if (savedUrl) urlEl.value = savedUrl;
+          if (savedKey) keyEl.value = savedKey;
+        } catch (_) {}
+      }
+      function showLoginError(msg) {
+        var el = document.getElementById('login-error');
+        if (!el) return;
+        el.textContent = msg || '';
+        el.classList.toggle('hidden', !msg);
+      }
+      document.getElementById('login-change-config').addEventListener('click', function() {
+        showSection('config-section');
+      });
+      document.getElementById('login-btn').addEventListener('click', function() {
+        if (window.__adminLoginReady) return;
+        var url = (localStorage.getItem(STORAGE_URL) || '').trim();
+        var key = (localStorage.getItem(STORAGE_KEY) || '').trim();
+        if (!url || !key) {
+          showLoginError('Missing project config. Use Change project config.');
+          return;
+        }
+        var email = (document.getElementById('login-email').value || '').trim();
+        var password = document.getElementById('login-password').value || '';
+        if (!email || !password) {
+          showLoginError('Enter email and password.');
+          return;
+        }
+        var btn = document.getElementById('login-btn');
+        var errEl = document.getElementById('login-error');
+        showLoginError('');
+        if (btn) { btn.disabled = true; btn.classList.add('loading'); }
+        var client;
+        try {
+          client = window.supabase.createClient(url, key);
+        } catch (e) {
+          showLoginError('Invalid config. Use Change project config to fix URL and key.');
+          if (btn) { btn.disabled = false; btn.classList.remove('loading'); }
+          return;
+        }
+        client.auth.signInWithPassword({ email: email, password: password })
+          .then(function(r) {
+            if (r.error) {
+              showLoginError(r.error.message || 'Sign in failed');
+              if (btn) { btn.disabled = false; btn.classList.remove('loading'); }
+              return;
+            }
+            window.location.reload();
+          })
+          .catch(function(e) {
+            showLoginError(e && e.message ? e.message : 'Sign in failed');
+            if (btn) { btn.disabled = false; btn.classList.remove('loading'); }
+          });
+      });
+    })();
+  </script>
+  <script type="module">
+// utils.js (inlined)
+
+/**
+ * Shared utilities for admin panel (no DOM dependency).
+ */
+function escapeHtml(s) {
+  if (s == null) return '';
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function formatDateShort(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatFollowers(n) {
+  if (n == null || n === undefined) return '0';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(n);
+}
+function combinedFollowersLabel(key) {
+  const labels = { under_10k: 'Under 10k', '10k_50k': '10k – 50k', '50k_150k': '50k – 150k', '150k_500k': '150k – 500k', '500k_1m': '500k – 1M', '1m_5m': '1M – 5M', '5m_10m': '5M – 10M', '10m_plus': '10M+' };
+  return (key && labels[key]) ? labels[key] : (key || '—');
+}
+
+
+// confirm.js (inlined)
+
+/**
+ * Confirm modal: showConfirm, closeConfirm, initConfirmModal (Escape, focus, Tab trap).
+ */
+let confirmResolve = null;
+let lastFocusedBeforeConfirm = null;
+
+function onConfirmKeydown(e) {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closeConfirm(false);
+    return;
+  }
+  if (e.key === 'Tab') {
+    const cancel = document.getElementById('confirm-cancel');
+    const ok = document.getElementById('confirm-ok');
+    if (!cancel || !ok) return;
+    const focusables = [cancel, ok];
+    const first = focusables[0], last = focusables[1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  }
+}
+
+function showConfirm(title, message) {
+  return new Promise((resolve) => {
+    confirmResolve = resolve;
+    document.getElementById('confirm-title').textContent = title || 'Confirm';
+    document.getElementById('confirm-message').textContent = message || 'Are you sure?';
+    lastFocusedBeforeConfirm = document.activeElement;
+    document.getElementById('confirm-overlay').classList.remove('hidden');
+    document.addEventListener('keydown', onConfirmKeydown);
+    const cancelBtn = document.getElementById('confirm-cancel');
+    if (cancelBtn) cancelBtn.focus();
+  });
+}
+
+function closeConfirm(ok) {
+  document.removeEventListener('keydown', onConfirmKeydown);
+  document.getElementById('confirm-overlay').classList.add('hidden');
+  if (confirmResolve) confirmResolve(ok);
+  confirmResolve = null;
+  if (lastFocusedBeforeConfirm && typeof lastFocusedBeforeConfirm.focus === 'function') lastFocusedBeforeConfirm.focus();
+}
+
+function initConfirmModal() {
+  document.getElementById('confirm-cancel')?.addEventListener('click', () => closeConfirm(false));
+  document.getElementById('confirm-ok')?.addEventListener('click', () => closeConfirm(true));
+  document.getElementById('confirm-overlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'confirm-overlay') closeConfirm(false);
+  });
+}
+
+
+// main.js (inlined)
+
+    window.__adminLoginReady = true;
+
+    const STORAGE_URL = 'inthecircle_admin_supabase_url';
+    const STORAGE_KEY = 'inthecircle_admin_supabase_anon_key';
+    const LOGIN_LOCKOUT_ATTEMPTS = 5;
+    const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
+    const IDLE_LOGOUT_MS = 30 * 60 * 1000;
+    const LOCKOUT_KEY = 'inthecircle_admin_login_lockout';
+    const FAILED_ATTEMPTS_KEY = 'inthecircle_admin_failed_attempts';
+
+    let supabase = null;
+    let idleTimerId = null;
+    let applications = [];
+    let currentFilter = 'all';
+    let applicationSortOrder = 'newest';
+    let users = [];
+    let reports = [];
+    let pendingReportsCount = 0;
+    let boardFlags = [];
+    let boardFilter = 'all'; // 'all' | 'unreviewed'
+    let verifications = [];
+    let appVersionReport = [];
+    let versionsLastLoadedAt = null;
+    let dashboardData = { stats: {}, totalUsers: 0, newUsersWeek: 0, activeToday: null, pendingVerifications: 0, unreviewedBoard: 0 };
+    let dashboardLastRefreshedAt = null;
+    let lastDashboardError = '';
+
+    let analyticsData = null;
+    let lastAnalyticsError = '';
+    let lastAnalyticsLoadedAt = null;
+
+    const mainTabs = [
+      { id: 'dashboard', label: 'Dashboard', icon: '▣' },
+      { id: 'analytics', label: 'Analytics', icon: '▤' },
+      { id: 'applications', label: 'Applications', icon: '▥', badge: () => dashboardData.stats.pending_count ?? dashboardData.stats.pending ?? 0 },
+      { id: 'users', label: 'Users', icon: '☺' },
+      { id: 'reports', label: 'Reports', icon: '⚠', badge: () => pendingReportsCount },
+      { id: 'board', label: 'Board', icon: '◉', badge: () => dashboardData.unreviewedBoard ?? 0 },
+      { id: 'verifications', label: 'Verifications', icon: '✓', badge: () => dashboardData.pendingVerifications ?? 0 },
+      { id: 'versions', label: 'Versions', icon: '⬡' },
+      { id: 'invite', label: 'Invite', icon: '✉' },
+      { id: 'settings', label: 'Settings', icon: '⚙' }
+    ];
+
+    const statusFilters = [
+      { id: 'all', label: 'All' },
+      { id: 'submitted', label: 'Pending' },
+      { id: 'approved', label: 'Approved' },
+      { id: 'rejected', label: 'Rejected' },
+      { id: 'waitlisted', label: 'Waitlisted' },
+      { id: 'suspended', label: 'Suspended' }
+    ];
+
+    function initSupabase(overrideUrl, overrideKey) {
+      let url = (overrideUrl != null && overrideUrl !== '') ? String(overrideUrl).trim() : (document.getElementById('supabase-url')?.value ?? '').trim();
+      let key = (overrideKey != null && overrideKey !== '') ? String(overrideKey).trim() : (document.getElementById('supabase-key')?.value ?? '').trim();
+      if (!url) url = (localStorage.getItem(STORAGE_URL) ?? '').trim();
+      if (!key) key = (localStorage.getItem(STORAGE_KEY) ?? '').trim();
+      if (!url || !key) return false;
+      try {
+        if (typeof window.supabase?.createClient !== 'function') return false;
+        supabase = window.supabase.createClient(url, key);
+        return true;
+      } catch (e) {
+        console.error(e);
+        return false;
+      }
+    }
+
+    function showSection(id) {
+      ['config-section', 'login-section', 'main-section'].forEach(s => {
+        document.getElementById(s).classList.toggle('hidden', s !== id);
+      });
+      const skipEl = document.getElementById('skip-to-main');
+      if (skipEl) skipEl.setAttribute('href', id === 'main-section' ? '#main-content' : '#' + id);
+      const authPage = document.getElementById('auth-page');
+      if (authPage) authPage.classList.toggle('hidden', id === 'main-section');
+      if (id === 'main-section') {
+        try {
+          const banner = document.getElementById('shared-device-banner');
+          if (banner && sessionStorage.getItem('admin_shared_banner_dismissed') !== '1') banner.classList.remove('hidden');
+        } catch (_) {}
+      }
+      if (id === 'login-section') {
+        try {
+          const saved = localStorage.getItem('admin_email');
+          const emailEl = document.getElementById('login-email');
+          if (saved && emailEl && !emailEl.value) emailEl.value = saved;
+        } catch (_) {}
+        updateLoginLockoutUI();
+      }
+    }
+
+    function updateLoginLockoutUI() {
+      const btn = document.getElementById('login-btn');
+      if (!btn) return;
+      if (isLoginLockedOut()) {
+        const min = getLockoutMinutesLeft();
+        showLoginError('Too many failed attempts. Try again in ' + min + ' minute(s).');
+        btn.disabled = true;
+        btn.classList.remove('loading');
+        if (idleTimerId) clearTimeout(idleTimerId);
+        idleTimerId = setTimeout(updateLoginLockoutUI, 60000);
+        return;
+      }
+      btn.disabled = false;
+      showLoginError('');
+    }
+
+    function showLoginError(msg) {
+      const el = document.getElementById('login-error');
+      if (!el) return;
+      el.textContent = msg || '';
+      el.classList.toggle('hidden', !msg);
+    }
+
+    function isLoginLockedOut() {
+      try {
+        const until = sessionStorage.getItem(LOCKOUT_KEY);
+        if (!until) return false;
+        if (Date.now() < parseInt(until, 10)) return true;
+        sessionStorage.removeItem(LOCKOUT_KEY);
+        sessionStorage.removeItem(FAILED_ATTEMPTS_KEY);
+        return false;
+      } catch (_) { return false; }
+    }
+
+    function getLockoutMinutesLeft() {
+      try {
+        const until = sessionStorage.getItem(LOCKOUT_KEY);
+        if (!until) return 0;
+        const left = Math.ceil((parseInt(until, 10) - Date.now()) / 60000);
+        return left > 0 ? left : 0;
+      } catch (_) { return 0; }
+    }
+
+    function recordFailedLogin() {
+      try {
+        const n = parseInt(sessionStorage.getItem(FAILED_ATTEMPTS_KEY) || '0', 10) + 1;
+        sessionStorage.setItem(FAILED_ATTEMPTS_KEY, String(n));
+        if (n >= LOGIN_LOCKOUT_ATTEMPTS) {
+          sessionStorage.setItem(LOCKOUT_KEY, String(Date.now() + LOGIN_LOCKOUT_MS));
+        }
+      } catch (_) {}
+    }
+
+    function clearFailedLogins() {
+      try {
+        sessionStorage.removeItem(FAILED_ATTEMPTS_KEY);
+        sessionStorage.removeItem(LOCKOUT_KEY);
+      } catch (_) {}
+    }
+
+    async function verifyAdmin() {
+      if (!supabase) return false;
+      try {
+        const { data, error } = await supabase.rpc('is_admin');
+        if (error) return false;
+        const result = Array.isArray(data) ? data[0] : data;
+        return result === true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function startIdleTimer() {
+      function schedule() {
+        if (idleTimerId) clearTimeout(idleTimerId);
+        idleTimerId = setTimeout(() => {
+          if (supabase) supabase.auth.signOut().catch(() => {});
+          showSection('login-section');
+          showLoginError('Signed out due to inactivity. Sign in again.');
+        }, IDLE_LOGOUT_MS);
+      }
+      ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(ev => {
+        document.addEventListener(ev, schedule, { passive: true });
+      });
+      schedule();
+    }
+
+    document.getElementById('test-connection')?.addEventListener('click', async () => {
+      const url = document.getElementById('supabase-url').value.trim();
+      const key = document.getElementById('supabase-key').value.trim();
+      const resultEl = document.getElementById('config-test-result');
+      if (!resultEl) return;
+      if (!url || !key) {
+        resultEl.textContent = 'Enter URL and anon key first.';
+        resultEl.style.color = 'var(--textSecondary)';
+        return;
+      }
+      resultEl.textContent = 'Testing…';
+      resultEl.style.color = 'var(--textSecondary)';
+      try {
+        const testClient = window.supabase.createClient(url, key);
+        const { error } = await testClient.auth.getSession();
+        if (error) throw error;
+        resultEl.textContent = 'Connection OK. You can save and continue.';
+        resultEl.style.color = 'var(--success)';
+      } catch (e) {
+        resultEl.textContent = 'Connection failed: ' + (e && e.message ? e.message : String(e));
+        resultEl.style.color = 'var(--error)';
+      }
+    });
+
+    const saveConfigBtn = document.getElementById('save-config');
+    if (saveConfigBtn) {
+      saveConfigBtn.addEventListener('click', () => {
+        const urlEl = document.getElementById('supabase-url');
+        const keyEl = document.getElementById('supabase-key');
+        const url = (urlEl?.value ?? '').trim();
+        const key = (keyEl?.value ?? '').trim();
+        const resultEl = document.getElementById('config-test-result');
+        const btn = document.getElementById('save-config');
+
+        if (!url || !key) {
+          if (resultEl) { resultEl.textContent = 'Enter both Project URL and Anon key.'; resultEl.style.color = 'var(--error)'; }
+          try { showToast('Enter both URL and anon key.', 'error'); } catch (_) {}
+          return;
+        }
+
+        try {
+          if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+          if (resultEl) resultEl.textContent = '';
+          localStorage.setItem(STORAGE_URL, url);
+          localStorage.setItem(STORAGE_KEY, key);
+          const ok = initSupabase(url, key);
+          showSection('login-section');
+          if (!ok) try { showToast('Saved. If sign-in fails, re-check URL and key.', 'error'); } catch (_) {}
+        } catch (e) {
+          console.error(e);
+          if (resultEl) { resultEl.textContent = (e && e.message) || 'Something went wrong.'; resultEl.style.color = 'var(--error)'; }
+          try { showToast((e && e.message) || 'Something went wrong.', 'error'); } catch (_) {}
+        } finally {
+          if (btn) { btn.disabled = false; btn.textContent = 'Save & continue'; }
+        }
+      });
+    }
+
+    function doLogin() {
+      document.getElementById('login-btn').click();
+    }
+    document.getElementById('login-btn').addEventListener('click', async () => {
+      if (!supabase && !initSupabase()) {
+        showToast('Invalid config. Use "Change project config" to fix URL and key.', 'error');
+        return;
+      }
+      if (!supabase) return;
+      if (isLoginLockedOut()) {
+        updateLoginLockoutUI();
+        return;
+      }
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      showLoginError('');
+      const btn = document.getElementById('login-btn');
+      if (btn) { btn.disabled = true; btn.classList.add('loading'); }
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          recordFailedLogin();
+          if (isLoginLockedOut()) {
+            updateLoginLockoutUI();
+            return;
+          }
+          showLoginError(error.message || 'Sign in failed');
+          return;
+        }
+        clearFailedLogins();
+        if (email) try { localStorage.setItem('admin_email', email); } catch (_) {}
+        startIdleTimer();
+        const isAdmin = await verifyAdmin();
+        if (!isAdmin) {
+          await supabase.auth.signOut();
+          showLoginError('Access denied. Only users in the admin list can access this panel.');
+          showSection('login-section');
+          if (btn) { btn.disabled = false; btn.classList.remove('loading'); }
+          return;
+        }
+        await loadData();
+        showSection('main-section');
+      } finally {
+        if (btn && !isLoginLockedOut()) { btn.disabled = false; btn.classList.remove('loading'); }
+        else if (btn) updateLoginLockoutUI();
+      }
+    });
+    document.getElementById('login-email').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+    document.getElementById('login-password').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+    document.getElementById('login-change-config').addEventListener('click', () => showSection('config-section'));
+    document.getElementById('login-toggle-password').addEventListener('click', () => {
+      const input = document.getElementById('login-password');
+      const btn = document.getElementById('login-toggle-password');
+      const isPassword = input.type === 'password';
+      input.type = isPassword ? 'text' : 'password';
+      btn.textContent = isPassword ? 'Hide' : 'Show';
+      btn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+    });
+    document.getElementById('config-toggle-key').addEventListener('click', () => {
+      const input = document.getElementById('supabase-key');
+      const btn = document.getElementById('config-toggle-key');
+      const isPassword = input.type === 'password';
+      input.type = isPassword ? 'text' : 'password';
+      btn.textContent = isPassword ? 'Hide' : 'Show';
+      btn.setAttribute('aria-label', isPassword ? 'Hide anon key' : 'Show anon key');
+    });
+
+    let lastFocusedBeforeModal = null;
+    function getModalFocusables() {
+      const overlay = document.getElementById('modal-overlay');
+      if (!overlay || overlay.classList.contains('hidden')) return [];
+      return Array.from(overlay.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter(el => !el.disabled && el.tabIndex !== -1);
+    }
+    function trapModalFocus(e) {
+      if (e.key !== 'Tab') return;
+      const focusables = getModalFocusables();
+      if (focusables.length === 0) return;
+      const first = focusables[0], last = focusables[focusables.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    }
+    function onModalKeydown(e) {
+      if (e.key === 'Escape') {
+        document.getElementById('modal-overlay').classList.add('hidden');
+        if (lastFocusedBeforeModal && lastFocusedBeforeModal.focus) lastFocusedBeforeModal.focus();
+        document.removeEventListener('keydown', onModalKeydown);
+      } else if (e.key === 'Tab') trapModalFocus(e);
+    }
+    document.getElementById('modal-close').addEventListener('click', () => {
+      document.getElementById('modal-overlay').classList.add('hidden');
+      if (lastFocusedBeforeModal && lastFocusedBeforeModal.focus) lastFocusedBeforeModal.focus();
+      document.removeEventListener('keydown', onModalKeydown);
+    });
+    document.getElementById('modal-overlay').addEventListener('click', (e) => {
+      if (e.target.id === 'modal-overlay') {
+        document.getElementById('modal-overlay').classList.add('hidden');
+        if (lastFocusedBeforeModal && lastFocusedBeforeModal.focus) lastFocusedBeforeModal.focus();
+        document.removeEventListener('keydown', onModalKeydown);
+      }
+    });
+
+    function getStatusBadgeClass(s) {
+      const v = (s || '').toLowerCase();
+      if (v === 'approved' || v === 'active') return 'approved';
+      if (v === 'rejected') return 'rejected';
+      if (v === 'waitlisted') return 'waitlisted';
+      if (v === 'suspended') return 'suspended';
+      return 'submitted';
+    }
+    /** Normalize API status to filter id so Pending/Approved filters work. */
+    function statusToFilterId(s) {
+      const v = (s || '').toLowerCase();
+      if (v === 'submitted' || v === 'pending_review' || v === 'pending') return 'submitted';
+      if (v === 'approved' || v === 'active') return 'approved';
+      return v || 'submitted';
+    }
+
+    function parsePlatforms(p) {
+      if (!p) return [];
+      if (Array.isArray(p)) return p.filter(Boolean).map(String);
+      try {
+        const arr = typeof p === 'string' ? JSON.parse(p) : p;
+        return Array.isArray(arr) ? arr.filter(Boolean).map(String) : [];
+      } catch (_) { return []; }
+    }
+
+    async function recordAudit(action, targetType, targetId, details) {
+      if (!supabase) return;
+      try {
+        await supabase.rpc('admin_record_audit', {
+          p_action: action,
+          p_target_type: targetType || null,
+          p_target_id: targetId || null,
+          p_details: details || null
+        });
+      } catch (_) {}
+    }
+
+    function showToast(message, type) {
+      type = type || 'error';
+      const container = document.getElementById('toast-container');
+      const el = document.createElement('div');
+      el.className = 'toast ' + type;
+      el.textContent = message;
+      container.appendChild(el);
+      setTimeout(() => {
+        el.remove();
+      }, 4000);
+    }
+    function copyToClipboard(text) {
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard', 'success')).catch(() => showToast('Copy failed', 'error'));
+    }
+
+    function getSkeletonMarkup(panelId) {
+      if (panelId === 'dashboard') {
+        const cards = Array(6).fill('<div class="skeleton skeleton-card"></div>').join('');
+        const rows = Array(5).fill('<li class="skeleton skeleton-row" style="list-style:none;"></li>').join('');
+        return { stats: cards, activity: rows };
+      }
+      if (panelId === 'applications') {
+        return Array(4).fill('<div class="skeleton skeleton-card" style="height:100px;"></div>').join('');
+      }
+      if (panelId === 'users') {
+        return Array(5).fill('<div class="skeleton skeleton-row"></div>').join('');
+      }
+      if (panelId === 'reports' || panelId === 'board') {
+        return Array(4).fill('<div class="skeleton skeleton-card" style="height:100px;"></div>').join('');
+      }
+      return null;
+    }
+
+    function setPanelContentLoading(panelId, loading) {
+      const panel = document.getElementById('panel-' + panelId);
+      if (!panel) return;
+      const useSkeleton = ['dashboard', 'applications', 'users', 'reports', 'board'].includes(panelId);
+      if (loading) {
+        if (useSkeleton) {
+          const sk = getSkeletonMarkup(panelId);
+          if (panelId === 'dashboard' && sk) {
+            const statsEl = document.getElementById('dashboard-stats');
+            const activityEl = document.getElementById('dashboard-activity');
+            if (statsEl) statsEl.innerHTML = sk.stats;
+            if (activityEl) activityEl.innerHTML = sk.activity;
+          } else if (panelId === 'applications' && sk) {
+            const listEl = document.getElementById('list');
+            if (listEl) listEl.innerHTML = sk;
+          } else if (panelId === 'users' && sk) {
+            const listEl = document.getElementById('users-list');
+            if (listEl) listEl.innerHTML = sk;
+          } else if (panelId === 'reports' && sk) {
+            const listEl = document.getElementById('reports-list');
+            if (listEl) listEl.innerHTML = sk;
+          } else if (panelId === 'board' && sk) {
+            const listEl = document.getElementById('board-list');
+            if (listEl) listEl.innerHTML = sk;
+          }
+        } else {
+          let spinner = panel.querySelector('.panel-loading-spinner');
+          if (!spinner) {
+            spinner = document.createElement('div');
+            spinner.className = 'panel-loading-spinner spinner-wrap';
+            spinner.innerHTML = '<div class="spinner"></div><span style="margin-left:10px;">Loading…</span>';
+            panel.appendChild(spinner);
+          }
+          spinner.style.display = 'flex';
+        }
+      } else {
+        const spinner = panel.querySelector('.panel-loading-spinner');
+        if (spinner) spinner.style.display = 'none';
+      }
+    }
+
+    async function loadStats() {
+      if (!supabase) return {};
+      const { data, error } = await supabase.rpc('admin_get_application_stats');
+      if (error) return {};
+      return data && data[0] ? data[0] : {};
+    }
+
+    async function loadApplications() {
+      if (!supabase) return [];
+      const { data, error } = await supabase.rpc('admin_get_applications');
+      if (error) {
+        console.error('admin_get_applications', error);
+        return [];
+      }
+      return data || [];
+    }
+
+    async function showPanel(panelId) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      const panel = document.getElementById('panel-' + panelId);
+      if (panel) panel.classList.add('active');
+      document.querySelectorAll('.nav-tabs button').forEach(b => {
+        const active = b.dataset.tab === panelId;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      const needsLoad = ['dashboard','analytics','users','reports','board','verifications','versions'].includes(panelId);
+      if (needsLoad) setPanelContentLoading(panelId, true);
+      try {
+        if (panelId === 'dashboard') { await loadDashboardData(); renderDashboard(); }
+        else if (panelId === 'analytics') { await loadAnalytics(); renderAnalytics(); }
+        else if (panelId === 'users') { await loadUsers(); renderUsersList(); }
+        else if (panelId === 'reports') { await loadReports(reportsFilter === 'all' ? null : reportsFilter); renderReportsList(); }
+        else if (panelId === 'board') { await loadBoardFlags(boardFilter === 'unreviewed'); renderBoardList(); }
+        else if (panelId === 'verifications') { await loadVerifications(); renderVerificationsList(); }
+        else if (panelId === 'versions') { await loadVersions(); renderVersionsTable(); }
+        else if (panelId === 'settings') { await loadSettingsMinVersion(); }
+      } finally {
+        if (needsLoad) setPanelContentLoading(panelId, false);
+      }
+    }
+
+    function renderNavTabs() {
+      const el = document.getElementById('nav-tabs');
+      if (!el) return;
+      const tabs = Array.isArray(mainTabs) ? mainTabs : [];
+      const activePanelId = document.querySelector('.panel.active')?.id?.replace('panel-', '') || 'dashboard';
+      el.innerHTML = tabs.map(t => {
+        const badge = typeof t.badge === 'function' ? t.badge() : 0;
+        const isActive = t.id === activePanelId;
+        const icon = t.icon ? `<span class="nav-tab-icon" aria-hidden="true">${escapeHtml(t.icon)}</span>` : '';
+        return `<button type="button" role="tab" id="tab-${t.id}" data-tab="${t.id}" class="${isActive ? 'active' : ''}" aria-selected="${isActive}" aria-controls="panel-${t.id}">${icon}${escapeHtml(t.label)}${badge > 0 ? `<span class="badge-num" aria-label="${badge} pending">${badge}</span>` : ''}</button>`;
+      }).join('');
+      el.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => showPanel(btn.dataset.tab));
+      });
+    }
+
+    document.getElementById('header-refresh-btn')?.addEventListener('click', () => document.getElementById('refresh-all-btn')?.click());
+
+    document.getElementById('users-search')?.addEventListener('input', () => renderUsersList());
+    document.getElementById('users-sort')?.addEventListener('change', () => renderUsersList());
+    document.getElementById('users-export')?.addEventListener('click', () => exportUsersCSV());
+
+    document.getElementById('reports-search')?.addEventListener('input', () => renderReportsList());
+    document.getElementById('reports-export')?.addEventListener('click', () => exportReportsCSV());
+
+    document.getElementById('verifications-search')?.addEventListener('input', () => renderVerificationsList());
+    document.getElementById('verifications-export')?.addEventListener('click', () => exportVerificationsCSV());
+
+    async function loadDashboardData() {
+      if (!supabase) return;
+      lastDashboardError = '';
+      try {
+        const statsR = await supabase.rpc('admin_get_application_stats');
+        if (statsR.error) {
+          const msg = (statsR.error.message || '').toLowerCase();
+          if (msg.includes('admin') || msg.includes('permission') || statsR.error.code === 'PGRST301') {
+            lastDashboardError = statsR.error.message || 'Not authorized as admin. Sign in with an email listed in Supabase admin_users (e.g. ahmedmaidany@gmail.com).';
+            dashboardData = { stats: {}, totalUsers: 0, newUsersWeek: 0, activeToday: null, pendingVerifications: 0, unreviewedBoard: 0, recentUsers: [], recentApps: [] };
+            pendingReportsCount = 0;
+            dashboardLastRefreshedAt = new Date();
+            return;
+          }
+        }
+        const stats = statsR.data && statsR.data[0] ? statsR.data[0] : {};
+        const [usersRes, activeToday, pendingVerif, reportsCount, flagsRes] = await Promise.all([
+          supabase.rpc('admin_get_all_users').then(r => r.data || []),
+          supabase.rpc('admin_get_active_today_count').then(r => (r.data && r.data[0] && r.data[0].active_count != null) ? r.data[0].active_count : null),
+          supabase.rpc('admin_get_pending_verification_requests').then(r => (r.data || []).length),
+          supabase.rpc('admin_get_reports_count', { p_status: 'pending' }).then(r => (r.data && r.data[0] && r.data[0].count != null) ? Number(r.data[0].count) : 0),
+          supabase.rpc('admin_get_flagged_intents', { p_limit: 100, p_offset: 0, p_unreviewed_only: true }).then(r => r.data || [])
+        ]);
+        const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const newUsersWeek = (usersRes || []).filter(u => u.created_at && new Date(u.created_at) > oneWeekAgo).length;
+        dashboardData = {
+          stats,
+          totalUsers: (usersRes || []).length,
+          newUsersWeek,
+          activeToday,
+          pendingVerifications: pendingVerif,
+          unreviewedBoard: (flagsRes || []).length,
+          recentUsers: (usersRes || []).slice(0, 10),
+          recentApps: applications.slice(0, 10)
+        };
+        pendingReportsCount = reportsCount;
+        dashboardLastRefreshedAt = new Date();
+      } catch (e) {
+        console.error('loadDashboardData', e);
+        lastDashboardError = (e && e.message) || String(e || 'Failed to load dashboard');
+      }
+    }
+
+    async function loadAnalytics() {
+      lastAnalyticsError = '';
+      if (!supabase) {
+        lastAnalyticsError = 'Not connected. Set Supabase URL and anon key in Settings.';
+        analyticsData = null;
+        return;
+      }
+      const content = document.getElementById('analytics-content');
+      if (content) content.innerHTML = '';
+      try {
+        const { data, error } = await supabase.rpc('admin_get_analytics');
+        if (error) throw error;
+        const raw = (Array.isArray(data) && data.length > 0) ? data[0] : data;
+        analyticsData = raw && typeof raw === 'object' ? raw : null;
+        if (analyticsData) lastAnalyticsLoadedAt = new Date();
+        if (!analyticsData && (data !== null && data !== undefined)) lastAnalyticsError = 'Unexpected response format.';
+      } catch (e) {
+        console.error('loadAnalytics', e);
+        analyticsData = null;
+        lastAnalyticsError = (e && e.message) || (e && e.error_description) || (e && e.msg) || String(e || 'Unknown error');
+      }
+    }
+
+    function renderAnalytics() {
+      const el = document.getElementById('analytics-content');
+      if (!el) return;
+      const a = analyticsData;
+      if (!a) {
+        const msg = lastAnalyticsError
+          ? ('Failed to load analytics. ' + escapeHtml(lastAnalyticsError) + ' Check that you are signed in as an admin and that the admin_get_analytics migration is applied.')
+          : 'No analytics data. Refresh or try again.';
+        el.innerHTML = '<div class="empty-state-block"><div class="empty-icon" aria-hidden="true">▤</div><p class="empty-msg">' + msg + '</p></div>';
+        return;
+      }
+      const u = a.users || {};
+      const app = a.applications || {};
+      const rpt = a.reports || {};
+      const ver = a.verifications || {};
+      const ref = a.referrals || {};
+      const conn = a.connections || {};
+      const act = a.activity || {};
+      const board = a.board || {};
+      const content = a.content || {};
+      const challenges = a.challenges || {};
+      const creativity = a.creativity || {};
+      const messaging = a.messaging || {};
+      const matches = a.matches || {};
+      const briefs = a.briefs || {};
+      const portfolio = a.portfolio || {};
+      const saved = a.saved || {};
+      const notifications = a.notifications || {};
+      const signups = Array.isArray(a.signups_by_day) ? [...a.signups_by_day].sort((x, y) => (y.date || '').localeCompare(x.date || '')) : [];
+      const lastUpdatedStr = lastAnalyticsLoadedAt ? lastAnalyticsLoadedAt.toLocaleString() : '';
+
+      el.innerHTML = `
+        <div class="analytics-toolbar">
+          ${lastUpdatedStr ? `<span class="analytics-last-updated">Last updated: ${escapeHtml(lastUpdatedStr)}</span>` : ''}
+          <button type="button" class="btn-secondary" id="analytics-export-json" style="padding:8px 12px;">Export JSON</button>
+          <button type="button" class="btn-secondary" id="analytics-export-csv" style="padding:8px 12px;">Export CSV</button>
+        </div>
+        <div class="analytics-grid">
+          <section class="analytics-section">
+            <h3 class="analytics-section-title">Users</h3>
+            <div class="analytics-cards">
+              <div class="analytics-card"><span class="analytics-value">${u.total ?? 0}</span><span class="analytics-label">Total</span></div>
+              <div class="analytics-card"><span class="analytics-value">${u.creators ?? 0}</span><span class="analytics-label">Creators</span></div>
+              <div class="analytics-card"><span class="analytics-value">${u.brands ?? 0}</span><span class="analytics-label">Brands</span></div>
+              <div class="analytics-card"><span class="analytics-value">${u.new_7d ?? 0}</span><span class="analytics-label">New (7d)</span></div>
+              <div class="analytics-card"><span class="analytics-value">${u.new_30d ?? 0}</span><span class="analytics-label">New (30d)</span></div>
+            </div>
+          </section>
+          <section class="analytics-section">
+            <h3 class="analytics-section-title">Applications</h3>
+            <div class="analytics-cards">
+              <div class="analytics-card"><span class="analytics-value">${app.total ?? 0}</span><span class="analytics-label">Total</span></div>
+              <div class="analytics-card"><span class="analytics-value">${app.pending ?? 0}</span><span class="analytics-label">Pending</span></div>
+              <div class="analytics-card"><span class="analytics-value">${app.approved ?? 0}</span><span class="analytics-label">Approved</span></div>
+              <div class="analytics-card"><span class="analytics-value">${app.rejected ?? 0}</span><span class="analytics-label">Rejected</span></div>
+              <div class="analytics-card"><span class="analytics-value">${app.waitlisted ?? 0}</span><span class="analytics-label">Waitlisted</span></div>
+              <div class="analytics-card"><span class="analytics-value">${app.suspended ?? 0}</span><span class="analytics-label">Suspended</span></div>
+            </div>
+          </section>
+          <section class="analytics-section">
+            <h3 class="analytics-section-title">Activity (active users)</h3>
+            <div class="analytics-cards">
+              <div class="analytics-card"><span class="analytics-value">${act.active_today ?? 0}</span><span class="analytics-label">Today (24h)</span></div>
+              <div class="analytics-card"><span class="analytics-value">${act.active_7d ?? 0}</span><span class="analytics-label">Last 7 days</span></div>
+              <div class="analytics-card"><span class="analytics-value">${act.active_30d ?? 0}</span><span class="analytics-label">Last 30 days</span></div>
+            </div>
+          </section>
+          <section class="analytics-section">
+            <h3 class="analytics-section-title">Reports & Moderation</h3>
+            <div class="analytics-cards">
+              <div class="analytics-card"><span class="analytics-value">${rpt.total ?? 0}</span><span class="analytics-label">Reports total</span></div>
+              <div class="analytics-card"><span class="analytics-value">${rpt.pending ?? 0}</span><span class="analytics-label">Pending</span></div>
+              <div class="analytics-card"><span class="analytics-value">${ver.pending ?? 0}</span><span class="analytics-label">Verifications pending</span></div>
+              <div class="analytics-card"><span class="analytics-value">${board.unreviewed ?? 0}</span><span class="analytics-label">Board unreviewed</span></div>
+            </div>
+          </section>
+          <section class="analytics-section">
+            <h3 class="analytics-section-title">Connections & Referrals</h3>
+            <div class="analytics-cards">
+              <div class="analytics-card"><span class="analytics-value">${conn.total ?? 0}</span><span class="analytics-label">Connection requests</span></div>
+              <div class="analytics-card"><span class="analytics-value">${conn.pending ?? 0}</span><span class="analytics-label">Pending</span></div>
+              <div class="analytics-card"><span class="analytics-value">${conn.accepted ?? 0}</span><span class="analytics-label">Accepted</span></div>
+              <div class="analytics-card"><span class="analytics-value">${conn.rejected ?? 0}</span><span class="analytics-label">Rejected</span></div>
+              <div class="analytics-card"><span class="analytics-value">${ref.total ?? 0}</span><span class="analytics-label">Referrals</span></div>
+            </div>
+          </section>
+          <section class="analytics-section">
+            <h3 class="analytics-section-title">Community board</h3>
+            <div class="analytics-cards">
+              <div class="analytics-card"><span class="analytics-value">${board.intents ?? 0}</span><span class="analytics-label">Posts (intents)</span></div>
+              <div class="analytics-card"><span class="analytics-value">${board.intent_likes ?? 0}</span><span class="analytics-label">Likes</span></div>
+              <div class="analytics-card"><span class="analytics-value">${board.intent_comments ?? 0}</span><span class="analytics-label">Comments</span></div>
+              <div class="analytics-card"><span class="analytics-value">${board.unreviewed ?? 0}</span><span class="analytics-label">Unreviewed</span></div>
+            </div>
+          </section>
+          <section class="analytics-section">
+            <h3 class="analytics-section-title">Feed & content</h3>
+            <div class="analytics-cards">
+              <div class="analytics-card"><span class="analytics-value">${content.feed_posts ?? 0}</span><span class="analytics-label">Feed posts</span></div>
+              <div class="analytics-card"><span class="analytics-value">${content.feed_likes ?? 0}</span><span class="analytics-label">Feed likes</span></div>
+              <div class="analytics-card"><span class="analytics-value">${content.feed_comments ?? 0}</span><span class="analytics-label">Feed comments</span></div>
+              <div class="analytics-card"><span class="analytics-value">${content.saved_feed_posts ?? 0}</span><span class="analytics-label">Saved posts</span></div>
+            </div>
+          </section>
+          <section class="analytics-section">
+            <h3 class="analytics-section-title">Challenges & creativity</h3>
+            <div class="analytics-cards">
+              <div class="analytics-card"><span class="analytics-value">${challenges.total ?? 0}</span><span class="analytics-label">Challenges</span></div>
+              <div class="analytics-card"><span class="analytics-value">${creativity.creator_ideas ?? 0}</span><span class="analytics-label">Creator ideas</span></div>
+              <div class="analytics-card"><span class="analytics-value">${creativity.shared_ideas ?? 0}</span><span class="analytics-label">Shared ideas</span></div>
+              <div class="analytics-card"><span class="analytics-value">${creativity.streaks ?? 0}</span><span class="analytics-label">Streaks</span></div>
+              <div class="analytics-card"><span class="analytics-value">${creativity.sprint_battles ?? 0}</span><span class="analytics-label">Sprint battles</span></div>
+            </div>
+          </section>
+          <section class="analytics-section">
+            <h3 class="analytics-section-title">Messaging & matches</h3>
+            <div class="analytics-cards">
+              <div class="analytics-card"><span class="analytics-value">${messaging.messages ?? 0}</span><span class="analytics-label">Messages</span></div>
+              <div class="analytics-card"><span class="analytics-value">${messaging.threads ?? 0}</span><span class="analytics-label">Conversations</span></div>
+              <div class="analytics-card"><span class="analytics-value">${matches.creator_matches ?? 0}</span><span class="analytics-label">Creator matches</span></div>
+            </div>
+          </section>
+          <section class="analytics-section">
+            <h3 class="analytics-section-title">Briefs</h3>
+            <div class="analytics-cards">
+              <div class="analytics-card"><span class="analytics-value">${briefs.total ?? 0}</span><span class="analytics-label">Briefs</span></div>
+              <div class="analytics-card"><span class="analytics-value">${briefs.invites ?? 0}</span><span class="analytics-label">Invites</span></div>
+              <div class="analytics-card"><span class="analytics-value">${briefs.pitches ?? 0}</span><span class="analytics-label">Pitches</span></div>
+            </div>
+          </section>
+          <section class="analytics-section">
+            <h3 class="analytics-section-title">Portfolio & saved</h3>
+            <div class="analytics-cards">
+              <div class="analytics-card"><span class="analytics-value">${portfolio.entries ?? 0}</span><span class="analytics-label">Portfolio entries</span></div>
+              <div class="analytics-card"><span class="analytics-value">${saved.brand_saved_creators ?? 0}</span><span class="analytics-label">Brand saved creators</span></div>
+            </div>
+          </section>
+          <section class="analytics-section">
+            <h3 class="analytics-section-title">Notifications</h3>
+            <div class="analytics-cards">
+              <div class="analytics-card"><span class="analytics-value">${notifications.total ?? 0}</span><span class="analytics-label">Total</span></div>
+              <div class="analytics-card"><span class="analytics-value">${notifications.last_24h ?? 0}</span><span class="analytics-label">Last 24h</span></div>
+            </div>
+          </section>
+        </div>
+        <section class="analytics-section settings-block">
+          <h3 class="analytics-section-title">Signups by day (last 14 days)</h3>
+          ${signups.length ? (() => { const max = Math.max(1, ...signups.map(s => s.count ?? s.d?.count ?? 0)); return '<div class="signups-chart">' + signups.map(s => { const c = s.count ?? s.d?.count ?? 0; const pct = max ? Math.round((c / max) * 100) : 0; return '<div class="signups-chart-bar" title="' + escapeHtml(String(s.date || s.d?.date || '')) + ': ' + c + '" style="height:' + (pct ? pct + '%' : '4px') + ';"></div>'; }).join('') + '</div>'; })() : ''}
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Signups</th></tr></thead><tbody>
+            ${signups.length ? signups.map(s => '<tr><td>' + escapeHtml(String(s.date || s.d?.date || '')) + '</td><td>' + (s.count ?? s.d?.count ?? 0) + '</td></tr>').join('') : '<tr><td colspan="2">No signup data for last 14 days</td></tr>'}
+          </tbody></table></div>
+        </section>
+      `;
+      document.getElementById('analytics-export-json')?.addEventListener('click', () => {
+        if (!analyticsData) return;
+        const blob = new Blob([JSON.stringify(analyticsData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'analytics-' + new Date().toISOString().slice(0, 10) + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Exported JSON', 'success');
+      });
+      document.getElementById('analytics-export-csv')?.addEventListener('click', () => {
+        if (!analyticsData) return;
+        const rows = [];
+        const flat = (obj, prefix) => {
+          if (obj == null || typeof obj !== 'object') { rows.push([prefix, String(obj)]); return; }
+          for (const k of Object.keys(obj)) flat(obj[k], prefix ? prefix + '.' + k : k);
+        };
+        flat(analyticsData, '');
+        const csv = ['Metric,Value', ...rows.map(r => '"' + String(r[0]).replace(/"/g, '""') + '","' + String(r[1]).replace(/"/g, '""') + '"')].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'analytics-' + new Date().toISOString().slice(0, 10) + '.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Exported CSV', 'success');
+      });
+    }
+
+    function renderDashboard() {
+      const d = dashboardData;
+      const banner = document.getElementById('dashboard-admin-error-banner');
+      if (banner) {
+        banner.classList.toggle('hidden', !lastDashboardError);
+        if (lastDashboardError) banner.innerHTML = '<span>' + escapeHtml(lastDashboardError) + '</span>';
+      }
+      if (lastDashboardError) {
+        const activityEl = document.getElementById('dashboard-activity');
+        const lastRefreshedEl = document.getElementById('dashboard-last-refreshed');
+        if (lastRefreshedEl) lastRefreshedEl.textContent = '';
+        if (activityEl) activityEl.innerHTML = '<li class="empty-state">No recent activity. Sign in with an admin email to load data.</li>';
+        const quickLinksEl = document.getElementById('dashboard-quick-links');
+        const statsEl = document.getElementById('dashboard-stats');
+        if (quickLinksEl) quickLinksEl.innerHTML = '';
+        if (statsEl) statsEl.innerHTML = '';
+        return;
+      }
+      const pendingApps = d.stats.pending_count ?? d.stats.pending ?? 0;
+      const lastRefreshedEl = document.getElementById('dashboard-last-refreshed');
+      if (lastRefreshedEl) lastRefreshedEl.textContent = dashboardLastRefreshedAt ? 'Last refreshed: ' + dashboardLastRefreshedAt.toLocaleString() : '';
+      const quickLinksEl = document.getElementById('dashboard-quick-links');
+      if (quickLinksEl) {
+        quickLinksEl.innerHTML = `
+          <button type="button" class="quick-link" data-goto="applications" data-filter="submitted">
+            <span class="qty">${pendingApps}</span><span class="label">Pending applications</span>
+          </button>
+          <button type="button" class="quick-link" data-goto="reports" data-filter="pending">
+            <span class="qty">${pendingReportsCount}</span><span class="label">Pending reports</span>
+          </button>
+          <button type="button" class="quick-link" data-goto="verifications">
+            <span class="qty">${d.pendingVerifications ?? 0}</span><span class="label">Pending verifications</span>
+          </button>
+          <button type="button" class="quick-link" data-goto="board">
+            <span class="qty">${d.unreviewedBoard ?? 0}</span><span class="label">Unreviewed board</span>
+          </button>
+        `;
+        quickLinksEl.querySelectorAll('.quick-link').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const panel = btn.dataset.goto;
+            const filter = btn.dataset.filter;
+            if (panel === 'applications' && filter) { currentFilter = filter; renderTabs(); renderList(); }
+            if (panel === 'reports' && filter) reportsFilter = filter;
+            showPanel(panel);
+          });
+        });
+      }
+      const statsEl = document.getElementById('dashboard-stats');
+      statsEl.innerHTML = `
+        <div class="dashboard-card"><div class="value">${d.totalUsers}</div><div class="label">Total users</div><div class="trend">+${d.newUsersWeek} this week</div></div>
+        <div class="dashboard-card"><div class="value">${d.stats.pending_count ?? d.stats.pending ?? 0}</div><div class="label">Pending apps</div><div class="trend">Needs review</div></div>
+        <div class="dashboard-card"><div class="value">${d.pendingVerifications}</div><div class="label">Pending verifications</div></div>
+        <div class="dashboard-card"><div class="value">${d.activeToday != null ? d.activeToday : '—'}</div><div class="label">Active today</div><div class="trend">Last 24h</div></div>
+        <div class="dashboard-card"><div class="value">${pendingReportsCount}</div><div class="label">Pending reports</div></div>
+        <div class="dashboard-card"><div class="value">${d.unreviewedBoard}</div><div class="label">Unreviewed board</div></div>
+      `;
+      const activityEl = document.getElementById('dashboard-activity');
+      const items = [];
+      (d.recentApps || []).forEach(a => {
+        items.push({ date: a.application_date, text: `Application: ${a.username || a.name || '?'} applied`, icon: '📄' });
+      });
+      (d.recentUsers || []).forEach(u => {
+        items.push({ date: u.created_at, text: `New user: @${u.username || '?'} joined`, icon: '👤' });
+      });
+      items.sort((a, b) => new Date(b.date) - new Date(a.date));
+      activityEl.innerHTML = items.slice(0, 15).map(x => `<li><span>${x.icon}</span> ${escapeHtml(x.text)} · ${formatDate(x.date)}</li>`).join('') || '<li class="empty-state">No recent activity yet.</li>';
+    }
+
+    async function loadUsers() {
+      if (!supabase) return [];
+      const { data, error } = await supabase.rpc('admin_get_all_users');
+      if (error) { console.error('admin_get_all_users', error); return []; }
+      users = data || [];
+      return users;
+    }
+
+    function getFilteredAndSortedUsers() {
+      const usersList = Array.isArray(users) ? users : [];
+      const q = (document.getElementById('users-search') || {}).value || '';
+      const query = q.toLowerCase().trim();
+      let list = query ? usersList.filter(u => {
+        const name = (u.name || '').toLowerCase();
+        const username = (u.username || '').toLowerCase();
+        const email = (u.email || '').toLowerCase();
+        return name.includes(query) || username.includes(query) || email.includes(query);
+      }) : [...usersList];
+      const sort = (document.getElementById('users-sort') && document.getElementById('users-sort').value) || 'name';
+      if (sort === 'name') list.sort((a, b) => (a.name || a.username || '').localeCompare(b.name || b.username || ''));
+      else if (sort === 'newest') list.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      else if (sort === 'oldest') list.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+      return list;
+    }
+
+    function exportUsersCSV() {
+      const list = getFilteredAndSortedUsers();
+      const headers = ['Name', 'Username', 'Email', 'Verified', 'Banned'];
+      const rows = list.map(u => [
+        u.name || '',
+        u.username || '',
+        u.email || '',
+        u.is_verified ? 'Yes' : 'No',
+        u.is_banned ? 'Yes' : 'No'
+      ].map(c => '"' + String(c).replace(/"/g, '""') + '"').join(','));
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'users-' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Exported ' + list.length + ' users', 'success');
+    }
+
+    function renderUsersList() {
+      const list = getFilteredAndSortedUsers();
+      const q = (document.getElementById('users-search') || {}).value || '';
+      const query = q.toLowerCase().trim();
+      const hintEl = document.getElementById('users-count-hint');
+      if (hintEl) hintEl.textContent = list.length > 100 ? 'Showing 1–100 of ' + list.length + ' users. Export CSV to get all.' : '';
+      const el = document.getElementById('users-list');
+      if (list.length === 0) {
+        el.innerHTML = '<div class="empty-state-block"><div class="empty-icon" aria-hidden="true">👤</div><p class="empty-msg">' + (query ? 'No users match your search.' : 'No users yet.') + '</p></div>';
+        return;
+      }
+      el.innerHTML = list.slice(0, 100).map(u => {
+        const initial = (u.name || u.username || '?').charAt(0).toUpperCase();
+        const userId = u.id || '';
+        return `
+          <div class="card">
+            ${u.profile_image_url ? `<img class="card-avatar" src="${escapeHtml(u.profile_image_url)}" alt="" />` : `<div class="card-avatar placeholder">${initial}</div>`}
+            <div class="card-body" style="flex:1;">
+              <div class="card-name">${escapeHtml(u.name || '—')}</div>
+              <div class="card-meta">@${escapeHtml(u.username || '—')} · ${escapeHtml(u.email || '—')} · ${u.is_verified ? '✓ Verified' : ''} ${u.is_banned ? '· Banned' : ''} ${u.is_ambassador ? '· Ambassador' : ''}</div>
+              <div class="card-badges" style="margin-top:8px;">
+                ${!u.is_banned ? `<button type="button" class="btn-sm danger" data-user-id="${userId}" data-action="ban">Ban</button>` : `<button type="button" class="btn-sm success" data-user-id="${userId}" data-action="unban">Unban</button>`}
+                <button type="button" class="btn-sm" data-user-id="${userId}" data-ambassador="${!!u.is_ambassador}" data-action="ambassador">${u.is_ambassador ? 'Remove ambassador' : 'Set ambassador'}</button>
+                <button type="button" class="btn-sm danger" data-user-id="${userId}" data-action="delete-user">Delete user</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      el.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const uid = btn.dataset.userId;
+          const action = btn.dataset.action;
+          if (!uid) return;
+          if (action === 'ban') {
+            const ok = await showConfirm('Ban user', 'Ban this user? They will not be able to use the app.');
+            if (!ok) return;
+            const { error } = await supabase.rpc('admin_set_banned', { p_user_id: uid, p_banned: true });
+            if (error) showToast('Failed: ' + (error.message || 'Unknown'), 'error');
+            else { recordAudit('user_ban', 'user', uid); showToast('User banned', 'success'); await loadUsers(); renderUsersList(); await loadDashboardData(); renderNavTabs(); }
+            return;
+          }
+          if (action === 'unban') {
+            const { error } = await supabase.rpc('admin_set_banned', { p_user_id: uid, p_banned: false });
+            if (error) showToast('Failed: ' + (error.message || 'Unknown'), 'error');
+            else { recordAudit('user_unban', 'user', uid); showToast('User unbanned', 'success'); await loadUsers(); renderUsersList(); await loadDashboardData(); renderNavTabs(); }
+            return;
+          }
+          if (action === 'ambassador') {
+            const isAmbassador = btn.dataset.ambassador === 'true';
+            const newVal = !isAmbassador;
+            const { error } = await supabase.rpc('admin_set_ambassador', { p_target_user_id: uid, p_is_ambassador: newVal });
+            if (error) showToast('Failed: ' + (error.message || 'Unknown'), 'error');
+            else { recordAudit('user_ambassador', 'user', uid); showToast(newVal ? 'Ambassador set' : 'Ambassador removed', 'success'); await loadUsers(); renderUsersList(); renderNavTabs(); }
+            return;
+          }
+          if (action === 'delete-user') {
+            const ok = await showConfirm('Delete user', 'Permanently delete this user and all their data? This cannot be undone.');
+            if (!ok) return;
+            const { error } = await supabase.rpc('admin_delete_user', { p_user_id: uid });
+            if (error) showToast('Failed: ' + (error.message || 'Unknown'), 'error');
+            else { recordAudit('user_delete', 'user', uid); showToast('User deleted', 'success'); await loadUsers(); renderUsersList(); await loadDashboardData(); renderNavTabs(); }
+            return;
+          }
+        });
+      });
+    }
+
+    async function loadReports(statusFilter) {
+      if (!supabase) return [];
+      const { data, error } = await supabase.rpc('admin_get_reports', {
+        p_status: statusFilter || null,
+        p_limit: 100,
+        p_offset: 0
+      });
+      if (error) { console.error('admin_get_reports', error); return []; }
+      reports = data || [];
+      const countRes = await supabase.rpc('admin_get_reports_count', { p_status: 'pending' });
+      pendingReportsCount = (countRes.data && countRes.data[0] && countRes.data[0].count != null) ? Number(countRes.data[0].count) : 0;
+      return reports;
+    }
+
+    const reportStatusFilters = [{ id: 'all', label: 'All' }, { id: 'pending', label: 'Pending' }, { id: 'resolved', label: 'Resolved' }, { id: 'dismissed', label: 'Dismissed' }];
+    let reportsFilter = 'all';
+
+    function exportReportsCSV() {
+      const list = getFilteredReports();
+      const headers = ['Reason', 'Reporter', 'Reported user', 'Type', 'Status', 'Details', 'Created'];
+      const rows = list.map(r => {
+        const type = r.reported_intent_id ? 'Board post' : r.reported_post_id ? 'Feed post' : 'User';
+        return [r.reason || '', r.reporter_username || '', r.reported_user_username || '', type, r.status || '', (r.details || '').replace(/"/g, '""'), r.created_at ? formatDate(r.created_at) : ''];
+      });
+      const csv = [headers.join(','), ...rows.map(row => row.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'reports-' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Exported ' + list.length + ' reports', 'success');
+    }
+
+    function getFilteredReports() {
+      const reportsList = Array.isArray(reports) ? reports : [];
+      const list = reportsFilter === 'all' ? reportsList : reportsList.filter(r => (r.status || '').toLowerCase() === reportsFilter);
+      const q = (document.getElementById('reports-search') || {}).value || '';
+      const query = q.toLowerCase().trim();
+      if (!query) return list;
+      return list.filter(r => {
+        const reporter = (r.reporter_username || '').toLowerCase();
+        const reported = (r.reported_user_username || '').toLowerCase();
+        const reason = (r.reason || '').toLowerCase();
+        const details = (r.details || '').toLowerCase();
+        return reporter.includes(query) || reported.includes(query) || reason.includes(query) || details.includes(query);
+      });
+    }
+
+    function renderReportsList() {
+      const tabsEl = document.getElementById('reports-tabs');
+      if (tabsEl) {
+        const filters = Array.isArray(reportStatusFilters) ? reportStatusFilters : [];
+        tabsEl.innerHTML = filters.map(f => `<button type="button" class="${f.id === reportsFilter ? 'active' : ''}" data-filter="${f.id}">${f.label}</button>`).join('');
+        tabsEl.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            reportsFilter = btn.dataset.filter;
+            await loadReports(reportsFilter === 'all' ? null : reportsFilter);
+            renderReportsList();
+          });
+        });
+      }
+      const list = getFilteredReports();
+      const hintEl = document.getElementById('reports-count-hint');
+      if (hintEl) hintEl.textContent = list.length > 0 ? 'Showing ' + list.length + ' report' + (list.length !== 1 ? 's' : '') + ((Array.isArray(reports) ? reports.length : 0) >= 100 ? ' (max 100 loaded)' : '') : '';
+      const el = document.getElementById('reports-list');
+      if (list.length === 0) {
+        if (el) el.innerHTML = '<div class="empty-state-block"><div class="empty-icon" aria-hidden="true">📋</div><p class="empty-msg">No reports in this filter.</p></div>';
+        return;
+      }
+      if (el) el.innerHTML = list.map(r => {
+        const reportedLabel = r.reported_user_username ? 'Reported @' + escapeHtml(r.reported_user_username) : 'Reported user (unknown)';
+        const typeLabel = r.reported_intent_id ? 'Board post' : r.reported_post_id ? 'Feed post' : 'User';
+        const hasReportedUser = !!r.reported_user_id;
+        const hasPost = !!r.reported_post_id;
+        const hasIntent = !!r.reported_intent_id;
+        return `
+        <div class="card">
+          <div class="card-body" style="flex:1;">
+            <div class="card-name">${escapeHtml(r.reason || 'Report')}</div>
+            <div class="card-meta">By @${escapeHtml(r.reporter_username || '—')} · ${reportedLabel} · ${typeLabel} · ${escapeHtml(r.status || '')} · ${formatDate(r.created_at)}</div>
+            ${r.details ? `<div class="card-meta" style="margin-top:6px;">${escapeHtml(r.details)}</div>` : ''}
+            <div class="card-badges" style="margin-top:8px;">
+              ${r.status === 'pending' ? `<button type="button" class="btn-sm success" data-report-id="${r.id}" data-action="resolve">Resolve</button><button type="button" class="btn-sm" data-report-id="${r.id}" data-action="dismiss">Dismiss</button>` : ''}
+              ${hasReportedUser ? `<button type="button" class="btn-sm" data-report-user-id="${r.reported_user_id}" data-report-username="${String(r.reported_user_username || '').replace(/"/g, '&quot;')}" data-action="view-user">View user</button>` : ''}
+              ${hasReportedUser ? `<button type="button" class="btn-sm danger" data-report-user-id="${r.reported_user_id}" data-action="ban-user">Ban user</button>` : ''}
+              ${hasPost ? `<button type="button" class="btn-sm danger" data-report-post-id="${r.reported_post_id}" data-action="delete-post">Delete post</button>` : ''}
+              ${hasIntent ? `<button type="button" class="btn-sm danger" data-report-intent-id="${r.reported_intent_id}" data-action="delete-intent">Delete board post</button>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+      }).join('');
+      el.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const action = btn.dataset.action;
+          if (action === 'resolve' || action === 'dismiss') {
+            const id = btn.dataset.reportId;
+            const status = action === 'resolve' ? 'resolved' : 'dismissed';
+            if (action === 'dismiss') {
+              const ok = await showConfirm('Dismiss report', 'Dismiss this report? It will be marked as dismissed.');
+              if (!ok) return;
+            }
+            const { error } = await supabase.rpc('admin_update_report', { p_report_id: id, p_status: status, p_admin_notes: null });
+            if (error) showToast('Failed: ' + (error.message || 'Unknown'), 'error');
+            else { recordAudit('report_' + status, 'report', id); showToast('Report updated', 'success'); await loadReports(reportsFilter === 'all' ? null : reportsFilter); }
+            renderReportsList();
+            await loadDashboardData();
+            renderNavTabs();
+            return;
+          }
+          if (action === 'view-user') {
+            const username = (btn.dataset.reportUsername || '').trim();
+            const searchEl = document.getElementById('users-search');
+            if (searchEl) { searchEl.value = username; searchEl.dispatchEvent(new Event('input')); }
+            showPanel('users');
+            return;
+          }
+          if (action === 'ban-user') {
+            const userId = btn.dataset.reportUserId;
+            const ok = await showConfirm('Ban user', 'Ban this user? They will not be able to use the app.');
+            if (!ok) return;
+            const { error } = await supabase.rpc('admin_set_banned', { p_user_id: userId, p_banned: true });
+            if (error) showToast('Failed: ' + (error.message || 'Unknown'), 'error');
+            else { recordAudit('report_ban_user', 'user', userId); showToast('User banned', 'success'); await loadReports(reportsFilter === 'all' ? null : reportsFilter); renderReportsList(); await loadDashboardData(); renderNavTabs(); await loadUsers(); renderUsersList(); }
+            return;
+          }
+          if (action === 'delete-post') {
+            const postId = btn.dataset.reportPostId;
+            const ok = await showConfirm('Delete post', 'Permanently delete this feed post?');
+            if (!ok) return;
+            const { error } = await supabase.rpc('admin_delete_post', { p_post_id: postId });
+            if (error) showToast('Failed: ' + (error.message || 'Unknown'), 'error');
+            else { recordAudit('delete_post', 'post', postId); showToast('Post deleted', 'success'); await loadReports(reportsFilter === 'all' ? null : reportsFilter); renderReportsList(); await loadDashboardData(); renderNavTabs(); }
+            return;
+          }
+          if (action === 'delete-intent') {
+            const intentId = btn.dataset.reportIntentId;
+            const ok = await showConfirm('Delete board post', 'Permanently delete this board post?');
+            if (!ok) return;
+            const { error } = await supabase.rpc('admin_delete_intent', { p_intent_id: intentId });
+            if (error) showToast('Failed: ' + (error.message || 'Unknown'), 'error');
+            else { recordAudit('delete_intent', 'intent', intentId); showToast('Board post deleted', 'success'); await loadReports(reportsFilter === 'all' ? null : reportsFilter); renderReportsList(); await loadDashboardData(); renderNavTabs(); }
+            return;
+          }
+        });
+      });
+    }
+
+    async function loadBoardFlags(unreviewedOnly) {
+      if (!supabase) return [];
+      const { data, error } = await supabase.rpc('admin_get_flagged_intents', { p_limit: 100, p_offset: 0, p_unreviewed_only: !!unreviewedOnly });
+      if (error) { console.error('admin_get_flagged_intents', error); return []; }
+      boardFlags = data || [];
+      return boardFlags;
+    }
+
+    function renderBoardList() {
+      const tabsEl = document.getElementById('board-tabs');
+      const boardTabs = [{ id: 'all', label: 'All' }, { id: 'unreviewed', label: 'Unreviewed only' }];
+      if (tabsEl) {
+        tabsEl.innerHTML = boardTabs.map(t => `<button type="button" class="${t.id === boardFilter ? 'active' : ''}" data-board-filter="${t.id}">${t.label}</button>`).join('');
+        tabsEl.querySelectorAll('[data-board-filter]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            boardFilter = btn.dataset.boardFilter;
+            await loadBoardFlags(boardFilter === 'unreviewed');
+            renderBoardList();
+          });
+        });
+      }
+      const flags = Array.isArray(boardFlags) ? boardFlags : [];
+      const boardHintEl = document.getElementById('board-count-hint');
+      if (boardHintEl) boardHintEl.textContent = flags.length > 0 ? 'Showing ' + flags.length + ' flagged post' + (flags.length !== 1 ? 's' : '') + (flags.length >= 100 ? ' (max 100 loaded)' : '') : '';
+      const el = document.getElementById('board-list');
+      if (!el) return;
+      if (flags.length === 0) {
+        el.innerHTML = '<div class="empty-state-block"><div class="empty-icon" aria-hidden="true">📌</div><p class="empty-msg">' + (boardFilter === 'unreviewed' ? 'No unreviewed flagged posts.' : 'No flagged board posts.') + '</p></div>';
+        return;
+      }
+      el.innerHTML = flags.map(f => `
+        <div class="card">
+          <div class="card-body" style="flex:1;">
+            <div class="card-name">${escapeHtml((f.intent_content || '').slice(0, 120))}${(f.intent_content || '').length > 120 ? '…' : ''}</div>
+            <div class="card-meta">@${escapeHtml(f.author_username || '—')} · ${escapeHtml(f.flag_type || '')} · ${f.reviewed_at ? 'Reviewed' : 'Unreviewed'}</div>
+            <div class="card-badges" style="margin-top:8px;">
+              ${!f.reviewed_at ? `<button type="button" class="btn-sm success" data-flag-id="${f.flag_id}">Mark reviewed</button>` : ''}
+              ${f.intent_id ? `<button type="button" class="btn-sm danger" data-intent-id="${f.intent_id}" data-board-delete="1">Delete board post</button>` : ''}
+            </div>
+          </div>
+        </div>
+      `).join('');
+      el.querySelectorAll('[data-flag-id]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const { error } = await supabase.rpc('admin_review_intent_flag', { p_flag_id: btn.dataset.flagId });
+          if (error) showToast('Failed: ' + (error.message || 'Unknown'), 'error');
+          else { recordAudit('board_mark_reviewed', 'intent_flag', btn.dataset.flagId); showToast('Marked as reviewed', 'success'); await loadBoardFlags(boardFilter === 'unreviewed'); }
+          renderBoardList();
+          await loadDashboardData();
+          renderNavTabs();
+        });
+      });
+      el.querySelectorAll('[data-board-delete]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const intentId = btn.dataset.intentId;
+          if (!intentId) return;
+          const ok = await showConfirm('Delete board post', 'Permanently delete this board post?');
+          if (!ok) return;
+          const { error } = await supabase.rpc('admin_delete_intent', { p_intent_id: intentId });
+          if (error) showToast('Failed: ' + (error.message || 'Unknown'), 'error');
+          else { recordAudit('delete_intent', 'intent', intentId); showToast('Board post deleted', 'success'); await loadBoardFlags(boardFilter === 'unreviewed'); }
+          renderBoardList();
+          await loadDashboardData();
+          renderNavTabs();
+        });
+      });
+    }
+
+    async function loadVerifications() {
+      if (!supabase) return [];
+      const { data, error } = await supabase.rpc('admin_get_pending_verification_requests');
+      if (error) { console.error('admin_get_pending_verification_requests', error); return []; }
+      verifications = data || [];
+      return verifications;
+    }
+
+    function getFilteredVerifications() {
+      const q = (document.getElementById('verifications-search') || {}).value || '';
+      const query = q.toLowerCase().trim();
+      if (!query) return verifications;
+      return verifications.filter(v => {
+        const name = (v.name || '').toLowerCase();
+        const username = (v.username || '').toLowerCase();
+        const reason = (v.reason || '').toLowerCase();
+        return name.includes(query) || username.includes(query) || reason.includes(query);
+      });
+    }
+
+    function exportVerificationsCSV() {
+      const list = getFilteredVerifications();
+      const headers = ['Name', 'Username', 'Reason', 'Created'];
+      const rows = list.map(v => [
+        v.name || '',
+        v.username || '',
+        (v.reason || '').replace(/"/g, '""'),
+        v.created_at ? formatDate(v.created_at) : ''
+      ].map(c => '"' + String(c).replace(/"/g, '""') + '"').join(','));
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'verifications-' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Exported ' + list.length + ' verification requests', 'success');
+    }
+
+    function renderVerificationsList() {
+      const list = getFilteredVerifications();
+      const el = document.getElementById('verifications-list');
+      const query = (document.getElementById('verifications-search') || {}).value || '';
+      if (list.length === 0) {
+        el.innerHTML = '<div class="empty-state-block"><div class="empty-icon" aria-hidden="true">✓</div><p class="empty-msg">' + (query.trim() ? 'No verification requests match your search.' : 'No pending verification requests.') + '</p></div>';
+        return;
+      }
+      el.innerHTML = list.map(v => {
+        const initial = (v.name || v.username || '?').charAt(0).toUpperCase();
+        return `
+          <div class="card">
+            ${v.profile_image_url ? `<img class="card-avatar" src="${escapeHtml(v.profile_image_url)}" alt="" />` : `<div class="card-avatar placeholder">${initial}</div>`}
+            <div class="card-body">
+              <div class="card-name">${escapeHtml(v.name || '—')} @${escapeHtml(v.username || '—')}</div>
+              <div class="card-meta">${escapeHtml(v.reason || '')} · ${formatDate(v.created_at)}</div>
+              <div class="card-badges" style="margin-top:8px;">
+                <button type="button" class="btn-sm success" data-user-id="${v.user_id}" data-action="approve">Approve</button>
+                <button type="button" class="btn-sm danger" data-user-id="${v.user_id}" data-action="reject">Reject</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      el.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const userId = btn.dataset.userId;
+          const isApprove = btn.dataset.action === 'approve';
+          const rpc = isApprove ? 'admin_set_verification' : 'admin_reject_verification_request';
+          const params = isApprove ? { p_user_id: userId, p_verified: true } : { p_user_id: userId };
+          const { error } = await supabase.rpc(rpc, params);
+          if (error) showToast('Failed: ' + (error.message || 'Unknown'), 'error');
+          else { showToast(isApprove ? 'Verification approved' : 'Verification rejected', 'success'); await loadVerifications(); }
+          renderVerificationsList();
+          await loadDashboardData();
+          renderNavTabs();
+        });
+      });
+    }
+
+    async function loadVersions() {
+      if (!supabase) return [];
+      const { data, error } = await supabase.rpc('get_app_version_report');
+      if (error) { console.error('get_app_version_report', error); return []; }
+      appVersionReport = data || [];
+      versionsLastLoadedAt = new Date();
+      return appVersionReport;
+    }
+
+    function renderVersionsTable() {
+      const lastLoadedEl = document.getElementById('versions-last-loaded');
+      if (lastLoadedEl) lastLoadedEl.textContent = versionsLastLoadedAt ? 'Last loaded: ' + versionsLastLoadedAt.toLocaleString() : '';
+      const tableWrap = document.querySelector('#panel-versions .table-wrap');
+      const el = document.getElementById('versions-table');
+      if (appVersionReport.length === 0) {
+        if (tableWrap) tableWrap.innerHTML = '<div class="empty-state-block"><div class="empty-icon" aria-hidden="true">📱</div><p class="empty-msg">No version reports yet.</p></div>';
+        return;
+      }
+      let tableEl = el;
+      if (!tableEl && tableWrap) {
+        tableWrap.innerHTML = '<table class="data-table" id="versions-table"></table>';
+        tableEl = document.getElementById('versions-table');
+      }
+      if (tableEl) tableEl.innerHTML = `
+        <thead><tr><th>User</th><th>Name</th><th>Email</th><th>App version</th><th>Reported at</th></tr></thead>
+        <tbody>
+          ${appVersionReport.map(r => `
+            <tr>
+              <td>${escapeHtml((r.user_id || '').slice(0, 8))}…</td>
+              <td>${escapeHtml(r.name || '—')}</td>
+              <td>${escapeHtml(r.email || '—')}</td>
+              <td>${escapeHtml(r.app_version || '—')}</td>
+              <td>${formatDate(r.reported_at)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      `;
+    }
+
+    async function loadData() {
+      try {
+        const [stats, apps] = await Promise.all([loadStats(), loadApplications()]);
+        applications = Array.isArray(apps) ? apps : [];
+        await loadDashboardData();
+        renderNavTabs();
+        renderStats(stats || {});
+        renderTabs();
+        renderList();
+      } catch (err) {
+        console.error('loadData', err);
+        showToast('Failed to load data: ' + (err && err.message ? err.message : 'Unknown error'), 'error');
+        renderNavTabs();
+        renderStats({});
+        renderTabs();
+        renderList();
+      }
+    }
+
+    function renderStats(stats) {
+      const el = document.getElementById('stats');
+      if (!el) return;
+      const apps = Array.isArray(applications) ? applications : [];
+      const total = stats.total ?? apps.length;
+      const pending = stats.pending_count ?? stats.pending ?? 0;
+      const approved = stats.approved_count ?? stats.approved ?? 0;
+      const rejected = stats.rejected_count ?? stats.rejected ?? 0;
+      const waitlisted = stats.waitlisted_count ?? stats.waitlisted ?? 0;
+      const suspended = stats.suspended_count ?? stats.suspended ?? 0;
+      el.innerHTML = `
+        <div class="stat"><div class="value">${total}</div><div class="label">Total</div></div>
+        <div class="stat"><div class="value">${pending}</div><div class="label">Pending</div></div>
+        <div class="stat"><div class="value">${approved}</div><div class="label">Approved</div></div>
+        <div class="stat"><div class="value">${rejected}</div><div class="label">Rejected</div></div>
+        <div class="stat"><div class="value">${waitlisted}</div><div class="label">Waitlisted</div></div>
+        <div class="stat"><div class="value">${suspended}</div><div class="label">Suspended</div></div>
+      `;
+    }
+
+    function renderTabs() {
+      const el = document.getElementById('tabs');
+      if (!el) return;
+      const filters = Array.isArray(statusFilters) ? statusFilters : [];
+      el.innerHTML = filters.map(f => `
+        <button type="button" class="${f.id === currentFilter ? 'active' : ''}" data-filter="${f.id}">${f.label}</button>
+      `).join('');
+      el.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          currentFilter = btn.dataset.filter;
+          renderTabs();
+          renderList();
+        });
+      });
+    }
+
+    function filteredApps() {
+      const apps = Array.isArray(applications) ? applications : [];
+      if (currentFilter === 'all') return apps;
+      return apps.filter(a => statusToFilterId(a.status) === currentFilter);
+    }
+
+    function getApplicationSearchQuery() {
+      const el = document.getElementById('applications-search');
+      return (el && el.value.trim().toLowerCase()) || '';
+    }
+    function getCombinedFollowersFilter() {
+      const el = document.getElementById('applications-combined-followers');
+      return (el && el.value.trim()) || '';
+    }
+
+    function filteredAndSortedApps() {
+      let list = filteredApps();
+      const q = getApplicationSearchQuery();
+      if (q) {
+        list = list.filter(a => {
+          const name = (a.name || '').toLowerCase();
+          const username = (a.username || '').toLowerCase();
+          const email = (a.email || '').toLowerCase();
+          const niche = (a.niche || '').toLowerCase();
+          return name.includes(q) || username.includes(q) || email.includes(q) || niche.includes(q);
+        });
+      }
+      const combinedFilter = getCombinedFollowersFilter();
+      if (combinedFilter) {
+        list = list.filter(a => (a.combined_followers_bracket || '') === combinedFilter);
+      }
+      const sort = (document.getElementById('applications-sort') && document.getElementById('applications-sort').value) || applicationSortOrder;
+      applicationSortOrder = sort;
+      if (sort === 'newest') list = [...list].sort((a, b) => new Date(b.application_date || 0) - new Date(a.application_date || 0));
+      else if (sort === 'oldest') list = [...list].sort((a, b) => new Date(a.application_date || 0) - new Date(b.application_date || 0));
+      else if (sort === 'followers') list = [...list].sort((a, b) => (b.follower_count || 0) - (a.follower_count || 0));
+      else if (sort === 'name') list = [...list].sort((a, b) => (a.name || a.username || '').localeCompare(b.name || b.username || ''));
+      else if (sort === 'status') list = [...list].sort((a, b) => (a.status || '').localeCompare(b.status || ''));
+      return list;
+    }
+
+    function exportApplicationsCSV() {
+      const list = filteredAndSortedApps();
+      const headers = ['Name', 'Username', 'Email', 'Niche', 'Followers', 'Combined followers', 'Status', 'Applied'];
+      const rows = list.map(a => [
+        a.name || '',
+        a.username || '',
+        a.email || '',
+        a.niche || '',
+        String(a.follower_count ?? ''),
+        combinedFollowersLabel(a.combined_followers_bracket),
+        a.status || '',
+        a.application_date ? formatDateShort(a.application_date) : ''
+      ].map(c => '"' + String(c).replace(/"/g, '""') + '"').join(','));
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'applications-' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Exported ' + list.length + ' applications', 'success');
+    }
+
+    function renderList() {
+      const list = filteredAndSortedApps();
+      const el = document.getElementById('list');
+      if (list.length === 0) {
+        el.innerHTML = '<div class="empty-state-block"><div class="empty-icon" aria-hidden="true">📄</div><p class="empty-msg">No applications in this filter.</p></div>';
+        return;
+      }
+      el.innerHTML = list.map(app => {
+        const initial = (app.name || app.username || '?').charAt(0).toUpperCase();
+        const platforms = parsePlatforms(app.platforms);
+        const isBrand = (app.application_type || '').toLowerCase() === 'brand';
+        const appliedStr = app.application_date ? formatDateShort(app.application_date) : '';
+        return `
+          <div class="card" data-id="${app.id}">
+            ${app.profile_image_url
+              ? `<img class="card-avatar" src="${app.profile_image_url}" alt="" />`
+              : `<div class="card-avatar placeholder">${initial}</div>`}
+            <div class="card-body">
+              <div class="card-name">${escapeHtml(app.name || '—')}</div>
+              <div class="card-meta">@${escapeHtml(app.username || '—')} · ${escapeHtml(app.niche || 'No niche')} · ${formatFollowers(app.follower_count)} followers${app.combined_followers_bracket ? ' · ' + escapeHtml(combinedFollowersLabel(app.combined_followers_bracket)) + ' combined' : ''}</div>
+              <div class="card-badges">
+                ${platforms.length ? platforms.map(p => `<span class="platform-tag">${escapeHtml(p)}</span>`).join('') : ''}
+                <span class="badge ${getStatusBadgeClass(app.status)}">${escapeHtml((app.status || 'submitted').replace(/_/g, ' '))}</span>
+                ${isBrand ? '<span class="badge brand">Brand</span>' : ''}
+                ${appliedStr ? `<span class="card-date">Applied ${appliedStr}</span>` : ''}
+              </div>
+            </div>
+            <span class="card-chevron" aria-hidden="true">›</span>
+          </div>
+        `;
+      }).join('');
+      el.querySelectorAll('.card').forEach(card => {
+        card.addEventListener('click', () => openDetail(card.dataset.id));
+      });
+    }
+
+    document.getElementById('applications-search')?.addEventListener('input', () => renderList());
+    document.getElementById('applications-sort')?.addEventListener('change', () => renderList());
+    document.getElementById('applications-combined-followers')?.addEventListener('change', () => renderList());
+    document.getElementById('applications-export')?.addEventListener('click', () => exportApplicationsCSV());
+
+    function openDetail(id) {
+      if (!id) return;
+      const app = applications.find(a => a.id === id);
+      if (!app) return;
+      const platforms = parsePlatforms(app.platforms);
+      const isBrand = (app.application_type || '').toLowerCase() === 'brand';
+      const hasSocial = !!(app.instagram_username && app.instagram_username.trim());
+      const body = document.getElementById('modal-body');
+      body.innerHTML = `
+        <div class="profile-header">
+          ${app.profile_image_url
+            ? `<img class="avatar" src="${app.profile_image_url}" alt="" />`
+            : `<div class="avatar placeholder">${(app.name || app.username || '?').charAt(0).toUpperCase()}</div>`}
+          <p class="name">${escapeHtml(app.name || '—')}</p>
+          <p class="handle">@${escapeHtml(app.username || '—')} <button type="button" class="btn-copy" data-field="handle">Copy</button></p>
+          <div class="profile-header badges">
+            <span class="badge ${getStatusBadgeClass(app.status)}">${escapeHtml(app.status || 'submitted')}</span>
+            ${isBrand ? '<span class="badge brand">Brand</span>' : ''}
+          </div>
+        </div>
+
+        ${isBrand && (app.application_company_name || app.application_company_email || app.why_creators) ? `
+        <div class="detail-section">
+          <div class="detail-section-title">Brand details</div>
+          <div class="detail-block">
+            ${app.application_company_name ? `<div class="detail-row"><span class="icon">🏢</span><span class="label">Company</span><span class="value">${escapeHtml(app.application_company_name)}</span></div>` : ''}
+            ${app.application_company_email ? `<div class="detail-row"><span class="icon">✉️</span><span class="label">Company email</span><span class="value">${escapeHtml(app.application_company_email)}</span></div>` : ''}
+            ${app.why_creators && app.why_creators.trim() ? `<div class="detail-row"><span class="label">Why work with creators?</span><span class="value">${escapeHtml(app.why_creators)}</span></div>` : ''}
+          </div>
+        </div>` : ''}
+
+        ${app.bio && app.bio.trim() ? `
+        <div class="detail-section">
+          <div class="detail-section-title">About</div>
+          <div class="detail-block">${escapeHtml(app.bio)}</div>
+        </div>` : ''}
+
+        <div class="detail-section">
+          <div class="detail-section-title">Social Media Accounts</div>
+          <div class="detail-block">
+            ${hasSocial
+              ? `<div class="detail-row"><span class="icon">📷</span><span class="label">Instagram</span><span class="value">${escapeHtml((app.instagram_username || '').replace(/^@?/, '@'))}</span></div>`
+              : '<div class="empty-state">No social accounts connected</div>'}
+          </div>
+        </div>
+
+        ${(app.why_join || app.what_to_offer || app.collaboration_goals) ? `
+        <div class="detail-section">
+          <div class="detail-section-title">Application Answers</div>
+          <div class="detail-block">
+            ${app.why_join ? `<div class="detail-row"><span class="label">Why join?</span><span class="value">${escapeHtml(app.why_join)}</span></div>` : ''}
+            ${app.what_to_offer ? `<div class="detail-row"><span class="label">What to offer?</span><span class="value">${escapeHtml(app.what_to_offer)}</span></div>` : ''}
+            ${app.collaboration_goals ? `<div class="detail-row"><span class="label">Goals?</span><span class="value">${escapeHtml(app.collaboration_goals)}</span></div>` : ''}
+          </div>
+        </div>` : ''}
+
+        <div class="detail-section">
+          <div class="detail-section-title">Details</div>
+          <div class="detail-block">
+            <div class="detail-row"><span class="icon">✉️</span><span class="label">Email</span><span class="value value-wrap">${escapeHtml(app.email || '—')} <button type="button" class="btn-copy" data-field="email">Copy</button></span></div>
+            ${app.phone && app.phone.trim() ? `<div class="detail-row"><span class="icon">📞</span><span class="label">Phone</span><span class="value">${escapeHtml(app.phone)}</span></div>` : ''}
+            <div class="detail-row"><span class="icon">🏷️</span><span class="label">Niche</span><span class="value">${escapeHtml(app.niche && app.niche.trim() ? app.niche : 'Not provided')}</span></div>
+            <div class="detail-row"><span class="icon">👥</span><span class="label">Followers</span><span class="value">${formatFollowers(app.follower_count)}</span></div>
+            <div class="detail-row"><span class="icon">📊</span><span class="label">Combined followers</span><span class="value">${escapeHtml(combinedFollowersLabel(app.combined_followers_bracket))}</span></div>
+            <div class="detail-row"><span class="icon">📅</span><span class="label">Applied</span><span class="value">${formatDate(app.application_date)}</span></div>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <div class="detail-section-title">Platforms</div>
+          <div class="detail-block">
+            ${platforms.length ? platforms.map(p => `<span class="platform-tag">${escapeHtml(p)}</span>`).join('') : '<span class="empty-state">None</span>'}
+          </div>
+        </div>
+
+        ${app.referrer_username && app.referrer_username.trim() ? `
+        <div class="detail-section">
+          <div class="detail-section-title">Referral</div>
+          <div class="detail-block">Referred by @${escapeHtml(app.referrer_username.replace(/^@/, ''))}</div>
+        </div>` : ''}
+
+        <div class="detail-section" id="application-review-section" style="display:none;">
+          <div class="detail-section-title">Review</div>
+          <div class="detail-block" id="application-review-info"></div>
+        </div>
+
+        <div class="detail-section">
+          <label class="notes-label">Notes for this review (user never sees this)</label>
+          <textarea class="notes-input" id="review-notes" placeholder="Internal notes...">${escapeHtml(app.review_notes || '')}</textarea>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="reject" data-action="reject">Reject</button>
+          <button type="button" class="approve" data-action="approve">Approve</button>
+        </div>
+        <div class="actions-row2">
+          <button type="button" data-action="waitlist">Add to Waitlist</button>
+          <button type="button" data-action="suspend">Suspend</button>
+        </div>
+      `;
+
+      (async () => {
+        const section = body.querySelector('#application-review-section');
+        const infoEl = body.querySelector('#application-review-info');
+        if (!section || !infoEl || !supabase) return;
+        try {
+          const { data, error } = await supabase.rpc('admin_get_application_review', { p_application_id: id });
+          if (error || !data || data.length === 0) return;
+          const row = data[0];
+          const decidedStr = row.decided_at ? formatDate(row.decided_at) : '';
+          const byStr = row.admin_email ? escapeHtml(row.admin_email) : 'Admin';
+          const decisionStr = row.decision ? ' · ' + escapeHtml(String(row.decision)) : '';
+          infoEl.innerHTML = 'Decided by ' + byStr + (decidedStr ? ' on ' + decidedStr : '') + decisionStr;
+          section.style.display = '';
+        } catch (_) {}
+      })();
+
+      const notesEl = body.querySelector('#review-notes');
+      const getNotes = () => (notesEl && notesEl.value.trim()) || null;
+
+      body.querySelectorAll('.btn-copy[data-field]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const field = btn.dataset.field;
+          if (field === 'email') copyToClipboard(app.email || '');
+          if (field === 'handle') { const h = (app.username || '').trim(); if (h) copyToClipboard(h.startsWith('@') ? h : '@' + h); }
+        });
+      });
+
+      body.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const action = btn.dataset.action;
+          if (btn.disabled) return;
+          const isDestructive = action === 'reject' || action === 'suspend';
+          if (isDestructive) {
+            const ok = await showConfirm(
+              action === 'reject' ? 'Reject application' : 'Suspend application',
+              action === 'reject' ? 'Reject this application? The user will be notified.' : 'Suspend this application? You can add notes for internal use.'
+            );
+            if (!ok) return;
+          }
+          btn.disabled = true;
+          const notes = getNotes();
+          const rpc = action === 'approve' ? 'admin_approve_application'
+            : action === 'reject' ? 'admin_reject_application'
+            : action === 'waitlist' ? 'admin_waitlist_application'
+            : 'admin_suspend_application';
+          const param = action === 'approve' || action === 'suspend' ? 'p_notes' : 'p_reason';
+          try {
+            const { error } = await supabase.rpc(rpc, {
+              p_application_id: id,
+              [param]: notes
+            });
+            if (error) {
+              showToast('Action failed: ' + (error.message || 'Unknown error'), 'error');
+              return;
+            }
+            recordAudit('application_' + action, 'application', id);
+            showToast('Application updated', 'success');
+            document.getElementById('modal-overlay').classList.add('hidden');
+            document.removeEventListener('keydown', onModalKeydown);
+            if (lastFocusedBeforeModal && lastFocusedBeforeModal.focus) lastFocusedBeforeModal.focus();
+            loadData();
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
+
+      document.getElementById('modal-overlay').classList.remove('hidden');
+      lastFocusedBeforeModal = document.activeElement;
+      document.addEventListener('keydown', onModalKeydown);
+      const closeBtn = document.getElementById('modal-close');
+      if (closeBtn) closeBtn.focus();
+    }
+
+    async function loadSettingsMinVersion() {
+      const input = document.getElementById('settings-min-version');
+      const statusEl = document.getElementById('settings-version-status');
+      if (!input || !supabase) return;
+      try {
+        const { data, error } = await supabase.rpc('admin_get_app_config', { p_key: 'minimum_app_version' });
+        if (error) throw error;
+        input.value = (data != null && data !== '') ? String(data) : '0.0.0';
+        if (statusEl) statusEl.textContent = '';
+      } catch (_) {
+        if (statusEl) statusEl.textContent = 'Could not load.';
+      }
+    }
+    document.getElementById('settings-save-version')?.addEventListener('click', async () => {
+      const input = document.getElementById('settings-min-version');
+      const statusEl = document.getElementById('settings-version-status');
+      if (!input || !supabase) return;
+      const val = (input.value || '').trim() || '0.0.0';
+      statusEl.textContent = 'Saving…';
+      try {
+        const { error } = await supabase.rpc('admin_set_app_config', { p_key: 'minimum_app_version', p_value: val });
+        if (error) throw error;
+        statusEl.textContent = 'Saved.';
+      } catch (e) {
+        statusEl.textContent = 'Failed: ' + (e && e.message ? e.message : 'Unknown');
+      }
+    });
+    document.getElementById('settings-load-audit')?.addEventListener('click', async () => {
+      const el = document.getElementById('settings-audit-list');
+      if (!el || !supabase) return;
+      el.innerHTML = '<p style="color:var(--textSecondary);">Loading…</p>';
+      try {
+        const { data, error } = await supabase.rpc('admin_get_audit_log', { p_limit: 100 });
+        if (error) throw error;
+        const rows = data || [];
+        if (rows.length === 0) { el.innerHTML = '<p style="color:var(--textSecondary);">No audit entries.</p>'; return; }
+        el.innerHTML = '<table class="data-table"><thead><tr><th>When</th><th>Admin</th><th>Action</th><th>Target</th></tr></thead><tbody>' +
+          rows.map(r => '<tr><td>' + formatDate(r.created_at) + '</td><td>' + escapeHtml(r.admin_email || '—') + '</td><td>' + escapeHtml(r.action || '') + '</td><td>' + escapeHtml([r.target_type, r.target_id].filter(Boolean).join(' ') || '—') + '</td></tr>').join('') + '</tbody></table>';
+      } catch (e) {
+        el.innerHTML = '<p style="color:var(--error);">Failed to load: ' + escapeHtml(e && e.message ? e.message : String(e)) + '</p>';
+      }
+    });
+
+    // ========== Invite Creator ==========
+    const inviteHistory = [];
+    
+    function renderInviteHistory() {
+      const el = document.getElementById('invite-history-list');
+      if (!el) return;
+      if (inviteHistory.length === 0) {
+        el.innerHTML = 'No invites sent yet this session.';
+        return;
+      }
+      el.innerHTML = inviteHistory.map(h => `
+        <div style="padding: 8px 0; border-bottom: 1px solid var(--border);">
+          <strong>${escapeHtml(h.name)}</strong> &lt;${escapeHtml(h.email)}&gt;
+          <span style="color: ${h.success ? 'var(--success)' : 'var(--error)'};">${h.success ? '✓ Sent' : '✗ Failed'}</span>
+          <span style="margin-left: 8px; opacity: 0.6;">${h.time}</span>
+        </div>
+      `).join('');
+    }
+    
+    document.getElementById('invite-send-btn')?.addEventListener('click', async () => {
+      const emailInput = document.getElementById('invite-email');
+      const nameInput = document.getElementById('invite-name');
+      const nicheInput = document.getElementById('invite-niche');
+      const variantSelect = document.getElementById('invite-variant');
+      const statusEl = document.getElementById('invite-status');
+      const btn = document.getElementById('invite-send-btn');
+      
+      const email = (emailInput?.value || '').trim();
+      const name = (nameInput?.value || '').trim();
+      const niche = (nicheInput?.value || '').trim();
+      const variant = variantSelect?.value || 'creator';
+      
+      if (!email || !name) {
+        statusEl.innerHTML = '<span style="color: var(--error);">Please enter both email and name.</span>';
+        return;
+      }
+      
+      if (!supabase) {
+        statusEl.innerHTML = '<span style="color: var(--error);">Not connected to Supabase.</span>';
+        return;
+      }
+      
+      btn.classList.add('loading');
+      btn.disabled = true;
+      statusEl.innerHTML = '<span style="color: var(--textSecondary);">Sending invite...</span>';
+      
+      try {
+        // Get current session JWT to authenticate as admin
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          statusEl.innerHTML = '<span style="color: var(--error);">Not logged in. Please refresh and log in again.</span>';
+          inviteHistory.unshift({ email, name, success: false, time: new Date().toLocaleTimeString() });
+          btn.classList.remove('loading');
+          btn.disabled = false;
+          return;
+        }
+        
+        // Call Edge Function directly with JWT auth
+        const supabaseUrl = localStorage.getItem(STORAGE_URL) || '';
+        const response = await fetch(`${supabaseUrl}/functions/v1/send-creator-invite`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ to: email, name, niche: niche || undefined, variant })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.ok) {
+          statusEl.innerHTML = `<span style="color: var(--success);">✓ Invite sent to ${escapeHtml(email)}</span>`;
+          inviteHistory.unshift({ email, name, success: true, time: new Date().toLocaleTimeString() });
+          emailInput.value = '';
+          nameInput.value = '';
+          nicheInput.value = '';
+        } else {
+          statusEl.innerHTML = `<span style="color: var(--error);">Failed: ${escapeHtml(data?.error || 'Unknown error')}</span>`;
+          inviteHistory.unshift({ email, name, success: false, time: new Date().toLocaleTimeString() });
+        }
+      } catch (err) {
+        statusEl.innerHTML = `<span style="color: var(--error);">Error: ${escapeHtml(err.message || String(err))}</span>`;
+        inviteHistory.unshift({ email, name, success: false, time: new Date().toLocaleTimeString() });
+      } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        renderInviteHistory();
+      }
+    });
+
+    document.getElementById('signout-btn')?.addEventListener('click', async () => {
+      const ok = await showConfirm('Sign out', 'Are you sure you want to sign out?');
+      if (!ok) return;
+      if (idleTimerId) { clearTimeout(idleTimerId); idleTimerId = null; }
+      if (supabase) await supabase.auth.signOut();
+      showSection('login-section');
+    });
+    document.getElementById('signout-clear-config-btn')?.addEventListener('click', async () => {
+      const ok = await showConfirm('Sign out and clear config', 'Sign out and remove saved Supabase URL/key from this device? You will need to re-enter them next time.');
+      if (!ok) return;
+      if (idleTimerId) { clearTimeout(idleTimerId); idleTimerId = null; }
+      if (supabase) await supabase.auth.signOut();
+      try {
+        localStorage.removeItem(STORAGE_URL);
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (_) {}
+      showSection('config-section');
+      document.getElementById('supabase-url').value = '';
+      document.getElementById('supabase-key').value = '';
+    });
+    document.getElementById('shared-device-banner-dismiss')?.addEventListener('click', () => {
+      try {
+        sessionStorage.setItem('admin_shared_banner_dismissed', '1');
+        document.getElementById('shared-device-banner')?.classList.add('hidden');
+      } catch (_) {}
+    });
+    document.getElementById('refresh-all-btn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('refresh-all-btn');
+      const headerBtn = document.getElementById('header-refresh-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Refreshing…'; }
+      if (headerBtn) { headerBtn.disabled = true; headerBtn.textContent = 'Refreshing…'; }
+      try {
+        await loadData();
+        const activePanel = document.querySelector('.panel.active');
+        if (activePanel) {
+          const id = activePanel.id.replace('panel-', '');
+          await showPanel(id);
+        }
+        showToast('Data refreshed', 'success');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Refresh dashboard & current panel'; }
+        const headerBtn = document.getElementById('header-refresh-btn');
+        if (headerBtn) { headerBtn.disabled = false; headerBtn.textContent = 'Refresh'; }
+      }
+    });
+
+    // On load: use server config or site config.js so Connect project is automatic
+    (async function init() {
+      // 1) Pre-fill from API (Vercel env) if set
+      try {
+        const configRes = await fetch('/api/config').catch(() => null);
+        if (configRes && configRes.ok) {
+          const data = await configRes.json();
+          const serverUrl = (data.SUPABASE_URL || '').trim();
+          const serverKey = (data.SUPABASE_ANON_KEY || '').trim();
+          if (serverUrl && serverKey) {
+            localStorage.setItem(STORAGE_URL, serverUrl);
+            localStorage.setItem(STORAGE_KEY, serverKey);
+          }
+        }
+      } catch (_) {}
+
+      // 2) Fallback: same config as signup (config.js sets window.__SUPABASE_URL__ / __SUPABASE_ANON_KEY__)
+      let url = (localStorage.getItem(STORAGE_URL) || '').trim();
+      let key = (localStorage.getItem(STORAGE_KEY) || '').trim();
+      if (!url || !key) {
+        const siteUrl = (typeof window.__SUPABASE_URL__ === 'string' && window.__SUPABASE_URL__) ? window.__SUPABASE_URL__.trim() : '';
+        const siteKey = (typeof window.__SUPABASE_ANON_KEY__ === 'string' && window.__SUPABASE_ANON_KEY__) ? window.__SUPABASE_ANON_KEY__.trim() : '';
+        if (siteUrl && siteKey) {
+          localStorage.setItem(STORAGE_URL, siteUrl);
+          localStorage.setItem(STORAGE_KEY, siteKey);
+          url = siteUrl;
+          key = siteKey;
+        }
+      }
+
+      const urlEl = document.getElementById('supabase-url');
+      const keyEl = document.getElementById('supabase-key');
+      if (urlEl) urlEl.value = url;
+      if (keyEl) keyEl.value = key;
+      if (!url || !key) {
+        showSection('config-section');
+        return;
+      }
+      try {
+        supabase = window.supabase.createClient(url, key);
+      } catch (e) {
+        showSection('login-section');
+        showLoginError('Connection failed. Use "Change project config" to fix URL and key, then try again.');
+        return;
+      }
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          startIdleTimer();
+          verifyAdmin().then(function (isAdmin) {
+            if (!isAdmin) {
+              supabase.auth.signOut().then(function () {
+                showLoginError('Access denied. Only users in the admin list can access this panel.');
+                showSection('login-section');
+              });
+              return;
+            }
+            loadData().then(() => {
+              try {
+                showSection('main-section');
+              } catch (e) {
+                console.error('Admin panel init', e);
+                showToast('Something went wrong. Try reloading the page.', 'error');
+                showSection('main-section');
+              }
+            }).catch((err) => {
+              console.error('loadData', err);
+              showSection('login-section');
+            });
+          }).catch(function () {
+            showSection('login-section');
+          });
+        } else {
+          showSection('login-section');
+        }
+      }).catch(() => {
+        showSection('login-section');
+      });
+      document.getElementById('main-section')?.addEventListener('input', (e) => {
+        if (e.target.id === 'users-search') renderUsersList();
+      });
+      initConfirmModal();
+    })();
+
+</script>
+</body>
+</html>

@@ -1,38 +1,31 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin, requirePermission } from '@/lib/admin-auth'
 import { getServiceRoleClient } from '@/lib/supabase-service'
 import { ADMIN_PERMISSIONS } from '@/lib/admin-rbac'
 import { triggerWelcomeEmailForApplication } from '@/lib/trigger-welcome-email'
 import { clearApplicationsCache } from '@/lib/admin-applications-cache'
 import { adminSuccess, adminError, getAdminRequestId, adminErrorFromResponse } from '@/lib/admin-response'
-import { writeAuditLog } from '@/lib/audit-server'
 
 export const dynamic = 'force-dynamic'
 
-/** POST - Single application action (approve/reject/waitlist/suspend). Direct table update (RPC bypassed for serverless reliability). */
+/** POST - Single application action (approve/reject/waitlist/suspend). Conflict-safe when updated_at provided; 409 if changed. When updated_at omitted, fetches current row or updates directly. */
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const resolvedParams = await params
-  console.log('[action] POST handler reached, id:', resolvedParams?.id)
   const requestId = getAdminRequestId(req)
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  console.log('[action] service key present:', !!serviceKey, 'length:', serviceKey?.length ?? 0)
   try {
     const result = await requireAdmin(req)
     if ('response' in result) return adminErrorFromResponse(result.response, requestId)
     const perm = requirePermission(result, ADMIN_PERMISSIONS.mutate_applications)
     if (perm) return adminErrorFromResponse(perm, requestId)
-    const applicationId = resolvedParams.id
+
+    const { id: applicationId } = await params
     if (!applicationId) {
       console.error('[action route] missing application id in params')
       return adminError('Missing application id', 400, requestId)
     }
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-    if (!uuidRegex.test(applicationId)) {
-      return adminError('Invalid application id format', 400, requestId)
-    }
+
     const body = await req.json().catch(() => ({}))
     const { action, updated_at } = body
     if (!action || !['approve', 'reject', 'waitlist', 'suspend'].includes(action)) {
@@ -45,41 +38,73 @@ export async function POST(
       return adminError('Service unavailable (missing SUPABASE_SERVICE_ROLE_KEY)', 500, requestId)
     }
 
-    // DB constraint applications_status_check allows: 'pending', 'approved', 'rejected', 'waitlist', 'suspended'
-    const newStatus =
-      action === 'approve'
-        ? 'approved'
-        : action === 'reject'
-          ? 'rejected'
-          : action === 'waitlist'
-            ? 'waitlist'
-            : action === 'suspend'
-              ? 'suspended'
-              : null
-    if (newStatus === null) {
-      return adminError('Invalid action', 400, requestId)
+    const newStatus = action === 'approve' ? 'ACTIVE' : action === 'reject' ? 'REJECTED' : action === 'waitlist' ? 'WAITLISTED' : 'SUSPENDED'
+
+    let resolvedUpdatedAt: string | null = typeof updated_at === 'string' ? updated_at : null
+
+    if (resolvedUpdatedAt == null) {
+      const { data: row, error: fetchError } = await supabase
+        .from('applications')
+        .select('updated_at')
+        .eq('id', applicationId)
+        .maybeSingle()
+      if (fetchError) {
+        console.error('[action route] fetch updated_at error:', JSON.stringify(fetchError))
+        return NextResponse.json(
+          { ok: false, error: fetchError.message ?? 'Failed to fetch application', detail: fetchError, request_id: requestId },
+          { status: 500 }
+        )
+      }
+      if (row?.updated_at != null) resolvedUpdatedAt = typeof row.updated_at === 'string' ? row.updated_at : (row.updated_at as Date)?.toISOString?.() ?? null
     }
 
-    console.log('[action] applicationId:', applicationId)
-    const payload: Record<string, unknown> = {
-      status: newStatus,
-      updated_at: new Date().toISOString(),
-      status_changed_by_admin_id: result.user.id,
+    if (resolvedUpdatedAt != null) {
+      const { data: row, error } = await supabase.rpc('admin_application_action_v2', {
+        p_application_id: applicationId,
+        p_updated_at: resolvedUpdatedAt,
+        p_action: action,
+      })
+      if (error) {
+        console.error('[action route] admin_application_action_v2 RPC error:', JSON.stringify(error))
+        const code = (error as { code?: string }).code
+        const msg =
+          code === '42883'
+            ? 'Database function missing. Run Supabase migrations (admin_application_action_v2).'
+            : (error as { message?: string }).message ?? error?.toString?.() ?? 'Operation failed. Please try again.'
+        return NextResponse.json(
+          { ok: false, error: msg, detail: error, request_id: requestId },
+          { status: 500 }
+        )
+      }
+      if (row == null) {
+        return adminError('Record changed by another moderator', 409, requestId)
+      }
+      if (action === 'approve') {
+        try {
+          void triggerWelcomeEmailForApplication(supabase, applicationId)
+        } catch (e) {
+          console.error('[action route] triggerWelcomeEmailForApplication (non-fatal):', e)
+        }
+      }
+      clearApplicationsCache()
+      return adminSuccess({ ok: true }, requestId)
     }
+
+    const hasCol = await hasUpdatedAtColumn(supabase)
+    const payload: Record<string, unknown> = { status: newStatus }
+    if (hasCol) payload.updated_at = new Date().toISOString()
     const { error } = await supabase.from('applications').update(payload).eq('id', applicationId).select('id')
     if (error) {
-      console.error('[action route] direct update error:', JSON.stringify(error))
-      return adminError((error as { message?: string }).message ?? 'Operation failed. Please try again.', 500, requestId)
-    }
-    try {
-      await writeAuditLog(supabase, req, result.user, {
-        action: 'application_status_change',
-        target_type: 'application',
-        target_id: applicationId,
-        details: { new_status: newStatus, action },
-      })
-    } catch (e) {
-      console.error('[action route] writeAuditLog (non-fatal):', e)
+      console.error('[action route] fallback update error:', JSON.stringify(error))
+      const code = (error as { code?: string }).code
+      const msg =
+        code === '42703'
+          ? 'Database column missing. Run Supabase migrations (applications.updated_at).'
+          : (error as { message?: string }).message ?? error?.toString?.() ?? 'Operation failed. Please try again.'
+      return NextResponse.json(
+        { ok: false, error: msg, detail: error, request_id: requestId },
+        { status: 500 }
+      )
     }
     if (action === 'approve') {
       try {
@@ -88,16 +113,26 @@ export async function POST(
         console.error('[action route] triggerWelcomeEmailForApplication (non-fatal):', e)
       }
     }
-    try {
-      clearApplicationsCache()
-    } catch (e) {
-      console.error('[action route] clearApplicationsCache (non-fatal):', e)
-    }
+    clearApplicationsCache()
     return adminSuccess({ ok: true }, requestId)
   } catch (err: unknown) {
-    const ex = err as { message?: string }
+    const ex = err as { message?: string; code?: string }
     console.error('[action route] unhandled error:', err)
     const msg = ex?.message ?? (typeof err === 'string' ? err : String(err)) ?? 'Unknown error'
-    return adminError(msg || 'Operation failed. Please try again.', 500, requestId)
+    return NextResponse.json(
+      {
+        ok: false,
+        error: msg,
+        detail: err != null ? (typeof err === 'object' && 'message' in err ? { message: (err as { message?: string }).message, code: (err as { code?: string }).code } : err) : undefined,
+        request_id: requestId,
+      },
+      { status: 500 }
+    )
   }
+}
+
+async function hasUpdatedAtColumn(supabase: Awaited<ReturnType<typeof getServiceRoleClient>>): Promise<boolean> {
+  if (!supabase) return false
+  const { error } = await supabase.from('applications').select('updated_at').limit(1).maybeSingle()
+  return !error
 }

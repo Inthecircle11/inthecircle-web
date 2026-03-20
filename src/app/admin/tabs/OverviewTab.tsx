@@ -61,7 +61,8 @@ export function OverviewTab({
   users,
   applications,
 }: OverviewTabProps) {
-  const maxWeekly = Math.max(1, ...signupsByWeek.map((w) => w.count))
+  const safeSignupsByWeek = signupsByWeek ?? []
+  const maxWeekly = Math.max(1, ...safeSignupsByWeek.map((w) => w.count))
 
   const onExportUsers = () => {
     const headers = ['id', 'email', 'name', 'username', 'is_verified', 'is_banned', 'created_at']
@@ -178,7 +179,7 @@ export function OverviewTab({
                   </tr>
                 </thead>
                 <tbody>
-                  {activeSessions?.users?.map((u) => (
+                  {(activeSessions?.users ?? []).map((u) => (
                     <tr key={u.user_id} className="border-b border-[var(--separator)]/50">
                       <td className="py-2 pr-4 text-[var(--text)]">
                         {u.name || u.username ? `${u.name || ''} ${u.username ? `@${u.username}` : ''}`.trim() || '—' : '—'}
@@ -197,7 +198,7 @@ export function OverviewTab({
       <div className="rounded-2xl bg-[var(--surface)] border border-[var(--separator)] p-4 md:p-6 shadow-[var(--shadow-soft)]">
         <h3 className="text-lg font-semibold text-[var(--text)] mb-4">12-week signup growth</h3>
         <div className="h-64 flex items-end gap-1">
-          {signupsByWeek.map((w) => (
+          {safeSignupsByWeek.map((w) => (
             <div key={w.label} className="flex-1 flex flex-col items-center gap-1">
               <div
                 className="w-full rounded-t bg-[var(--accent-purple)]/80 hover:bg-[var(--accent-purple)] transition-colors min-h-[4px]"
@@ -210,7 +211,7 @@ export function OverviewTab({
         </div>
         <div className="mt-4 pt-4 border-t border-[var(--separator)]">
           <p className="text-sm text-[var(--text-secondary)]">
-            Cumulative users (last 12 weeks): <strong className="text-[var(--text)]">{cumulativeUsersByWeek[cumulativeUsersByWeek.length - 1]?.cumulative ?? 0}</strong>
+            Cumulative users (last 12 weeks): <strong className="text-[var(--text)]">{(cumulativeUsersByWeek ?? [])[(cumulativeUsersByWeek ?? []).length - 1]?.cumulative ?? 0}</strong>
           </p>
         </div>
       </div>
@@ -219,7 +220,7 @@ export function OverviewTab({
         <div className="rounded-2xl bg-[var(--surface)] border border-[var(--separator)] p-4 md:p-6">
           <h3 className="text-lg font-semibold text-[var(--text)] mb-3">Top niches (applications)</h3>
           <ul className="space-y-2">
-            {topNiches.slice(0, 8).map(([name, count]) => (
+            {(topNiches ?? []).slice(0, 8).map(([name, count]) => (
               <li key={name} className="flex justify-between text-sm">
                 <span className="text-[var(--text)] truncate mr-2">{name || '—'}</span>
                 <span className="text-[var(--text-muted)]">{count}</span>
@@ -229,11 +230,11 @@ export function OverviewTab({
         </div>
         <div className="rounded-2xl bg-[var(--surface)] border border-[var(--separator)] p-4 md:p-6">
           <h3 className="text-lg font-semibold text-[var(--text)] mb-3">Countries</h3>
-          {locationsByCountry.length === 0 ? (
+          {(locationsByCountry ?? []).length === 0 ? (
             <p className="text-[var(--text-muted)] text-sm">No country data yet</p>
           ) : (
             <ul className="space-y-2 max-h-48 overflow-y-auto">
-              {locationsByCountry.slice(0, 8).map((row) => (
+              {(locationsByCountry ?? []).slice(0, 8).map((row) => (
                 <li key={row.country} className="flex items-center justify-between py-1.5">
                   <span className="text-base" aria-hidden>
                     {row.flag}
@@ -247,11 +248,11 @@ export function OverviewTab({
         </div>
         <div className="rounded-2xl bg-[var(--surface)] border border-[var(--separator)] p-4 md:p-6">
           <h3 className="text-lg font-semibold text-[var(--text)] mb-3">Cities</h3>
-          {citiesList.length === 0 ? (
+          {(citiesList ?? []).length === 0 ? (
             <p className="text-[var(--text-muted)] text-sm">No city data yet</p>
           ) : (
             <ul className="space-y-2 max-h-48 overflow-y-auto">
-              {citiesList.slice(0, 8).map(({ label, count }) => (
+              {(citiesList ?? []).slice(0, 8).map(({ label, count }) => (
                 <li key={label} className="flex justify-between py-1.5">
                   <span className="text-[var(--text)] truncate flex-1 mr-2">{label}</span>
                   <span className="text-sm text-[var(--text-muted)]">{count}</span>

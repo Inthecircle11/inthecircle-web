@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="https://inthecircle.co/wp-content/uploads/2026/02/email-logo.jpg" type="image/jpeg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <title>Inthecircle – Coming Soon</title>
+  <style>
+    :root {
+      --bg: #08080a;
+      --surface: #12121a;
+      --border: #2a2a32;
+      --text: #f4f4f8;
+      --textSecondary: #9494a0;
+      --accent: #8b5cf6;
+      --accent-primary: #6366F1;
+      --accentAlt: #a78bfa;
+      --accentHot: #c084fc;
+      --glow: rgba(139, 92, 246, 0.4);
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-x: hidden;
+      background: 
+        radial-gradient(ellipse 100% 60% at 50% -10%, rgba(139, 92, 246, 0.18), transparent 50%),
+        radial-gradient(ellipse 80% 50% at 80% 50%, rgba(167, 139, 250, 0.08), transparent 45%),
+        radial-gradient(ellipse 60% 40% at 20% 80%, rgba(139, 92, 246, 0.06), transparent 45%),
+        var(--bg);
+    }
+    .page {
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      animation: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .logo-wrap {
+      position: relative;
+      display: inline-block;
+      margin-bottom: 28px;
+    }
+    .logo-wrap::after {
+      content: '';
+      position: absolute;
+      inset: -20px;
+      background: radial-gradient(circle, var(--glow) 0%, transparent 70%);
+      opacity: 0.5;
+      filter: blur(28px);
+      pointer-events: none;
+      animation: pulse-glow 4s ease-in-out infinite;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.35; transform: scale(1); }
+      50% { opacity: 0.55; transform: scale(1.05); }
+    }
+    .logo {
+      height: 72px;
+      width: auto;
+      max-width: 180px;
+      display: block;
+      object-fit: contain;
+      position: relative;
+      z-index: 1;
+      filter: drop-shadow(0 0 24px rgba(139, 92, 246, 0.25));
+    }
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      margin: 0 0 12px;
+      background: linear-gradient(135deg, #fff 0%, var(--accentAlt) 50%, var(--accent) 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .tagline {
+      font-size: 1.0625rem;
+      font-weight: 500;
+      color: var(--textSecondary);
+      margin: 0 0 16px;
+      line-height: 1.55;
+      letter-spacing: 0.01em;
+    }
+    .status {
+      font-size: 0.9375rem;
+      color: var(--textSecondary);
+      margin: 0 0 32px;
+      padding: 14px 20px;
+      background: rgba(139, 92, 246, 0.08);
+      border: 1px solid rgba(139, 92, 246, 0.2);
+      border-radius: 14px;
+      display: inline-block;
+    }
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 36px;
+      background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent) 50%, var(--accentAlt) 100%);
+      background-size: 200% 200%;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 1.0625rem;
+      letter-spacing: 0.02em;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 4px 24px rgba(99, 102, 241, 0.35);
+    }
+    .cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(139, 92, 246, 0.45);
+    }
+    .cta:active {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="logo-wrap">
+      <img src="https://inthecircle.co/wp-content/uploads/2026/02/email-logo.jpg" alt="" class="logo" width="180" height="72" />
+    </div>
+    <h1>Inthecircle</h1>
+    <p class="tagline">Connect with creators, get discovered, grow together.</p>
+    <p class="status">We're building something new. Stay tuned.</p>
+    <a href="/signup" class="cta">Join the waitlist</a>
+  </main>
+</body>
+</html>

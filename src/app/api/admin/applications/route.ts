@@ -176,7 +176,7 @@ export async function GET(req: NextRequest) {
   const userIds = [...new Set((appsData ?? []).map((a: Record<string, unknown>) => a.user_id).filter(Boolean) as string[])]
   const profilesMap: Record<string, Record<string, unknown>> = {}
   if (userIds.length > 0) {
-    const cols = 'id, name, username, email, profile_image_url, niche, phone, location'
+    const cols = 'id, name, username, email, profile_image_url, niche, phone'
     const { data: profilesData, error: profilesError } = await supabase.from('profiles').select(cols).in('id', userIds)
     if (profilesError) {
       console.error(`[${requestId}] profiles query error:`, profilesError.message)
@@ -202,7 +202,6 @@ export async function GET(req: NextRequest) {
       bio: profile.bio ?? a.bio ?? '',
       niche: profile.niche ?? a.niche ?? '',
       phone: profile.phone ?? a.phone ?? null,
-      location: profile.location ?? null,
       referrer_username: a.referrer_username ?? null,
       instagram_username: a.instagram_username ?? null,
       follower_count: a.follower_count ?? null,

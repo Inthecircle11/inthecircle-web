@@ -207,7 +207,7 @@ export function DashboardTab({
           User signups · Last 7 days
         </h3>
         <div className="flex items-end gap-2 h-24">
-          {signupsByDay.map((day) => (
+          {(signupsByDay ?? []).map((day) => (
             <div key={day.label} className="flex-1 flex flex-col items-center gap-1">
               <div
                 className="w-full rounded-t-md min-h-[4px] transition-all duration-300"
@@ -277,11 +277,11 @@ export function DashboardTab({
             </span>
             Top niches (applications)
           </h3>
-          {topNiches.length === 0 ? (
+          {(topNiches ?? []).length === 0 ? (
             <p className="text-[var(--text-muted)] text-sm">No applications yet</p>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {topNiches.map(([niche, count]) => (
+              {(topNiches ?? []).map(([niche, count]) => (
                 <span
                   key={niche}
                   className="px-3 py-1.5 rounded-xl bg-[var(--surface-hover)] border border-[var(--separator)] text-sm text-[var(--text)]"
@@ -314,11 +314,11 @@ export function DashboardTab({
             </span>
             Countries
           </h3>
-          {locationsByCountry.length === 0 ? (
+          {(locationsByCountry ?? []).length === 0 ? (
             <p className="text-[var(--text-muted)] text-sm">No country data yet</p>
           ) : (
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-              {locationsByCountry.map((row) => (
+              {(locationsByCountry ?? []).map((row) => (
                 <div
                   key={row.country}
                   className="flex items-center justify-between py-2 border-b border-[var(--separator)] last:border-0"
@@ -357,11 +357,11 @@ export function DashboardTab({
             </span>
             Cities
           </h3>
-          {citiesList.length === 0 ? (
+          {(citiesList ?? []).length === 0 ? (
             <p className="text-[var(--text-muted)] text-sm">No city data yet</p>
           ) : (
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-              {citiesList.map(({ label, count }) => (
+              {(citiesList ?? []).map(({ label, count }) => (
                 <div
                   key={label}
                   className="flex items-center justify-between py-2 border-b border-[var(--separator)] last:border-0"
@@ -396,11 +396,11 @@ export function DashboardTab({
               {nicheSetPct}% of users have a niche set in profile
             </span>
           </div>
-          {topNichesByUser.length === 0 ? (
+          {(topNichesByUser ?? []).length === 0 ? (
             <p className="text-[var(--text-muted)] text-sm">No niche data yet</p>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {topNichesByUser.map(([niche, count]) => (
+              {(topNichesByUser ?? []).map(([niche, count]) => (
                 <span
                   key={niche}
                   className="px-3 py-1.5 rounded-xl bg-[var(--surface-hover)] border border-[var(--separator)] text-sm text-[var(--text)]"
@@ -413,7 +413,7 @@ export function DashboardTab({
         </div>
       </div>
 
-      {topReferrers.length > 0 && (
+      {(topReferrers ?? []).length > 0 && (
         <div className="bg-[var(--surface)] border border-[var(--separator)] rounded-2xl p-6 shadow-[var(--shadow-soft)]">
           <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-[var(--text)]">
             <span className="w-8 h-8 rounded-lg bg-[#F59E0B]/20 flex items-center justify-center text-[#F59E0B]">
@@ -429,7 +429,7 @@ export function DashboardTab({
             Top referrers (applications)
           </h3>
           <div className="flex flex-wrap gap-3">
-            {topReferrers.map(([username, count]) => (
+            {(topReferrers ?? []).map(([username, count]) => (
               <span
                 key={username}
                 className="px-3 py-2 rounded-xl bg-[var(--surface-hover)] border border-[var(--separator)] text-sm"
@@ -505,14 +505,14 @@ export function DashboardTab({
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-[var(--text)]">
           🕐 Recent Activity
         </h3>
-        {recentActivity.length === 0 ? (
+        {(recentActivity ?? []).length === 0 ? (
           <div className="text-center py-8 text-[var(--text-muted)]">
             <div className="text-4xl mb-2">📭</div>
             <p>No recent activity</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {recentActivity.slice(0, 5).map((activity) => (
+            {(recentActivity ?? []).slice(0, 5).map((activity) => (
               <div
                 key={activity.id}
                 className="flex items-center gap-3 p-3 bg-[var(--surface-hover)] rounded-xl border border-[var(--separator)]"
