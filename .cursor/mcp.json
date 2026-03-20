@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "MCP_DOCKER": {
+      "command": "docker",
+      "args": ["mcp", "gateway", "run"]
+    },
+    "wordpress": {
+      "command": "npx",
+      "args": ["-y", "@automattic/mcp-wordpress-remote"],
+      "env": {
+        "WP_API_URL": "https://inthecircle.co",
+        "WP_API_USERNAME": "YOUR_WP_USERNAME",
+        "WP_API_PASSWORD": "YOUR_APPLICATION_PASSWORD",
+        "OAUTH_ENABLED": "false"
+      }
+    }
+  }
+}

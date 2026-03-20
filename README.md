@@ -52,7 +52,8 @@ If a bad deploy reaches production:
    - Use this when you need to roll back without a new commit.
 
 3. **Emergency deploy from CLI** (only if Git is unavailable)  
-   - From repo root: `vercel deploy --prod` (or `npm run one-time-fix` after `vercel login`).  
+   - **Important:** Deploy from the **`inthecircle-web`** directory so the Next.js app is published (not the repo root, which would deploy a different static site and break the app).  
+   - Run: `cd inthecircle-web && npx vercel deploy --prod` (or `npm run deploy` from inside `inthecircle-web`).  
    - Ensure your local branch is at the commit you want to deploy.
 
 After rollback, fix the issue on a branch and ship again via a PR to `main`.

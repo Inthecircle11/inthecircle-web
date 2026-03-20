@@ -1,0 +1,556 @@
+<!-- wp:html -->
+<style id="itc-landing-v2">
+.itc-page *, .itc-page *::before, .itc-page *::after {box-sizing:border-box;margin:0;padding:0}
+.itc-page {
+  --p:#6366F1;--p2:#8B5CF6;--p3:#A78BFA;
+  --pk:#EC4899;--pk2:#F472B6;
+  --bg:#04040A;--bg2:#080810;--bg3:#0D0D17;
+  --s:#131320;--s2:#1A1A2A;
+  --b:rgba(99,102,241,.1);--b2:rgba(99,102,241,.22);--b3:rgba(99,102,241,.42);
+  --t:#ECEEFF;--t2:rgba(236,238,255,.82);--t3:rgba(236,238,255,.58);--t4:rgba(236,238,255,.12);
+  font-family:'Plus Jakarta Sans',sans-serif;
+  background:var(--bg);color:var(--t);
+  overflow-x:hidden;-webkit-font-smoothing:antialiased;
+}
+/* reset body/html for this page */
+body:has(.itc-page){background:#04040A!important;overflow-x:hidden}
+.wp-site-blocks:has(.itc-page),.entry-content:has(.itc-page),.page-content:has(.itc-page){padding:0!important;margin:0!important}
+/* ── CURSOR ── */
+.cur{position:fixed;width:8px;height:8px;background:var(--p3);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:width .25s,height .25s;mix-blend-mode:screen}
+.itc-page .cur-r {position:fixed;width:30px;height:30px;border:1px solid rgba(167,139,250,.35);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:transform .12s ease,width .25s,height .25s}
+/* ── NAV ── */
+.itc-page nav{position:fixed;top:0;left:0;right:0;z-index:100;height:70px;padding:0 56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid transparent;transition:all .4s;}
+body.admin-bar .itc-page nav{top:32px!important}
+body.admin-bar .itc-page .hero{padding-top:162px!important}
+body.admin-bar .itc-page{margin-top:-32px!important}
+.itc-page nav.on {background:rgba(4,4,10,.88);backdrop-filter:blur(24px) saturate(160%);border-color:var(--b)}
+.itc-page .nb {display:flex;align-items:center;gap:10px;text-decoration:none}
+.itc-page .nb img {width:34px;height:34px;border-radius:9px;object-fit:cover}
+.itc-page .nb-t {font-size:16px;font-weight:700;letter-spacing:-.025em;color:var(--t)!important;font-family:'Plus Jakarta Sans',sans-serif}
+.itc-page .nl {display:flex;gap:36px;align-items:center}
+.itc-page .nl a {font-size:13.5px;font-weight:500;color:var(--t2)!important;text-decoration:none;transition:color .2s;letter-spacing:-.01em}
+.itc-page .nl a:hover {color:var(--t)!important;}
+.itc-page .ndl {background:var(--p);color:#fff!important;padding:10px 22px;border-radius:8px;font-weight:600!important;font-size:13px!important;transition:background .2s,box-shadow .2s!important;box-shadow:0 4px 18px rgba(99,102,241,.28)}
+.itc-page .ndl:hover {background:#4f50d4!important;box-shadow:0 8px 30px rgba(99,102,241,.48)!important}
+/* ── HERO ── */
+.itc-page .hero{min-height:100vh;display:flex;align-items:center;padding:130px 56px 80px;position:relative;overflow:hidden}
+.itc-page .hero::before {content:'';position:absolute;inset:0;background:radial-gradient(ellipse 85% 65% at 68% -5%,rgba(99,102,241,.12) 0%,transparent 55%),radial-gradient(ellipse 55% 75% at 12% 92%,rgba(139,92,246,.08) 0%,transparent 55%),radial-gradient(ellipse 45% 45% at 88% 72%,rgba(236,72,153,.05) 0%,transparent 50%);pointer-events:none}
+.itc-page .hero::after {content:'';position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.022'/%3E%3C/svg%3E");pointer-events:none}
+.itc-page .hi {position:relative;z-index:2;max-width:1220px;margin:0 auto;width:100%;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center}
+.itc-page .h-tag{display:inline-flex;align-items:center;gap:9px;padding:6px 14px 6px 8px;background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.18);border-radius:100px;font-size:11.5px;font-weight:600;font-family:'DM Mono',monospace;color:var(--p3);letter-spacing:.05em;margin-bottom:26px;opacity:0;animation:up .55s .05s forwards;}
+.itc-page .h-tag-pulse {width:7px;height:7px;border-radius:50%;background:var(--p3);box-shadow:0 0 0 0 rgba(167,139,250,.45);animation:pr 2s infinite}
+@keyframes pr{0%{box-shadow:0 0 0 0 rgba(167,139,250,.5)}70%{box-shadow:0 0 0 8px rgba(167,139,250,0)}100%{box-shadow:0 0 0 0 rgba(167,139,250,0)}}
+.itc-page .h1 {font-family:'Fraunces',serif;font-size:clamp(50px,5.5vw,80px);font-weight:300;line-height:1.0;letter-spacing:-.03em;margin-bottom:0;opacity:0;animation:up .6s .14s forwards;color:var(--t)!important;}
+.itc-page .h1-em {font-family:'Fraunces',serif;font-style:italic;font-size:clamp(50px,5.5vw,80px);font-weight:300;line-height:1.02;letter-spacing:-.03em;display:block;margin-bottom:28px;background:linear-gradient(110deg,var(--p) 0%,var(--p3) 48%,var(--pk2) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;opacity:0;animation:up .6s .22s forwards;}
+.itc-page .h-sub {font-size:17px;line-height:1.76;color:var(--t2)!important;font-weight:400;max-width:470px;margin-bottom:40px;opacity:0;animation:up .6s .32s forwards}
+.itc-page .h-btns {display:flex;gap:12px;align-items:stretch;margin-bottom:48px;opacity:0;animation:up .6s .42s forwards;flex-wrap:wrap}
+.itc-page .store-btn{display:flex;align-items:center;gap:13px;padding:13px 22px;border-radius:12px;text-decoration:none;transition:all .22s;white-space:nowrap;min-width:170px;}
+.itc-page .store-btn-ios {background:var(--t);color:var(--bg);box-shadow:0 4px 20px rgba(236,238,255,.1);}
+.itc-page .store-btn-ios:hover {background:#ddddf8;transform:translateY(-2px);box-shadow:0 12px 32px rgba(236,238,255,.15)}
+.itc-page .store-btn-ios .sb-icon svg {color:var(--bg)}
+.itc-page .store-btn-android {background:var(--s);border:1px solid var(--b2);color:var(--t);}
+.itc-page .store-btn-android:hover {background:var(--s2);border-color:var(--b3);transform:translateY(-2px)}
+.itc-page .sb-icon {display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.itc-page .sb-text {display:flex;flex-direction:column;gap:1px}
+.itc-page .sb-sub {font-size:9.5px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;opacity:.65;font-family:'DM Mono',monospace}
+.itc-page .sb-main {font-size:15px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.itc-page .store-btn-ios .sb-sub {color:var(--bg);opacity:.55}
+.itc-page .store-btn-ios .sb-main {color:var(--bg)}
+.itc-page .h-trust {display:flex;align-items:center;gap:14px;opacity:0;animation:up .6s .52s forwards}
+.itc-page .t-avis {display:flex}
+.itc-page .t-av {width:28px;height:28px;border-radius:50%;border:1.5px solid var(--bg);margin-left:-6px;font-size:10px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.itc-page .t-av:first-child {margin-left:0}
+.itc-page .ta1 {background:linear-gradient(135deg,#6366F1,#8B5CF6)}
+.itc-page .ta2 {background:linear-gradient(135deg,#EC4899,#F472B6)}
+.itc-page .ta3 {background:linear-gradient(135deg,#8B5CF6,#A78BFA)}
+.itc-page .ta4 {background:linear-gradient(135deg,#10B981,#6366F1)}
+.itc-page .ta5 {background:linear-gradient(135deg,#F59E0B,#EC4899)}
+.itc-page .t-txt {font-size:12.5px;color:var(--t2)!important;line-height:1.48}
+.itc-page .t-txt strong {color:var(--t)!important;font-weight:600}
+/* hero right */
+.itc-page .h-right{opacity:0;animation:fi .9s .4s forwards}
+.itc-page .phones {position:relative;height:580px;display:flex;justify-content:center;align-items:flex-start}
+.itc-page .orbit {position:absolute;top:50%;left:50%;transform:translate(-50%,-44%);border-radius:50%;animation:spin 40s linear infinite;pointer-events:none}
+.itc-page .orbit1 {width:430px;height:430px;border:1px solid rgba(99,102,241,.1)}
+.itc-page .orbit1::before {content:'';position:absolute;top:-3px;left:50%;width:6px;height:6px;border-radius:50%;background:var(--p3);box-shadow:0 0 10px var(--p3);transform:translateX(-50%)}
+.itc-page .orbit2 {width:310px;height:310px;border:1px solid rgba(139,92,246,.07);animation-duration:26s;animation-direction:reverse}
+@keyframes spin{from{transform:translate(-50%,-44%) rotate(0)}to{transform:translate(-50%,-44%) rotate(360deg)}}
+.itc-page .phone {position:absolute;background:#09090F;border-radius:36px;overflow:hidden;border:1px solid rgba(99,102,241,.2)}
+.itc-page .phone img {width:100%;height:100%;object-fit:cover;object-position:top;display:block}
+.itc-page .ph-c {width:228px;height:470px;top:0;left:50%;transform:translateX(-50%);z-index:4;box-shadow:0 48px 110px rgba(0,0,0,.75),0 0 0 1px rgba(99,102,241,.07),inset 0 1px 0 rgba(255,255,255,.06)}
+.itc-page .ph-l {width:186px;height:384px;top:72px;left:7%;z-index:2;transform:rotate(-10deg);opacity:.58;box-shadow:0 28px 72px rgba(0,0,0,.6)}
+.itc-page .ph-r {width:186px;height:384px;top:72px;right:7%;z-index:2;transform:rotate(10deg);opacity:.58;box-shadow:0 28px 72px rgba(0,0,0,.6)}
+.itc-page .ph-glow {position:absolute;bottom:-60px;left:50%;transform:translateX(-50%);width:340px;height:170px;background:radial-gradient(ellipse,rgba(99,102,241,.2),transparent 70%);pointer-events:none}
+.itc-page .fb {position:absolute;z-index:10;background:var(--s);border:1px solid var(--b2);border-radius:12px;padding:10px 14px;box-shadow:0 16px 40px rgba(0,0,0,.5)}
+.itc-page .fb1 {top:18px;right:-18px;display:flex;align-items:center;gap:8px;animation:fl1 5s ease-in-out infinite;font-size:12px;font-weight:600;color:var(--t)}
+.itc-page .fb1-dot {width:6px;height:6px;border-radius:50%;background:#10B981;animation:blink 1.5s infinite}
+.itc-page .fb2 {bottom:82px;left:-22px;animation:fl2 6s ease-in-out infinite}
+.itc-page .fb2-n {font-size:22px;font-weight:800;color:var(--p3);letter-spacing:-.04em;line-height:1;font-family:'Fraunces',serif}
+.itc-page .fb2-l {font-size:10px;color:var(--t3);margin-top:3px;letter-spacing:.06em;font-family:'DM Mono',monospace}
+@keyframes fl1{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes fl2{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+/* ── TICKER ── */
+.itc-page .ticker{padding:15px 0;overflow:hidden;border-top:1px solid var(--b);border-bottom:1px solid var(--b);background:var(--bg2)}
+.itc-page .t-track {display:flex;animation:tick 28s linear infinite;white-space:nowrap}
+.itc-page .t-item {display:flex;align-items:center;gap:14px;padding:0 22px;flex-shrink:0;font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--t3)!important;font-family:'DM Mono',monospace}
+.itc-page .t-dot {color:var(--p);opacity:.6}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+/* ── SHARED ── */
+.itc-page .sec{padding:120px 56px}
+.itc-page .si {max-width:1220px;margin:0 auto}
+.itc-page .ey {display:inline-flex;align-items:center;gap:8px;margin-bottom:16px;font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--p3);font-family:'DM Mono',monospace}
+.itc-page .ey-l {width:18px;height:1px;background:var(--p3)}
+.itc-page .sh {font-family:'Fraunces',serif;font-size:clamp(34px,4vw,56px);font-weight:300;line-height:1.06;letter-spacing:-.03em;margin-bottom:16px;color:var(--t)!important;}
+.itc-page .sh .it {font-style:italic;color:var(--t)!important;}
+.itc-page .sh .gr {background:linear-gradient(110deg,var(--p3),var(--pk2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.itc-page .body-txt {font-size:16px;line-height:1.78;color:var(--t2)!important;font-weight:400}
+/* ── SCREENSHOTS ── */
+.itc-page .ss-sec{background:var(--bg3)}
+.itc-page .ss-head {display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:end;margin-bottom:76px}
+.itc-page .ss-grid {display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:start}
+.itc-page .ss-card {border-radius:24px;overflow:hidden;border:1px solid var(--b);box-shadow:0 18px 50px rgba(0,0,0,.5);transition:transform .4s cubic-bezier(.22,1,.36,1),box-shadow .4s,border-color .3s}
+.itc-page .ss-card:hover {transform:translateY(-10px) scale(1.015);box-shadow:0 36px 80px rgba(0,0,0,.65),0 0 0 1px var(--b2);border-color:var(--b2)}
+.itc-page .ss-card:nth-child(2) {margin-top:48px}
+.itc-page .ss-card:nth-child(4) {margin-top:32px}
+.itc-page .ss-card img {width:100%;display:block}
+.itc-page .ss-cap {padding:11px 15px;background:var(--s);border-top:1px solid var(--b);font-size:10.5px;color:var(--t3)!important;font-family:'DM Mono',monospace;letter-spacing:.05em;display:flex;align-items:center;gap:6px}
+.itc-page .ss-cap-d {width:5px;height:5px;border-radius:50%;background:var(--p);flex-shrink:0}
+/* ── FEATURES ── */
+.itc-page .feat-sec{background:var(--bg)}
+.itc-page .feat-head {display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:end;margin-bottom:68px}
+.itc-page .feat-grid {display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--b);border:1px solid var(--b)}
+.itc-page .fc {background:var(--bg);padding:46px 42px;position:relative;overflow:hidden;transition:background .3s}
+.itc-page .fc:hover {background:rgba(99,102,241,.025)}
+.itc-page .fc::after {content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--p),var(--p2),transparent);opacity:0;transition:opacity .3s}
+.itc-page .fc:hover::after {opacity:1}
+.itc-page .fc-n {font-size:10px;font-weight:600;letter-spacing:.2em;color:rgba(99,102,241,.28);font-family:'DM Mono',monospace;margin-bottom:12px}
+.itc-page .fc-ico {width:44px;height:44px;border-radius:10px;margin-bottom:20px;background:rgba(99,102,241,.07);border:1px solid var(--b);display:flex;align-items:center;justify-content:center;font-size:19px;transition:background .3s,border-color .3s}
+.itc-page .fc:hover .fc-ico {background:rgba(99,102,241,.13);border-color:var(--b2)}
+.itc-page .fc-t {font-size:17px;font-weight:700;margin-bottom:11px;letter-spacing:-.02em;color:var(--t)!important;}
+.itc-page .fc-b {font-size:14px;line-height:1.72;color:var(--t2)!important;}
+/* ── PROOF ── */
+.itc-page .proof-sec{background:var(--bg2)}
+.itc-page .proof-grid {display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:58px}
+.itc-page .pc {background:var(--s);border:1px solid var(--b);border-radius:18px;padding:32px;transition:border-color .3s,transform .35s cubic-bezier(.22,1,.36,1);position:relative;overflow:hidden}
+.itc-page .pc::before {content:'"';position:absolute;top:16px;right:22px;font-family:'Fraunces',serif;font-size:76px;line-height:1;color:var(--p);opacity:.07}
+.itc-page .pc:hover {border-color:var(--b2);transform:translateY(-5px)}
+.itc-page .pc:nth-child(2) {margin-top:32px}
+.itc-page .pc-stars {display:flex;gap:3px;margin-bottom:16px}
+.itc-page .pc-star {width:13px;height:13px;background:var(--p3);clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
+.itc-page .pc-txt {font-size:15px;line-height:1.72;color:var(--t2)!important;font-family:'Fraunces',serif;font-style:italic;font-weight:300;margin-bottom:24px}
+.itc-page .pc-auth {display:flex;align-items:center;gap:12px}
+.itc-page .pc-av {width:40px;height:40px;border-radius:50%;flex-shrink:0;font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center}
+.itc-page .pav1 {background:linear-gradient(135deg,#6366F1,#8B5CF6)}
+.itc-page .pav2 {background:linear-gradient(135deg,#8B5CF6,#EC4899)}
+.itc-page .pav3 {background:linear-gradient(135deg,#EC4899,#F472B6)}
+.itc-page .pc-name {font-size:13px;font-weight:700;letter-spacing:-.01em;color:var(--t)!important;}
+.itc-page .pc-handle {font-size:11.5px;color:var(--p3)!important;}
+/* ── STATS ── */
+.itc-page .stats-bar{background:var(--s);border-top:1px solid var(--b);border-bottom:1px solid var(--b)}
+.itc-page .stats-grid {display:grid;grid-template-columns:repeat(4,1fr);max-width:1220px;margin:0 auto}
+.itc-page .sb-box {padding:58px 40px;text-align:center;border-right:1px solid var(--b);position:relative;overflow:hidden}
+.itc-page .sb-box:last-child {border-right:none}
+.itc-page .sb-box::after {content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--p),transparent);opacity:0;transition:opacity .3s}
+.itc-page .sb-box:hover::after {opacity:1}
+.itc-page .sb-n {font-family:'Fraunces',serif;font-size:56px;font-weight:300;line-height:1;letter-spacing:-.04em;background:linear-gradient(110deg,var(--p3),var(--pk2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px;display:block}
+.itc-page .sb-l {font-size:13px;color:var(--t3)!important;font-weight:500;letter-spacing:.04em}
+/* ── PRICING ── */
+.itc-page .price-sec{background:var(--bg)}
+.itc-page .price-grid {display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:860px;margin:58px auto 0}
+.itc-page .prc {border:1px solid var(--b);border-radius:20px;padding:46px;position:relative;overflow:hidden;transition:transform .35s cubic-bezier(.22,1,.36,1)}
+.itc-page .prc:hover {transform:translateY(-5px)}
+.itc-page .prc.hot {border-color:rgba(99,102,241,.4);background:linear-gradient(160deg,rgba(99,102,241,.052) 0%,transparent 55%)}
+.itc-page .hot-tag {position:absolute;top:0;right:38px;background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:7px 15px;border-radius:0 0 10px 10px;font-family:'DM Mono',monospace}
+.itc-page .prc-tier {font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--p3);font-family:'DM Mono',monospace;margin-bottom:20px}
+.itc-page .prc-price {font-family:'Fraunces',serif;font-size:70px;font-weight:300;line-height:1;letter-spacing:-.04em;margin-bottom:6px;color:var(--t)!important;}
+.itc-page .prc-price sup {font-size:28px;vertical-align:top;margin-top:12px}
+.itc-page .prc-per {font-size:13px;color:var(--t3)!important;margin-bottom:36px}
+.itc-page .prc-hr {height:1px;background:var(--b);margin-bottom:28px}
+.itc-page .prc-list {list-style:none;margin-bottom:36px}
+.itc-page .prc-list li {font-size:14px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.032);color:var(--t2)!important;display:flex;align-items:center;gap:10px}
+.itc-page .prc-list li.y {color:var(--t)!important;}
+.itc-page .prc-list li::before {content:'';width:6px;height:6px;border-radius:50%;background:var(--b2);flex-shrink:0}
+.itc-page .prc-list li.y::before {background:var(--p)}
+.itc-page .btn-prc {width:100%;display:block;text-align:center;padding:14px;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;transition:all .2s;letter-spacing:-.01em}
+.itc-page .btn-prc-solid {background:var(--p);color:#fff;box-shadow:0 8px 28px rgba(99,102,241,.32)}
+.itc-page .btn-prc-solid:hover {background:#4f50d4;box-shadow:0 16px 40px rgba(99,102,241,.5)}
+.itc-page .btn-prc-out {border:1px solid var(--b2);color:var(--t2)!important;}
+.itc-page .btn-prc-out:hover {border-color:var(--b3);color:var(--t)!important;}
+/* ── CTA ── */
+.itc-page .cta-sec{padding:140px 56px;text-align:center;background:var(--bg2);position:relative;overflow:hidden}
+.itc-page .cta-bg {position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 50% 50%,rgba(99,102,241,.09),transparent 65%),radial-gradient(ellipse 40% 40% at 18% 82%,rgba(236,72,153,.05),transparent 55%)}
+.itc-page .cta-inner {position:relative;z-index:1}
+.itc-page .cta-h {font-family:'Fraunces',serif;font-size:clamp(44px,6vw,78px);font-weight:300;line-height:1.0;letter-spacing:-.04em;margin-bottom:20px;color:var(--t)!important;}
+.itc-page .cta-h .it {font-style:italic;color:var(--t)!important;}
+.itc-page .cta-h .gr {background:linear-gradient(110deg,var(--p),var(--p3),var(--pk2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.itc-page .cta-p {font-size:17px;color:var(--t2)!important;max-width:440px;margin:0 auto 48px;line-height:1.76}
+.itc-page .cta-btns {display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.itc-page .cta-store {display:flex;align-items:center;gap:13px;border:1px solid var(--b2);border-radius:14px;padding:15px 24px;text-decoration:none;color:var(--t);background:var(--s);min-width:190px;transition:border-color .22s,background .22s,transform .22s;}
+.itc-page .cta-store:hover {border-color:var(--b3);background:var(--s2);transform:translateY(-3px)}
+.itc-page .cta-store .sb-icon {flex-shrink:0}
+.itc-page .cta-store .sb-sub {font-size:9.5px;color:var(--t3);letter-spacing:.1em;text-transform:uppercase;font-family:'DM Mono',monospace}
+.itc-page .cta-store .sb-main {font-size:16px;font-weight:700;letter-spacing:-.02em;margin-top:2px}
+.itc-page .smart-link {display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t3);font-family:'DM Mono',monospace;margin-top:22px;justify-content:center}
+.itc-page .smart-link a {color:var(--p3);text-decoration:none;transition:color .2s}
+.itc-page .smart-link a:hover {color:var(--p3);text-decoration:underline}
+/* ── FOOTER ── */
+.itc-page footer{padding:44px 56px;border-top:1px solid var(--b);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;background:var(--bg)}
+.itc-page .f-brand {display:flex;align-items:center;gap:10px;text-decoration:none}
+.itc-page .f-brand img {width:28px;height:28px;border-radius:8px;object-fit:cover}
+.itc-page .f-brand-n {font-size:15px;font-weight:700;letter-spacing:-.025em;color:var(--t)}
+.itc-page .f-links {display:flex;gap:24px;flex-wrap:wrap;align-items:center}
+.itc-page .f-links a {font-size:11px;color:var(--t3)!important;text-decoration:none;letter-spacing:.08em;text-transform:uppercase;font-family:'DM Mono',monospace;transition:color .2s}
+.itc-page .f-links a:hover {color:var(--p3)!important;}
+.itc-page .f-social {display:flex;gap:14px;align-items:center}
+.itc-page .f-social a {display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:var(--s);border:1px solid var(--b);color:var(--t3)!important;transition:color .2s,background .2s,border-color .2s}
+.itc-page .f-social a:hover {color:var(--p3)!important;background:rgba(99,102,241,.1);border-color:var(--b2)}
+.itc-page .f-social svg {width:18px;height:18px;fill:currentColor}
+.itc-page .f-copy {font-size:11px;color:var(--t3)!important;font-family:'DM Mono',monospace}
+/* ── REVEAL ── */
+.itc-page .rv{opacity:0;transform:translateY(24px);transition:opacity .65s ease,transform .65s ease}
+.itc-page .rv.in {opacity:1;transform:translateY(0)}
+.itc-page .d1 {transition-delay:.08s}
+.itc-page .d2 {transition-delay:.16s}
+.itc-page .d3 {transition-delay:.24s}
+.itc-page .d4 {transition-delay:.32s}
+/* ── RESPONSIVE ── */
+@media(max-width:1050px){
+  .itc-page nav{padding:0 22px}
+  .itc-page .nl {display:none}
+  .itc-page .hero {padding:108px 22px 76px}
+  .itc-page .hi {grid-template-columns:1fr;gap:52px}
+  .itc-page .ph-l, .itc-page .ph-r {display:none}
+  .itc-page .ph-c {position:relative;left:auto;transform:none}
+  .itc-page .phones {height:auto;display:flex;justify-content:center}
+  .itc-page .orbit1, .itc-page .orbit2 {display:none}
+  .itc-page .sec {padding:80px 22px}
+  .itc-page .cta-sec {padding:100px 22px}
+  .itc-page .ss-head, .itc-page .feat-head {grid-template-columns:1fr;gap:14px;margin-bottom:44px}
+  .itc-page .ss-grid {grid-template-columns:repeat(2,1fr)}
+  .itc-page .ss-card:nth-child(2), .itc-page .ss-card:nth-child(4) {margin-top:0}
+  .itc-page .feat-grid {grid-template-columns:1fr}
+  .itc-page .proof-grid {grid-template-columns:1fr}
+  .itc-page .pc:nth-child(2) {margin-top:0}
+  .itc-page .stats-grid {grid-template-columns:repeat(2,1fr)}
+  .itc-page .price-grid {grid-template-columns:1fr;max-width:460px}
+  .itc-page footer {flex-direction:column;text-align:center;padding:32px 22px}
+  .itc-page .f-links {justify-content:center}
+  .itc-page .f-social {justify-content:center}
+}
+@media(max-width:600px){
+  .itc-page nav{padding:0 16px;height:60px}
+  .itc-page .nb-t{font-size:14px}
+  .itc-page .nb img{width:28px;height:28px}
+  .itc-page .hero{padding:90px 16px 60px}
+  .itc-page .h1{font-size:38px!important}
+  .itc-page .h1-em{font-size:38px!important;margin-bottom:20px}
+  .itc-page .h-sub{font-size:15px;margin-bottom:28px}
+  .itc-page .h-btns{flex-direction:column;gap:10px}
+  .itc-page .store-btn{min-width:unset;width:100%;justify-content:center}
+  .itc-page .h-tag{font-size:10px}
+  .itc-page .ph-c{width:180px!important;height:370px!important}
+  .itc-page .fb1{right:-10px;font-size:10px;padding:8px 10px}
+  .itc-page .fb2{left:-10px;padding:8px 10px}
+  .itc-page .fb2-n{font-size:18px}
+  .itc-page .sec{padding:60px 16px}
+  .itc-page .sh{font-size:30px!important}
+  .itc-page .body-txt{font-size:14px}
+  .itc-page .ey{font-size:10px}
+  .itc-page .ss-grid{grid-template-columns:1fr}
+  .itc-page .fc{padding:32px 24px}
+  .itc-page .fc-t{font-size:15px}
+  .itc-page .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .itc-page .sb-box{padding:36px 20px}
+  .itc-page .sb-n{font-size:40px!important}
+  .itc-page .pc{padding:24px}
+  .itc-page .pc-txt{font-size:14px}
+  .itc-page .prc{padding:32px 24px}
+  .itc-page .prc-price{font-size:52px!important}
+  .itc-page .price-grid{max-width:100%}
+  .itc-page .cta-sec{padding:80px 16px}
+  .itc-page .cta-h{font-size:36px!important}
+  .itc-page .cta-p{font-size:15px}
+  .itc-page .cta-btns{flex-direction:column;align-items:center}
+  .itc-page .cta-store{min-width:unset;width:100%;max-width:300px;justify-content:center}
+  .itc-page footer{padding:28px 16px;gap:16px}
+  .itc-page .f-links{gap:14px;font-size:10px}
+  .cur,.itc-page .cur-r{display:none}
+  body.admin-bar .itc-page nav{top:46px!important}
+}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Fraunces:ital,wght@0,300;0,400;1,300;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<div class="itc-page">
+<div class="cur" id="cur"></div>
+<div class="cur-r" id="cur-r"></div>
+
+<!-- NAV -->
+<nav id="nav">
+  <a href="#" class="nb">
+    <img src="/wp-content/themes/extendable/assets/images/itc-landing-1.png" alt="InTheCircle">
+    <span class="nb-t">InTheCircle</span>
+  </a>
+  <div class="nl">
+    <a href="#screens">App</a>
+    <a href="#features">Features</a>
+    <a href="#community">Community</a>
+    <a href="#pricing">Pricing</a>
+    <a href="/blog/">Blog</a>
+    <a href="#download" class="ndl">Download</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hi">
+    <div>
+      <div class="h-tag"><span class="h-tag-pulse"></span>Available on iOS &amp; Android</div>
+      <h1 class="h1">The network<br>built for</h1>
+      <span class="h1-em">every creator.</span>
+      <p class="h-sub">Connect with creators worldwide, post collaboration requests on the Board, discover IRL events, and grow your network — all in one app.</p>
+      <div class="h-btns">
+        <a href="https://apps.apple.com/us/app/inthecircle-creator-network/id6758384054" class="store-btn store-btn-ios" target="_blank">
+          <span class="sb-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 814 1000" width="22" height="22"><path fill="currentColor" d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 790.7 0 663 0 541.8c0-207.5 135.4-317.5 268.7-317.5 70.9 0 130 46.4 174.4 46.4 42.7 0 109.2-49.9 188.2-49.9 30.8 0 108.2 2.6 168.7 75.8zM554.1 107.3c31.8-37.7 54.3-90.2 54.3-142.6 0-5.8-.6-11.6-1.6-16.8-51.5 2-112.3 34.3-149.3 75.8-28.5 32.4-55.1 84.9-55.1 138 0 6.5 1 13 1.6 15.1 3.2.6 8.4 1.3 13.6 1.3 46.5 0 102.5-30.8 136.5-70.8z"/></svg></span>
+          <div class="sb-text">
+            <span class="sb-sub">Download on the</span>
+            <span class="sb-main">App Store</span>
+          </div>
+        </a>
+        <a href="https://play.google.com/store/apps/details?id=com.inthecircle.app" class="store-btn store-btn-android" target="_blank">
+          <span class="sb-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="22" height="22"><path fill="#4CAF50" d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1z"/><path fill="#FF3D00" d="M34.9 0C17.1 0 2.3 12.4.3 29.1l255.7 227 60.1-60.1L34.9 0z"/><path fill="#FFD600" d="M46.1 512c-13.6 0-25.7-4.7-35.4-13.9L267.2 271l60.1 60.1L46.1 512z"/><path fill="#2196F3" d="M512 256c0 15.7-8.2 29.5-20.6 37.4L332 398.2l-64.8-64.8 190.2-190.2c22.1 8.8 54.6 44.1 54.6 112.8z"/></svg></span>
+          <div class="sb-text">
+            <span class="sb-sub">Get it on</span>
+            <span class="sb-main">Google Play</span>
+          </div>
+        </a>
+      </div>
+      <div class="h-trust">
+        <div class="t-avis">
+          <div class="t-av ta1">A</div><div class="t-av ta2">S</div><div class="t-av ta3">G</div><div class="t-av ta4">N</div><div class="t-av ta5">+</div>
+        </div>
+        <div class="t-txt"><strong>10,000+ creators</strong> already connected<br>across Dubai, London, Cairo &amp; beyond</div>
+      </div>
+    </div>
+    <div class="h-right">
+      <div class="phones">
+        <div class="orbit orbit1"></div>
+        <div class="orbit orbit2"></div>
+        <div class="phone ph-l"><img src="/wp-content/themes/extendable/assets/images/itc-landing-2.png" alt="Filters"></div>
+        <div class="phone ph-c"><img src="/wp-content/themes/extendable/assets/images/itc-landing-3.png" alt="Board"></div>
+        <div class="phone ph-r"><img src="/wp-content/themes/extendable/assets/images/itc-landing-4.png" alt="Events"></div>
+        <div class="ph-glow"></div>
+        <div class="fb fb1"><span class="fb1-dot"></span>3 new connections today</div>
+        <div class="fb fb2"><div class="fb2-n">10K+</div><div class="fb2-l">creators worldwide</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="t-track">
+    <div class="t-item">Creator Networking<span class="t-dot">✦</span></div>
+    <div class="t-item">The Board<span class="t-dot">✦</span></div>
+    <div class="t-item">Swipe to Connect<span class="t-dot">✦</span></div>
+    <div class="t-item">IRL Events<span class="t-dot">✦</span></div>
+    <div class="t-item">Brand Deals<span class="t-dot">✦</span></div>
+    <div class="t-item">Creator Radar AI<span class="t-dot">✦</span></div>
+    <div class="t-item">Nearby Mode<span class="t-dot">✦</span></div>
+    <div class="t-item">iOS &amp; Android<span class="t-dot">✦</span></div>
+    <div class="t-item">Rich Profiles<span class="t-dot">✦</span></div>
+    <div class="t-item">Creator Networking<span class="t-dot">✦</span></div>
+    <div class="t-item">The Board<span class="t-dot">✦</span></div>
+    <div class="t-item">Swipe to Connect<span class="t-dot">✦</span></div>
+    <div class="t-item">IRL Events<span class="t-dot">✦</span></div>
+    <div class="t-item">Brand Deals<span class="t-dot">✦</span></div>
+    <div class="t-item">Creator Radar AI<span class="t-dot">✦</span></div>
+    <div class="t-item">Nearby Mode<span class="t-dot">✦</span></div>
+    <div class="t-item">iOS &amp; Android<span class="t-dot">✦</span></div>
+    <div class="t-item">Rich Profiles<span class="t-dot">✦</span></div>
+  </div>
+</div>
+
+<!-- SCREENSHOTS -->
+<section id="screens" class="sec ss-sec">
+  <div class="si">
+    <div class="ss-head">
+      <div>
+        <div class="ey rv"><span class="ey-l"></span>Inside the App</div>
+        <h2 class="sh rv">A real app.<br><span class="it">Beautifully</span> <span class="gr">crafted.</span></h2>
+      </div>
+      <p class="body-txt rv d1">Every screen is built natively — from swipeable creator cards and a live community Board, to IRL events and brand campaigns. Built for creators, by a creator.</p>
+    </div>
+    <div class="ss-grid">
+      <div class="ss-card rv"><img src="/wp-content/themes/extendable/assets/images/itc-landing-5.png" alt="Sign Up"><div class="ss-cap"><span class="ss-cap-d"></span>Sign Up</div></div>
+      <div class="ss-card rv d1"><img src="/wp-content/themes/extendable/assets/images/itc-landing-6.png" alt="Board"><div class="ss-cap"><span class="ss-cap-d"></span>The Board</div></div>
+      <div class="ss-card rv d2"><img src="/wp-content/themes/extendable/assets/images/itc-landing-7.png" alt="Connect"><div class="ss-cap"><span class="ss-cap-d"></span>Connect</div></div>
+      <div class="ss-card rv d3"><img src="/wp-content/themes/extendable/assets/images/itc-landing-8.png" alt="Profile"><div class="ss-cap"><span class="ss-cap-d"></span>Profile</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features" class="sec feat-sec">
+  <div class="si">
+    <div class="feat-head">
+      <div>
+        <div class="ey rv"><span class="ey-l"></span>What You Get</div>
+        <h2 class="sh rv">Built for how creators<br><span class="it gr">actually work.</span></h2>
+      </div>
+      <p class="body-txt rv d1">Six core features designed around the real workflow of full-time creators — discovery, collaboration, content, and monetisation in one place.</p>
+    </div>
+    <div class="feat-grid">
+      <div class="fc rv"><div class="fc-n">01</div><div class="fc-ico">🔍</div><div class="fc-t">Creator Discovery</div><p class="fc-b">Swipe through creators filtered by category, follower range, and location. Nearby mode finds creators in your city right now.</p></div>
+      <div class="fc rv d1"><div class="fc-n">02</div><div class="fc-ico">📋</div><div class="fc-t">The Board</div><p class="fc-b">A live community feed for collab requests and ideas. Post what you need, respond to others — your next partner is one scroll away.</p></div>
+      <div class="fc rv d2"><div class="fc-n">03</div><div class="fc-ico">🎪</div><div class="fc-t">Creator Events</div><p class="fc-b">Discover and join real-world meetups, workshops, and creator picnics near you. IRL connection is a first-class feature.</p></div>
+      <div class="fc rv d1"><div class="fc-n">04</div><div class="fc-ico">📡</div><div class="fc-t">Creator Radar</div><p class="fc-b">AI-powered daily content ideas tuned to your niche and what's trending. Know what to create before you open a camera.</p></div>
+      <div class="fc rv d2"><div class="fc-n">05</div><div class="fc-ico">💼</div><div class="fc-t">Brand Deals</div><p class="fc-b">Browse live brand campaigns, see results data, and apply directly. Real deals from real brands — no middleman needed.</p></div>
+      <div class="fc rv d3"><div class="fc-n">06</div><div class="fc-ico">👤</div><div class="fc-t">Rich Profiles</div><p class="fc-b">Showcase your stats, work history, reviews, and network. Your profile is your always-on media kit.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stats-grid">
+    <div class="sb-box rv"><span class="sb-n">10K+</span><div class="sb-l">Creators</div></div>
+    <div class="sb-box rv d1"><span class="sb-n">40+</span><div class="sb-l">Countries</div></div>
+    <div class="sb-box rv d2"><span class="sb-n">2</span><div class="sb-l">Platforms</div></div>
+    <div class="sb-box rv d3"><span class="sb-n">6</span><div class="sb-l">Core Features</div></div>
+  </div>
+</div>
+
+<!-- COMMUNITY -->
+<section id="community" class="sec proof-sec">
+  <div class="si">
+    <div class="ey rv"><span class="ey-l"></span>Creator Stories</div>
+    <h2 class="sh rv">Creators already<br><span class="it gr">in the circle.</span></h2>
+    <div class="proof-grid">
+      <div class="pc rv"><div class="pc-stars"><div class="pc-star"></div><div class="pc-star"></div><div class="pc-star"></div><div class="pc-star"></div><div class="pc-star"></div></div><p class="pc-txt">This is what LinkedIn should have been for creators. Found my last three collab partners here and two brand deals closed directly through the app.</p><div class="pc-auth"><div class="pc-av pav1">S</div><div><div class="pc-name">Sara Al-Rashidi</div><div class="pc-handle">@sara.creates · 940K</div></div></div></div>
+      <div class="pc rv d1"><div class="pc-stars"><div class="pc-star"></div><div class="pc-star"></div><div class="pc-star"></div><div class="pc-star"></div><div class="pc-star"></div></div><p class="pc-txt">The Board is game-changing. I posted that I was looking for a finance creator and got 8 responses the same day. Nothing else works this fast.</p><div class="pc-auth"><div class="pc-av pav2">G</div><div><div class="pc-name">Gabriel Nussbaum</div><div class="pc-handle">@gabrieln · 1.5M</div></div></div></div>
+      <div class="pc rv d2"><div class="pc-stars"><div class="pc-star"></div><div class="pc-star"></div><div class="pc-star"></div><div class="pc-star"></div><div class="pc-star"></div></div><p class="pc-txt">Creator Radar is insane. Every morning a shortlist of content ideas perfectly matched to my niche. My content output completely doubled.</p><div class="pc-auth"><div class="pc-av pav3">N</div><div><div class="pc-name">Nour Elbaz</div><div class="pc-handle">@nour.media · 650K</div></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" class="sec price-sec">
+  <div class="si" style="text-align:center">
+    <div class="ey rv" style="justify-content:center"><span class="ey-l"></span>Pricing<span class="ey-l"></span></div>
+    <h2 class="sh rv">Simple, <span class="it gr">honest</span> pricing.</h2>
+  </div>
+  <div class="price-grid">
+    <div class="prc rv">
+      <div class="prc-tier">Free</div>
+      <div class="prc-price"><sup>$</sup>0</div>
+      <div class="prc-per">Forever free · No credit card</div>
+      <div class="prc-hr"></div>
+      <ul class="prc-list">
+        <li class="y">Create your creator profile</li><li class="y">Browse the Board</li>
+        <li class="y">Discover up to 20 creators/day</li><li class="y">5 connection requests/month</li>
+        <li>Unlimited messaging</li><li>Creator Radar AI</li>
+        <li>Priority discovery</li><li>Exclusive brand deals</li>
+      </ul>
+      <a href="https://app.inthecircle.co/download" class="btn-prc btn-prc-out" target="_blank">Get Started Free</a>
+    </div>
+    <div class="prc hot rv d1">
+      <div class="hot-tag">Most Popular</div>
+      <div class="prc-tier">Premium</div>
+      <div class="prc-price"><sup>$</sup>19<span style="font-size:26px;vertical-align:baseline">.99</span></div>
+      <div class="prc-per">Per month · $199.99/year — save 17%</div>
+      <div class="prc-hr"></div>
+      <ul class="prc-list">
+        <li class="y">Everything in Free</li><li class="y">Unlimited discovery</li>
+        <li class="y">Unlimited connections</li><li class="y">Unlimited messaging</li>
+        <li class="y">Creator Radar AI</li><li class="y">Priority discovery placement</li>
+        <li class="y">Exclusive brand deal access</li><li class="y">Advanced profile analytics</li>
+      </ul>
+      <a href="https://app.inthecircle.co/download" class="btn-prc btn-prc-solid" target="_blank">Start Premium</a>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section id="download" class="cta-sec">
+  <div class="cta-bg"></div>
+  <div class="cta-inner">
+    <div class="ey rv" style="justify-content:center"><span class="ey-l"></span>Get the App<span class="ey-l"></span></div>
+    <h2 class="cta-h rv">Your circle is<br><span class="it gr">waiting for you.</span></h2>
+    <p class="cta-p rv d1">Join thousands of creators already connecting, collaborating, and building careers on InTheCircle.</p>
+    <div class="cta-btns rv d2">
+      <a href="https://apps.apple.com/us/app/inthecircle-creator-network/id6758384054" class="cta-store" target="_blank">
+        <span class="sb-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 814 1000" width="22" height="22"><path fill="var(--t)" d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 790.7 0 663 0 541.8c0-207.5 135.4-317.5 268.7-317.5 70.9 0 130 46.4 174.4 46.4 42.7 0 109.2-49.9 188.2-49.9 30.8 0 108.2 2.6 168.7 75.8zM554.1 107.3c31.8-37.7 54.3-90.2 54.3-142.6 0-5.8-.6-11.6-1.6-16.8-51.5 2-112.3 34.3-149.3 75.8-28.5 32.4-55.1 84.9-55.1 138 0 6.5 1 13 1.6 15.1 3.2.6 8.4 1.3 13.6 1.3 46.5 0 102.5-30.8 136.5-70.8z"/></svg></span>
+        <div><div class="sb-sub">Download on the</div><div class="sb-main">App Store</div></div>
+      </a>
+      <a href="https://play.google.com/store/apps/details?id=com.inthecircle.app" class="cta-store" target="_blank">
+        <span class="sb-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="22" height="22"><path fill="#4CAF50" d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1z"/><path fill="#FF3D00" d="M34.9 0C17.1 0 2.3 12.4.3 29.1l255.7 227 60.1-60.1L34.9 0z"/><path fill="#FFD600" d="M46.1 512c-13.6 0-25.7-4.7-35.4-13.9L267.2 271l60.1 60.1L46.1 512z"/><path fill="#2196F3" d="M512 256c0 15.7-8.2 29.5-20.6 37.4L332 398.2l-64.8-64.8 190.2-190.2c22.1 8.8 54.6 44.1 54.6 112.8z"/></svg></span>
+        <div><div class="sb-sub">Get it on</div><div class="sb-main">Google Play</div></div>
+      </a>
+    </div>
+    <div class="smart-link rv d3">Or scan / tap: <a href="https://app.inthecircle.co/download" target="_blank">app.inthecircle.co/download</a></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <a href="/" class="f-brand">
+    <img src="/wp-content/themes/extendable/assets/images/itc-landing-9.png" alt="ITC">
+    <span class="f-brand-n">InTheCircle</span>
+  </a>
+  <div class="f-links">
+    <a href="/privacy-policy/">Privacy</a><a href="/terms/">Terms</a><a href="/faq/">FAQ</a>
+    <a href="https://app.inthecircle.co/download" target="_blank" rel="noopener">Download</a>
+    <span class="f-social">
+      <a href="https://www.linkedin.com/company/inthecirclee/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>
+      <a href="https://www.instagram.com/inthecirclee" target="_blank" rel="noopener" aria-label="Instagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg></a>
+      <a href="https://www.tiktok.com/@inthecirclee" target="_blank" rel="noopener" aria-label="TikTok"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/></svg></a>
+    </span>
+  </div>
+  <span class="f-copy">© 2025 InTheCircle</span>
+</footer>
+</div>
+<script>
+(function(){
+  var page=document.querySelector('.itc-page');
+  if(!page) return;
+  function applyAdminBarSpacing(){
+    var bar=document.getElementById('wpadminbar');
+    if(!bar) return false;
+    page.classList.add('itc-has-adminbar');
+    var nav=page.querySelector('nav');
+    var hero=page.querySelector('.hero');
+    var isMobile=window.innerWidth<=782;
+    if(nav){ nav.style.setProperty('top',isMobile?'46px':'32px','important'); }
+    if(hero){ hero.style.setProperty('padding-top',isMobile?'176px':'162px','important'); }
+    return true;
+  }
+  function run(){
+    if(applyAdminBarSpacing()) return;
+    setTimeout(run,50);
+    setTimeout(run,200);
+    setTimeout(run,500);
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',run); }
+  else run();
+  var mo=new MutationObserver(function(){ applyAdminBarSpacing(); });
+  mo.observe(document.documentElement,{childList:true,subtree:true});
+})();
+const nav=document.getElementById('nav');
+window.addEventListener('scroll',()=>nav.classList.toggle('on',scrollY>40));
+const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');obs.unobserve(e.target)}}),{threshold:.08});
+document.querySelectorAll('.rv').forEach(el=>obs.observe(el));
+const cur=document.getElementById('cur'),cr=document.getElementById('cur-r');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cur.style.left=mx+'px';cur.style.top=my+'px'});
+(function loop(){rx+=(mx-rx)*.1;ry+=(my-ry)*.1;cr.style.left=rx+'px';cr.style.top=ry+'px';requestAnimationFrame(loop)})();
+document.querySelectorAll('a,button').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{cur.style.width='14px';cur.style.height='14px';cr.style.width='48px';cr.style.height='48px'});
+  el.addEventListener('mouseleave',()=>{cur.style.width='8px';cur.style.height='8px';cr.style.width='30px';cr.style.height='30px'});
+});
+</script>
+<!-- /wp:html -->

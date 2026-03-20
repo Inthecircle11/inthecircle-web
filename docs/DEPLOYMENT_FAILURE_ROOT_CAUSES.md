@@ -4,6 +4,20 @@ This doc explains the root causes of the recent production build failures and th
 
 ---
 
+## How to make sure this doesn't happen again
+
+| Layer | What to do |
+|-------|------------|
+| **1. GitHub (one-time)** | Branch protection is **on**: merges to `main` require a PR and the **build** status check to pass. So only green CI can land on `main`. No re-setup needed unless you change repo settings. |
+| **2. Before every push/PR** | Run `npm run ci:local` (typecheck + build). If it fails, fix before pushing. Optionally run `npm run lint:ci` too. |
+| **3. When changing deps** | After editing `package.json`, run `npm install` and **commit** `package-lock.json` in the same commit. |
+| **4. When adding props** | Add the prop to the component’s TypeScript interface in the **same commit** so typecheck catches mismatches. |
+| **5. In the editor** | Disable “smart quotes” / “curly quotes” so you don’t paste Unicode apostrophes into code. |
+
+CI already blocks: lint, typecheck, tests, smart-quotes check, and build. So if you use PRs and wait for the **build** check to pass before merging, Vercel will only ever build commits that already passed the same pipeline.
+
+---
+
 ## What Broke (Summary)
 
 1. **Type error:** `page.tsx` passed `applicationsCountsError` to `ApplicationsTab`, but `ApplicationsTabProps` did not declare it → **TypeScript build error on Vercel**.

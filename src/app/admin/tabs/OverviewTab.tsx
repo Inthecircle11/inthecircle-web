@@ -65,7 +65,7 @@ export function OverviewTab({
 
   const onExportUsers = () => {
     const headers = ['id', 'email', 'name', 'username', 'is_verified', 'is_banned', 'created_at']
-    const rows = users.map((u) => [
+    const rows = (users ?? []).map((u) => [
       u.id,
       u.email ?? '',
       u.name ?? '',
@@ -91,7 +91,7 @@ export function OverviewTab({
       'instagram_username',
       'follower_count',
     ]
-    const rows = applications.map((a) => [
+    const rows = (applications ?? []).map((a) => [
       a.id,
       a.user_id,
       a.name ?? '',
@@ -178,7 +178,7 @@ export function OverviewTab({
                   </tr>
                 </thead>
                 <tbody>
-                  {activeSessions.users.map((u) => (
+                  {activeSessions?.users?.map((u) => (
                     <tr key={u.user_id} className="border-b border-[var(--separator)]/50">
                       <td className="py-2 pr-4 text-[var(--text)]">
                         {u.name || u.username ? `${u.name || ''} ${u.username ? `@${u.username}` : ''}`.trim() || '—' : '—'}

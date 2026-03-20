@@ -1,0 +1,199 @@
+<!-- ========== BLOCK 1: Paste this in a Custom HTML block ABOVE your blog content ========== -->
+<!-- wp:html -->
+<style id="itc-blog-chrome">
+.itc-page *, .itc-page *::before, .itc-page *::after {box-sizing:border-box;margin:0;padding:0}
+.itc-page { --p:#6366F1;--p2:#8B5CF6;--p3:#A78BFA;--pk:#EC4899;--pk2:#F472B6; --bg:#04040A;--bg2:#080810;--s:#131320;--b:rgba(99,102,241,.1);--b2:rgba(99,102,241,.22); --t:#ECEEFF;--t2:rgba(236,238,255,.82);--t3:rgba(236,238,255,.58); font-family:'Plus Jakarta Sans',sans-serif; background:var(--bg);color:var(--t); overflow-x:hidden;-webkit-font-smoothing:antialiased; }
+body:has(.itc-page){background:#04040A!important;overflow-x:hidden}
+.wp-site-blocks:has(.itc-page),.entry-content:has(.itc-page),.page-content:has(.itc-page){padding:0!important;margin:0!important}
+.itc-page nav{position:fixed;top:0;left:0;right:0;z-index:100;height:70px;padding:0 56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid transparent;transition:all .4s;}
+body.admin-bar .itc-page nav{top:32px!important}
+body.admin-bar .itc-page{margin-top:-32px!important}
+.itc-page nav.on {background:rgba(4,4,10,.88);backdrop-filter:blur(24px) saturate(160%);border-color:var(--b)}
+.itc-page .nb {display:flex;align-items:center;gap:10px;text-decoration:none}
+.itc-page .nb img {width:34px;height:34px;border-radius:9px;object-fit:cover}
+.itc-page .nb-t {font-size:16px;font-weight:700;letter-spacing:-.025em;color:var(--t)!important;font-family:'Plus Jakarta Sans',sans-serif}
+.itc-page .nl {display:flex;gap:36px;align-items:center}
+.itc-page .nl a {font-size:13.5px;font-weight:500;color:var(--t2)!important;text-decoration:none;transition:color .2s;letter-spacing:-.01em}
+.itc-page .nl a:hover {color:var(--t)!important;}
+.itc-page .ndl {background:var(--p);color:#fff!important;padding:10px 22px;border-radius:8px;font-weight:600!important;font-size:13px!important;transition:background .2s,box-shadow .2s!important;box-shadow:0 4px 18px rgba(99,102,241,.28)}
+.itc-page .ndl:hover {background:#4f50d4!important;box-shadow:0 8px 30px rgba(99,102,241,.48)!important}
+.itc-page footer{padding:44px 56px;border-top:1px solid var(--b);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;background:var(--bg)}
+.itc-page .f-brand {display:flex;align-items:center;gap:10px;text-decoration:none}
+.itc-page .f-brand img {width:28px;height:28px;border-radius:8px;object-fit:cover}
+.itc-page .f-brand-n {font-size:15px;font-weight:700;letter-spacing:-.025em;color:var(--t)}
+.itc-page .f-links {display:flex;gap:24px;flex-wrap:wrap;align-items:center}
+.itc-page .f-links a {font-size:11px;color:var(--t3)!important;text-decoration:none;letter-spacing:.08em;text-transform:uppercase;font-family:'DM Mono',monospace;transition:color .2s}
+.itc-page .f-links a:hover {color:var(--p3)!important;}
+.itc-page .f-social {display:flex;gap:14px;align-items:center}
+.itc-page .f-social a {display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:var(--s);border:1px solid var(--b);color:var(--t3)!important;transition:color .2s,background .2s,border-color .2s}
+.itc-page .f-social a:hover {color:var(--p3)!important;background:rgba(99,102,241,.1);border-color:var(--b2)}
+.itc-page .f-social svg {width:18px;height:18px;fill:currentColor}
+.itc-page .f-copy {font-size:11px;color:var(--t3)!important;font-family:'DM Mono',monospace}
+/* Push main content below fixed nav so language filter and pagination don't overlap menu */
+.itc-page main.wp-block-group { padding-top: 90px !important; padding-bottom: 0 !important; }
+body.admin-bar .itc-page main.wp-block-group { padding-top: 122px !important; }
+/* Keep language filter below nav (plugin injects it into main) */
+#itc-blog-lang-filter { position: relative !important; z-index: 1 !important; margin-top: 0 !important; }
+.itc-page nav { z-index: 100 !important; }
+/* Force pagination to appear AFTER the blog posts (main is often outside .itc-page) */
+body.blog main .wp-block-query,
+body.home main .wp-block-query,
+.itc-page main .wp-block-query,
+.itc-page .wp-block-query { display: flex !important; flex-direction: column !important; }
+body.blog main .wp-block-query .wp-block-post-template,
+body.home main .wp-block-query .wp-block-post-template,
+.itc-page main .wp-block-query .wp-block-post-template,
+.itc-page .wp-block-query .wp-block-post-template { order: 1 !important; }
+body.blog main .wp-block-query .wp-block-query-pagination,
+body.home main .wp-block-query .wp-block-query-pagination,
+.itc-page main .wp-block-query .wp-block-query-pagination,
+.itc-page .wp-block-query .wp-block-query-pagination { order: 2 !important; margin-top: 48px !important; }
+body.blog main .wp-block-query .wp-block-query-no-results,
+body.home main .wp-block-query .wp-block-query-no-results,
+.itc-page .wp-block-query .wp-block-query-no-results,
+.itc-page .wp-block-query .wp-block-query-no-results { order: 2 !important; }
+/* Hide pagination when it appears before content (script moves it after posts) */
+body.blog main .wp-block-query-pagination:not(:last-child),
+body.home main .wp-block-query-pagination:not(:last-child) { opacity: 0 !important; pointer-events: none !important; position: absolute !important; left: -9999px !important; }
+body.blog main .wp-block-query-pagination:last-child,
+body.home main .wp-block-query-pagination:last-child,
+.wp-block-query-pagination[style*="margin-top"] { opacity: 1 !important; margin-top: 48px !important; display: flex !important; justify-content: center !important; flex-wrap: wrap !important; }
+@media(max-width:1050px){ .itc-page nav{padding:0 22px} .itc-page .nl {display:none} .itc-page footer {flex-direction:column;text-align:center;padding:32px 22px} .itc-page .f-links,.itc-page .f-social {justify-content:center} }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Fraunces:ital,wght@0,300;0,400;1,300;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<div class="itc-page">
+<nav id="nav">
+  <a href="/" class="nb">
+    <img src="/wp-content/themes/extendable/assets/images/itc-landing-1.png" alt="InTheCircle">
+    <span class="nb-t">InTheCircle</span>
+  </a>
+  <div class="nl">
+    <a href="/#screens">App</a>
+    <a href="/#features">Features</a>
+    <a href="/#community">Community</a>
+    <a href="/#pricing">Pricing</a>
+    <a href="/blog/">Blog</a>
+    <a href="/#download" class="ndl">Download</a>
+  </div>
+</nav>
+<script>
+(function(){
+  function movePaginationToBottom() {
+    var main = document.querySelector('main') || document.querySelector('[role="main"]');
+    if (!main) return;
+    var queryBlock = main.querySelector('.wp-block-query');
+    var pagination = document.querySelector('.wp-block-query-pagination');
+    if (!pagination) return;
+    var targetParent = queryBlock ? queryBlock.parentNode : main;
+    var insertAfter = queryBlock || main.querySelector('.wp-block-post-template');
+    if (insertAfter) {
+      if (pagination.parentNode !== targetParent || pagination.nextElementSibling) {
+        targetParent.insertBefore(pagination, insertAfter.nextElementSibling);
+      }
+    } else {
+      if (pagination.parentNode !== main) main.appendChild(pagination);
+      else if (pagination.nextElementSibling) main.appendChild(pagination);
+    }
+    pagination.style.marginTop = '48px';
+  }
+  function run() {
+    movePaginationToBottom();
+    setTimeout(movePaginationToBottom, 150);
+    setTimeout(movePaginationToBottom, 600);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run);
+  } else {
+    run();
+  }
+  window.addEventListener('load', movePaginationToBottom);
+})();
+</script>
+<!-- /wp:html -->
+
+<!-- ========== BLOCK 2: Your existing blog content (main + query) goes here as normal blocks ========== -->
+<!-- wp:group {"tagName":"main","style":{"spacing":{"padding":{"top":"0","bottom":"0"}}},"backgroundColor":"","layout":{"type":"constrained","contentSize":"1200px"}} -->
+<main class="wp-block-group" style="padding-top:0;padding-bottom:0">
+
+<!-- wp:group {"style":{"spacing":{"padding":{"top":"120px","bottom":"60px"}}},"layout":{"type":"constrained","contentSize":"800px"}} -->
+<div class="wp-block-group" style="padding-top:120px;padding-bottom:60px">
+<!-- wp:heading {"level":1,"textAlign":"center","style":{"typography":{"fontFamily":"Fraunces, serif","fontWeight":"300","letterSpacing":"-0.03em"},"color":{"text":"#ECEEFF"}}} -->
+<h1 class="wp-block-heading has-text-align-center" style="color:#ECEEFF;font-family:Fraunces,serif;font-weight:300;letter-spacing:-0.03em">Latest from <em>InTheCircle</em></h1>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph {"align":"center","style":{"color":{"text":"rgba(236,238,255,0.52)"},"typography":{"fontSize":"17px"}}} -->
+<p class="has-text-align-center" style="color:rgba(236,238,255,0.52);font-size:17px">Insights, updates and stories from the creator community.</p>
+<!-- /wp:paragraph -->
+</div>
+<!-- /wp:group -->
+
+<!-- wp:group {"style":{"spacing":{"padding":{"top":"0","bottom":"100px","left":"48px","right":"48px"}}},"layout":{"type":"constrained","contentSize":"1200px"}} -->
+<div class="wp-block-group" style="padding-bottom:100px;padding-left:48px;padding-right:48px">
+<!-- wp:query {"queryId":1,"query":{"perPage":10,"pages":0,"offset":0,"postType":"post","order":"desc","orderBy":"date","author":"","search":"","exclude":[],"sticky":"","inherit":true}} -->
+<div class="wp-block-query">
+<!-- wp:post-template {"layout":{"type":"grid","columnCount":2}} -->
+
+<!-- wp:group {"style":{"border":{"radius":"18px"},"spacing":{"padding":{"top":"32px","bottom":"32px","left":"32px","right":"32px"}}},"backgroundColor":"","className":"itc-blog-card","layout":{"type":"constrained"}} -->
+<div class="wp-block-group itc-blog-card" style="border-radius:18px;padding:32px">
+
+<!-- wp:post-featured-image {"isLink":true,"style":{"border":{"radius":"12px"},"spacing":{"margin":{"bottom":"20px"}}}} /-->
+
+<!-- wp:post-terms {"term":"category","style":{"color":{"text":"#A78BFA"},"typography":{"fontSize":"10px","fontFamily":"DM Mono, monospace","letterSpacing":"0.12em","textTransform":"uppercase"}}} /-->
+
+<!-- wp:post-title {"isLink":true,"style":{"typography":{"fontFamily":"Fraunces, serif","fontWeight":"400","fontSize":"22px","letterSpacing":"-0.02em"},"color":{"text":"#ECEEFF"},"spacing":{"margin":{"top":"8px","bottom":"12px"}}}} /-->
+
+<!-- wp:post-excerpt {"moreText":"","style":{"color":{"text":"rgba(236,238,255,0.52)"},"typography":{"fontSize":"14px","lineHeight":"1.72"}}} /-->
+
+<!-- wp:post-date {"style":{"color":{"text":"rgba(236,238,255,0.3)"},"typography":{"fontSize":"10px","fontFamily":"DM Mono, monospace","letterSpacing":"0.12em","textTransform":"uppercase"},"spacing":{"margin":{"top":"16px"}}}} /-->
+
+</div>
+<!-- /wp:group -->
+
+<!-- /wp:post-template -->
+
+<!-- wp:query-pagination {"layout":{"type":"flex","justifyContent":"center"},"style":{"spacing":{"margin":{"top":"48px"}}}} -->
+<!-- wp:query-pagination-previous /-->
+<!-- wp:query-pagination-numbers /-->
+<!-- wp:query-pagination-next /-->
+<!-- /wp:query-pagination -->
+
+<!-- wp:query-no-results -->
+<!-- wp:paragraph {"style":{"color":{"text":"rgba(236,238,255,0.5)"},"typography":{"fontSize":"16px"},"spacing":{"padding":{"top":"60px","bottom":"60px"}}},"align":"center"} -->
+<p class="has-text-align-center" style="color:rgba(236,238,255,0.5);font-size:16px;padding-top:60px;padding-bottom:60px">No posts yet. Check back soon.</p>
+<!-- /wp:paragraph -->
+<!-- /wp:query-no-results -->
+
+</div>
+<!-- /wp:query -->
+</div>
+<!-- /wp:group -->
+
+</main>
+<!-- /wp:group -->
+
+<!-- ========== BLOCK 3: Paste this in a Custom HTML block BELOW your blog content ========== -->
+<!-- wp:html -->
+<footer>
+  <a href="/" class="f-brand">
+    <img src="/wp-content/themes/extendable/assets/images/itc-landing-9.png" alt="ITC">
+    <span class="f-brand-n">InTheCircle</span>
+  </a>
+  <div class="f-links">
+    <a href="/privacy-policy/">Privacy</a><a href="/terms/">Terms</a><a href="/faq/">FAQ</a>
+    <a href="https://app.inthecircle.co/download" target="_blank" rel="noopener">Download</a>
+    <span class="f-social">
+      <a href="https://www.linkedin.com/company/inthecirclee/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>
+      <a href="https://www.instagram.com/inthecirclee" target="_blank" rel="noopener" aria-label="Instagram"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg></a>
+      <a href="https://www.tiktok.com/@inthecirclee" target="_blank" rel="noopener" aria-label="TikTok"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/></svg></a>
+    </span>
+  </div>
+  <span class="f-copy">© 2025 InTheCircle</span>
+</footer>
+</div>
+<script>
+(function(){ var n=document.getElementById('nav'); if(n) window.addEventListener('scroll',function(){ n.classList.toggle('on',window.scrollY>40); }); })();
+</script>
+<!-- /wp:html -->

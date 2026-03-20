@@ -1,0 +1,148 @@
+<!-- wp:html -->
+<style id="itc-terms-ui">
+.itc-page *, .itc-page *::before, .itc-page *::after {box-sizing:border-box;margin:0;padding:0}
+.itc-page {
+  --p:#6366F1;--p2:#8B5CF6;--p3:#A78BFA;
+  --pk:#EC4899;--pk2:#F472B6;
+  --bg:#04040A;--bg2:#080810;--bg3:#0D0D17;
+  --s:#131320;--s2:#1A1A2A;
+  --b:rgba(99,102,241,.1);--b2:rgba(99,102,241,.22);--b3:rgba(99,102,241,.42);
+  --t:#ECEEFF;--t2:rgba(236,238,255,.82);--t3:rgba(236,238,255,.58);--t4:rgba(236,238,255,.12);
+  font-family:'Plus Jakarta Sans',sans-serif;
+  background:var(--bg);color:var(--t);
+  overflow-x:hidden;-webkit-font-smoothing:antialiased;
+}
+body:has(.itc-page){background:#04040A!important;overflow-x:hidden}
+.wp-site-blocks:has(.itc-page),.entry-content:has(.itc-page),.page-content:has(.itc-page){padding:0!important;margin:0!important}
+/* ── NAV ── */
+.itc-page nav{position:fixed;top:0;left:0;right:0;z-index:100;height:70px;padding:0 56px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid transparent;transition:all .4s;}
+body.admin-bar .itc-page nav{top:32px!important}
+body.admin-bar .itc-page{margin-top:-32px!important}
+.itc-page nav.on {background:rgba(4,4,10,.88);backdrop-filter:blur(24px) saturate(160%);border-color:var(--b)}
+.itc-page .nb {display:flex;align-items:center;gap:10px;text-decoration:none}
+.itc-page .nb img {width:34px;height:34px;border-radius:9px;object-fit:cover}
+.itc-page .nb-t {font-size:16px;font-weight:700;letter-spacing:-.025em;color:var(--t)!important;font-family:'Plus Jakarta Sans',sans-serif}
+.itc-page .nl {display:flex;gap:36px;align-items:center}
+.itc-page .nl a {font-size:13.5px;font-weight:500;color:var(--t2)!important;text-decoration:none;transition:color .2s;letter-spacing:-.01em}
+.itc-page .nl a:hover {color:var(--t)!important;}
+.itc-page .ndl {background:var(--p);color:#fff!important;padding:10px 22px;border-radius:8px;font-weight:600!important;font-size:13px!important;transition:background .2s,box-shadow .2s!important;box-shadow:0 4px 18px rgba(99,102,241,.28)}
+.itc-page .ndl:hover {background:#4f50d4!important;box-shadow:0 8px 30px rgba(99,102,241,.48)!important}
+/* ── LEGAL CONTENT ── */
+.itc-page .itc-legal-wrap{padding:130px 56px 80px;min-height:100vh}
+body.admin-bar .itc-page .itc-legal-wrap{padding-top:162px!important}
+.itc-page .itc-legal-content{max-width:720px;margin:0 auto}
+.itc-page .itc-legal-content p{font-size:16px;line-height:1.78;color:var(--t2)!important;margin-bottom:1rem}
+.itc-page .itc-legal-content p strong{color:var(--t)!important}
+.itc-page .itc-legal-content h2{font-family:'Fraunces',serif;font-size:clamp(22px,2.5vw,28px);font-weight:400;color:var(--t)!important;margin-top:2.5rem;margin-bottom:0.75rem;letter-spacing:-.02em}
+.itc-page .itc-legal-content h2:first-of-type{margin-top:0}
+.itc-page .itc-legal-content ul{margin:0.5rem 0 1.5rem;padding-left:1.5rem;color:var(--t2)!important}
+.itc-page .itc-legal-content li{font-size:15px;line-height:1.7;margin-bottom:0.4rem}
+.itc-page .itc-legal-content a{color:var(--p3)!important;text-decoration:none;transition:color .2s}
+.itc-page .itc-legal-content a:hover{color:var(--t)!important;text-decoration:underline}
+/* ── FOOTER ── */
+.itc-page footer{padding:44px 56px;border-top:1px solid var(--b);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;background:var(--bg)}
+.itc-page .f-brand {display:flex;align-items:center;gap:10px;text-decoration:none}
+.itc-page .f-brand img {width:28px;height:28px;border-radius:8px;object-fit:cover}
+.itc-page .f-brand-n {font-size:15px;font-weight:700;letter-spacing:-.025em;color:var(--t)}
+.itc-page .f-links {display:flex;gap:24px;flex-wrap:wrap}
+.itc-page .f-links a {font-size:11px;color:var(--t3)!important;text-decoration:none;letter-spacing:.08em;text-transform:uppercase;font-family:'DM Mono',monospace;transition:color .2s}
+.itc-page .f-links a:hover {color:var(--p3)!important;}
+.itc-page .f-copy {font-size:11px;color:var(--t3)!important;font-family:'DM Mono',monospace}
+@media(max-width:1050px){
+  .itc-page nav{padding:0 22px}
+  .itc-page .nl {display:none}
+  .itc-page .itc-legal-wrap{padding:108px 22px 60px}
+  body.admin-bar .itc-page .itc-legal-wrap{padding-top:140px!important}
+  .itc-page footer{flex-direction:column;text-align:center;padding:32px 22px}
+  .itc-page .f-links {justify-content:center}
+}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Fraunces:ital,wght@0,300;0,400;1,300;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<div class="itc-page">
+<nav id="nav">
+  <a href="/" class="nb">
+    <img src="/wp-content/themes/extendable/assets/images/itc-landing-1.png" alt="InTheCircle">
+    <span class="nb-t">InTheCircle</span>
+  </a>
+  <div class="nl">
+    <a href="/#screens">App</a>
+    <a href="/#features">Features</a>
+    <a href="/#community">Community</a>
+    <a href="/#pricing">Pricing</a>
+    <a href="/privacy-policy/">Privacy</a>
+    <a href="/terms/">Terms</a>
+    <a href="/#download" class="ndl">Download</a>
+  </div>
+</nav>
+
+<main class="itc-legal-wrap">
+  <article class="itc-legal-content">
+    <p><strong>Last updated: January 2026</strong></p>
+
+    <h2>Terms of Service</h2>
+    <p>Welcome to In The Circle. By using our app, you agree to these terms.</p>
+
+    <h2>1. Acceptance of Terms</h2>
+    <p>By accessing and using In The Circle ("the App"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the App.</p>
+
+    <h2>2. User Accounts</h2>
+    <p>You must be at least 18 years old to create an account. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You agree to provide accurate and complete information when creating your account.</p>
+
+    <h2>3. User Content</h2>
+    <p>You retain ownership of content you post on In The Circle. By posting content, you grant us a non-exclusive, worldwide, royalty-free license to use, display, and distribute your content within the App. You agree not to post content that is illegal, harmful, threatening, abusive, or violates the rights of others.</p>
+
+    <h2>4. Prohibited Conduct</h2>
+    <p>You agree not to:</p>
+    <ul>
+    <li>Use the App for any illegal purpose</li>
+    <li>Harass, abuse, or harm other users</li>
+    <li>Impersonate any person or entity</li>
+    <li>Post false or misleading information</li>
+    <li>Attempt to gain unauthorized access to the App</li>
+    <li>Use the App to spam or send unsolicited messages</li>
+    <li>Violate any applicable laws or regulations</li>
+    </ul>
+
+    <h2>5. Intellectual Property</h2>
+    <p>The App and its original content, features, and functionality are owned by In The Circle and are protected by international copyright, trademark, and other intellectual property laws.</p>
+
+    <h2>6. Termination</h2>
+    <p>We reserve the right to terminate or suspend your account at any time, without notice, for conduct that we believe violates these Terms or is harmful to other users, us, or third parties.</p>
+
+    <h2>7. Privacy</h2>
+    <p>Your privacy is important to us. Please review our <a href="/privacy-policy/">Privacy Policy</a> for details on how we collect and use your data.</p>
+
+    <h2>8. Disclaimer</h2>
+    <p>The App is provided "as is" without warranties of any kind. We do not guarantee that the App will be error-free, secure, or continuously available.</p>
+
+    <h2>9. Changes to Terms</h2>
+    <p>We may update these terms periodically. Continued use of the app constitutes acceptance of updated terms.</p>
+
+    <h2>10. Contact</h2>
+    <p>For questions about these Terms, please contact us at <a href="mailto:legal@inthecircle.co">legal@inthecircle.co</a> or through the app.</p>
+  </article>
+</main>
+
+<footer>
+  <a href="/" class="f-brand">
+    <img src="/wp-content/themes/extendable/assets/images/itc-landing-9.png" alt="ITC">
+    <span class="f-brand-n">InTheCircle</span>
+  </a>
+  <div class="f-links">
+    <a href="/privacy-policy/">Privacy</a><a href="/terms/">Terms</a><a href="#">Support</a>
+    <a href="#">Instagram</a><a href="https://app.inthecircle.co/download" target="_blank" rel="noopener">Download</a>
+  </div>
+  <span class="f-copy">© 2025 InTheCircle</span>
+</footer>
+</div>
+<script>
+(function(){
+  var nav=document.getElementById('nav');
+  if(!nav) return;
+  window.addEventListener('scroll',function(){ nav.classList.toggle('on',window.scrollY>40); });
+})();
+</script>
+<!-- /wp:html -->

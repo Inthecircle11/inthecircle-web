@@ -23,14 +23,28 @@ export async function GET(req: NextRequest) {
   const status = req.nextUrl.searchParams.get('status') || 'pending'
   const sort = req.nextUrl.searchParams.get('sort') || 'overdue' // overdue | oldest | assigned_to_me
   const filter = req.nextUrl.searchParams.get('filter') || 'all' // all | unassigned | assigned_to_me
+  const search = req.nextUrl.searchParams.get('search')?.trim() || null
+  const page = Math.max(1, Number(req.nextUrl.searchParams.get('page')) || 1)
+  const limit = Math.max(1, Math.min(500, Number(req.nextUrl.searchParams.get('limit')) || 50))
   const currentUserId = result.user.id
   const now = new Date()
 
-  const { data: reports, error } = await supabase
+  let query = supabase
     .from('user_reports')
     .select('*')
     .order('created_at', { ascending: false })
-    .limit(500)
+
+  let countQuery = supabase
+    .from('user_reports')
+    .select('*', { count: 'exact', head: true })
+
+  if (status !== 'all') {
+    query = query.eq('status', status)
+    countQuery = countQuery.eq('status', status)
+  }
+
+  const { data: reports, error } = await query.limit(5000)
+  const { count } = await countQuery
 
   if (error) {
     console.error('[admin 500]', error)
@@ -38,9 +52,6 @@ export async function GET(req: NextRequest) {
   }
 
   let list = (reports ?? []) as Array<Record<string, unknown>>
-  if (status !== 'all') {
-    list = list.filter((r) => r.status === status)
-  }
   if (filter === 'unassigned') {
     list = list.filter((r) => r.assigned_to == null || (r.assignment_expires_at && new Date(r.assignment_expires_at as string) < now))
   } else if (filter === 'assigned_to_me') {
@@ -71,26 +82,41 @@ export async function GET(req: NextRequest) {
     if (r.reporter_id) userIds.add(r.reporter_id as string)
     if (r.reported_user_id) userIds.add(r.reported_user_id as string)
   })
-  const profiles: Record<string, { username: string | null; name: string | null }> = {}
+  const profiles: Record<string, { username: string | null; name: string | null; email: string | null }> = {}
   if (userIds.size > 0) {
     const { data: profData } = await supabase
       .from('profiles')
-      .select('id, username, name')
+      .select('id, username, name, email')
       .in('id', Array.from(userIds))
-    ;(profData ?? []).forEach((p: { id: string; username: string | null; name: string | null }) => {
-      profiles[p.id] = { username: p.username, name: p.name }
+    ;(profData ?? []).forEach((p: { id: string; username: string | null; name: string | null; email: string | null }) => {
+      profiles[p.id] = { username: p.username, name: p.name, email: p.email }
     })
   }
 
-  const out = list.map((r) => ({
+  let out = list.map((r) => ({
     ...r,
     reporter_username: profiles[r.reporter_id as string]?.username ?? null,
     reporter_name: profiles[r.reporter_id as string]?.name ?? null,
+    reporter_email: profiles[r.reporter_id as string]?.email ?? null,
     reported_username: profiles[r.reported_user_id as string]?.username ?? null,
     reported_name: profiles[r.reported_user_id as string]?.name ?? null,
   }))
 
-  return adminSuccess({ reports: out }, requestId)
+  if (search) {
+    const searchLower = search.toLowerCase()
+    out = out.filter((r) => {
+      const reporterEmail = String(r.reporter_email ?? '').toLowerCase()
+      const reporterUsername = String(r.reporter_username ?? '').toLowerCase()
+      const reportedUsername = String(r.reported_username ?? '').toLowerCase()
+      return reporterEmail.includes(searchLower) || reporterUsername.includes(searchLower) || reportedUsername.includes(searchLower)
+    })
+  }
+
+  const total = out.length
+  const offset = (page - 1) * limit
+  const paginated = out.slice(offset, offset + limit)
+
+  return adminSuccess({ reports: paginated, total, page, limit }, requestId)
 }
 
 /** PATCH - Resolve or dismiss report. Requires resolve_reports. Conflict-safe: requires updated_at; 409 if changed. Idempotency-Key supported. */
