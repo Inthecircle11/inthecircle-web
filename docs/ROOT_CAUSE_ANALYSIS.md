@@ -162,7 +162,7 @@ We've now added **7 layers** that prevent this:
 
 ## Related Files
 
-- `vercel.json` - Now has `_comment` warning
+- `vercel.json` — schema-safe only (see `docs/VERCEL_JSON.md`; no extra keys — Vercel rejects them)
 - `index.html`, `signup.html`, `admin.html` - Legacy static files (consider archiving)
 - `docs/ROUTING_HARDENING.md` - Technical details of 7-layer protection
 - `DEPLOYMENT.md` - User-facing prevention guide

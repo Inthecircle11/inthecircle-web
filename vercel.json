@@ -1,5 +1,4 @@
 {
-  "_comment": "DO NOT ADD 'rewrites' HERE. Next.js App Router owns /, /signup, /admin, etc. Legacy rewrites to *.html (index.html, signup.html, admin.html) shadow the app and break production. See .cursor/rules/vercel-next-routing.mdc and scripts/check-vercel-routing.mjs",
   "headers": [
     {
       "source": "/.well-known/apple-app-site-association",

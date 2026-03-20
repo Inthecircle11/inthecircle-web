@@ -129,7 +129,7 @@ curl https://app.inthecircle.co/api/health/routing
 
 ## Related Files
 
-- `vercel.json` — Contains `_comment` warning against rewrites
+- `vercel.json` — Headers only; see `docs/VERCEL_JSON.md` (no undocumented keys — Vercel schema rejects them)
 - `src/middleware.ts` — WEB_LOCKDOWN guard (separate but related)
 - `DEPLOYMENT.md` — User-facing documentation
 - `.git/hooks/README.md` — Git hooks documentation

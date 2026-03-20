@@ -10,6 +10,7 @@ alwaysApply: true
 - **Do not** add `rewrites` that map `/`, `/signup`, `/admin`, or other app paths to root `*.html` files (`index.html`, `signup.html`, `admin.html`, etc.). That was the legacy static site; it overrides **Next.js App Router** and makes production look like a broken or “old” webapp.
 - **Do not** set `outputDirectory` or empty `buildCommand` for this repo unless you are intentionally using static export (this project is not).
 - Headers-only `vercel.json` (security, `apple-app-site-association`) is fine.
+- **Do not** add undocumented keys (e.g. `_comment`) — Vercel **schema-validates** `vercel.json` and **fails the deploy** on unknown keys. Put notes in `docs/VERCEL_JSON.md` instead.
 
 **7 layers of protection enforce this:**
 1. Pre-commit hook (blocks bad commits)

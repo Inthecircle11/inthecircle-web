@@ -54,6 +54,8 @@ Do **not** add `rewrites` in `vercel.json` that map `/`, `/signup`, or `/admin` 
 
 **Legacy static HTML** (old pre-Next pages) lives only under **`archive/legacy/`** — not in the repo root — so it is not mistaken for the live app. See `archive/legacy/README.md`.
 
+**`vercel.json` schema:** Only use keys Vercel’s schema allows. Extra keys (even `_comment`) cause **deployment failure**. See `docs/VERCEL_JSON.md`.
+
 ### Multi-layer prevention (hardened)
 
 **7 layers of protection** prevent routing regressions:
