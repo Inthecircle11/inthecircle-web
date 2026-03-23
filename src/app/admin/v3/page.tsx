@@ -2064,6 +2064,39 @@ export default function AdminV3Page() {
     setLastUpd(new Date())
   }, [activePanel, loadOverview, loadOverviewStats, loadTrendData, loadMonthlyData, loadAccountTypeData, loadNicheData, loadActivityFeed, loadApplications, loadUsers, loadVerifications, loadReports, loadDataRequests, loadRisk, loadApprovals, loadAudit, loadCompliance, loadAnalytics, loadConfig, loadInbox])
 
+  // Keep admin data fresh in the background and refresh immediately when tab regains focus.
+  useEffect(() => {
+    if (!authorized) return
+
+    const runRefresh = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+      refreshCurrent()
+    }
+
+    const interval = setInterval(runRefresh, 60_000)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') runRefresh()
+    }
+    const onFocus = () => runRefresh()
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisibilityChange)
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', onFocus)
+    }
+
+    return () => {
+      clearInterval(interval)
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibilityChange)
+      }
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', onFocus)
+      }
+    }
+  }, [authorized, refreshCurrent])
+
   const nav = useCallback((panel: PanelId) => {
     setActivePanel(panel)
   }, [])
@@ -2582,7 +2615,11 @@ export default function AdminV3Page() {
                     >
                       <option value={5}>Last 5 min</option>
                       <option value={60}>Last 1 hour</option>
+                      <option value={240}>Last 4 hours</option>
+                      <option value={720}>Last 12 hours</option>
                       <option value={1440}>Last 24 hours</option>
+                      <option value={2880}>Last 48 hours</option>
+                      <option value={10080}>Last 7 days</option>
                     </select>
                   </div>
                 </div>
