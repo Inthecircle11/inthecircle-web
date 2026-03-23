@@ -55,7 +55,7 @@ function normalizeAuthError(message: string): string {
   return message
 }
 
-/** POST - Admin sign-in. Runs on server so we can return a friendly error instead of Supabase’s "Multiple failed attempts" message. */
+/** POST - Admin sign-in. Runs on server so we can return a friendly error instead of Supabase's "Multiple failed attempts" message. */
 export async function POST(req: NextRequest) {
   let body: { email?: string; password?: string }
   try {
