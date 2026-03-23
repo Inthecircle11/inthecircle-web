@@ -2,13 +2,13 @@
 /**
  * Plugin Name: InTheCircle SEO Enhancements
  * Description: Implements recommended SEO: meta tags, Open Graph, Twitter Cards, Schema.org, canonicals, per-page titles/descriptions.
- * Version: 1.9.2
+ * Version: 1.9.3
  * Author: InTheCircle
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('ITC_SEO_VERSION', '1.9.2');
+define('ITC_SEO_VERSION', '1.9.3');
 define('ITC_SEO_BASE_URL', 'https://inthecircle.co');
 define('ITC_SEO_OG_IMAGE', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/email-logo-optimized.jpg');
 define('ITC_SEO_LOGO_URL', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/inthecircle-logo-header-optimized-1.png');
@@ -93,6 +93,18 @@ function itc_seo_get_current_data() {
  * Posts and other pages must use All in One SEO meta (TruSEO scores + correct SERP titles).
  */
 function itc_seo_should_override_aioseo_meta() {
+    global $post;
+    // Blog posts: never override — fixes REST/TruSEO when is_front_page() disagrees with the current post (e.g. AIOSEO analyze).
+    if ($post && isset($post->post_type) && $post->post_type === 'post') {
+        return false;
+    }
+    $qid = (int) get_queried_object_id();
+    if ($qid && get_post_type($qid) === 'post') {
+        return false;
+    }
+    if (is_singular('post')) {
+        return false;
+    }
     if (is_front_page()) {
         return true;
     }

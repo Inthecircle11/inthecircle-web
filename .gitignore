@@ -2,6 +2,7 @@
 .next
 node_modules
 .env*.local
+wordpress-seo/.env.sftp
 *client_secret*.json
 *client_secret*
 tsconfig.tsbuildinfo
