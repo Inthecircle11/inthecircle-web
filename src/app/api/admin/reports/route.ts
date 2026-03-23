@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { data: reports, error } = await query.limit(5000)
-  const { count } = await countQuery
+  const { count: _count } = await countQuery
 
   if (error) {
     console.error('[admin 500]', error)

@@ -20,10 +20,11 @@ if (fs.existsSync(vercelPath)) {
         }
       }
     }
-  } catch (e: any) {
-    if (e.message?.includes('BUILD FAILED')) throw e
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message.includes('BUILD FAILED')) throw e
+    const message = e instanceof Error ? e.message : String(e)
     // JSON parse error or other - let build continue, but log
-    console.warn('next.config: Could not validate vercel.json:', e.message)
+    console.warn('next.config: Could not validate vercel.json:', message)
   }
 }
 

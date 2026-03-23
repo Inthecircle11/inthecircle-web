@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     return adminError('Failed to export reports', 500, requestId)
   }
 
-  let list = (reports ?? []) as Array<Record<string, unknown>>
+  const list = (reports ?? []) as Array<Record<string, unknown>>
 
   const userIds = new Set<string>()
   list.forEach((r) => {

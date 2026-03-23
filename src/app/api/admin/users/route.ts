@@ -69,13 +69,13 @@ export async function GET(req: NextRequest) {
     return adminSuccess({ users: list, total, page, limit }, requestId)
   }
 
-  let profilesQuery = supabase
+  const profilesQuery = supabase
     .from('profiles')
     .select('id, name, username, email, profile_image_url, is_verified, is_banned, created_at, location, niche')
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
-  let countQuery = supabase.from('profiles').select('*', { count: 'exact', head: true })
+  const countQuery = supabase.from('profiles').select('*', { count: 'exact', head: true })
 
   const [listResult, countResult] = await Promise.all([
     profilesQuery,

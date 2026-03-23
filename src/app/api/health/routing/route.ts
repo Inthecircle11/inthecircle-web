@@ -41,9 +41,10 @@ export async function GET() {
     }
 
     return NextResponse.json({ status: 'ok', message: 'Routing config is clean' }, { status: 200 })
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e)
     return NextResponse.json(
-      { status: 'error', message: 'Could not validate vercel.json', error: e.message },
+      { status: 'error', message: 'Could not validate vercel.json', error: message },
       { status: 500 }
     )
   }

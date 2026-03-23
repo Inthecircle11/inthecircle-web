@@ -34,7 +34,7 @@ export async function POST(
       return adminError('Invalid application id format', 400, requestId)
     }
     const body = await req.json().catch(() => ({}))
-    const { action, updated_at } = body
+    const { action, updated_at: _updated_at } = body
     if (!action || !['approve', 'reject', 'waitlist', 'suspend'].includes(action)) {
       return adminError('action must be approve|reject|waitlist|suspend', 400, requestId)
     }
