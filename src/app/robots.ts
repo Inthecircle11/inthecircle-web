@@ -15,6 +15,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/admin", "/admin/", "/api/", "/auth/", "/settings", "/feed", "/inbox", "/profile", "/explore", "/connect", "/portfolio", "/analytics", "/challenges", "/ideas", "/resources", "/search", "/matches", "/sprint", "/notifications", "/success", "/update-password"],
       },
     ],
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    sitemap: [`${SITE_URL}/sitemap.xml`, "https://inthecircle.co/sitemap_index.xml"],
+    host: new URL(SITE_URL).host,
   };
 }

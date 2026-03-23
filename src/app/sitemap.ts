@@ -4,9 +4,12 @@ import { SITE_URL } from "@/lib/constants";
 /** Public pages we want indexed for app-related searches. */
 const publicPaths = [
   "",
+  "/download",
   "/login",
   "/signup",
   "/forgot-password",
+  "/delete-account",
+  "/safety-standards",
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

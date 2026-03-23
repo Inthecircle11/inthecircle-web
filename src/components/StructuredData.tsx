@@ -2,6 +2,7 @@ import { SITE_URL, APP_STORE_URL } from "@/lib/constants";
 
 /** JSON-LD for Organization + WebApplication so Google can show rich results for app searches. */
 export function StructuredData() {
+  const appStoreId = APP_STORE_URL.match(/id(\d+)/)?.[1];
   const organization = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -18,15 +19,17 @@ export function StructuredData() {
 
   const webApp = {
     "@context": "https://schema.org",
-    "@type": "WebApplication",
+    "@type": "MobileApplication",
     name: "inthecircle",
     url: SITE_URL,
     applicationCategory: "SocialNetworkingApplication",
-    operatingSystem: "iOS",
+    operatingSystem: "iOS, Android",
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-    description: "Join inthecircle – the #1 networking app for creators. Connect with founders, YouTubers, streamers & digital professionals. Download free on iOS.",
+    description: "Join inthecircle – the #1 networking app for creators. Connect with founders, YouTubers, streamers and digital professionals. Download on iOS and Android.",
     screenshot: `${SITE_URL}/logo.png`,
     softwareVersion: "1.0",
+    installUrl: APP_STORE_URL,
+    ...(appStoreId ? { identifier: `id${appStoreId}` } : {}),
   };
 
   const website = {

@@ -10,7 +10,7 @@
  * Uses sitemap URLs you pass or defaults for inthecircle.co and app.inthecircle.co.
  */
 
-const WORDPRESS_SITEMAP = process.env.WORDPRESS_SITEMAP || 'https://inthecircle.co/sitemap.xml';
+const WORDPRESS_SITEMAP = process.env.WORDPRESS_SITEMAP || 'https://inthecircle.co/sitemap_index.xml';
 const APP_SITEMAP = process.env.APP_SITEMAP || 'https://app.inthecircle.co/sitemap.xml';
 
 const PING_URLS = [

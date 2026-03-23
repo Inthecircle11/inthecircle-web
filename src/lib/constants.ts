@@ -17,4 +17,6 @@ export const APP_DEEP_LINK_PASSWORD_RESET = `${APP_DEEP_LINK_SCHEME}://auth/pass
 /** Canonical site URL for SEO (sitemap, Open Graph, canonical). Set NEXT_PUBLIC_SITE_URL in production. */
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://app.inthecircle.co')
+  (process.env.VERCEL_ENV === 'production'
+    ? 'https://app.inthecircle.co'
+    : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://app.inthecircle.co'))
