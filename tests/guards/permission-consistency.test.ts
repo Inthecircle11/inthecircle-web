@@ -9,7 +9,12 @@ import * as path from 'path'
 const API_ADMIN_ROOT = path.join(process.cwd(), 'src', 'app', 'api', 'admin')
 
 /** Routes that intentionally do not call requireAdmin (e.g. gate, identity). */
-const REQUIRE_ADMIN_EXCLUDED: Set<string> = new Set(['gate', 'identity'])
+const REQUIRE_ADMIN_EXCLUDED: Set<string> = new Set([
+  'gate',
+  'identity',
+  // Public admin sign-in endpoint by design.
+  'sign-in',
+])
 
 const MUTATION_METHODS = ['POST', 'PATCH', 'DELETE', 'PUT']
 
