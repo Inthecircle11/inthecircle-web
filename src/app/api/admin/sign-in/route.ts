@@ -24,7 +24,7 @@ export const dynamic = 'force-dynamic'
  */
 
 const FRIENDLY_MESSAGE =
-  'Too many sign-in attempts. Please wait a few minutes and try again, or reset your password if you don’t remember it.'
+  "Too many sign-in attempts. Please wait a few minutes and try again, or reset your password if you don't remember it."
 
 function parseEnvList(env: string | undefined): string[] {
   if (!env || typeof env !== 'string') return []
