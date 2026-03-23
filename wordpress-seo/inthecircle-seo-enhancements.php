@@ -2,13 +2,13 @@
 /**
  * Plugin Name: InTheCircle SEO Enhancements
  * Description: Implements recommended SEO: meta tags, Open Graph, Twitter Cards, Schema.org, canonicals, per-page titles/descriptions.
- * Version: 1.9.1
+ * Version: 1.9.2
  * Author: InTheCircle
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('ITC_SEO_VERSION', '1.9.1');
+define('ITC_SEO_VERSION', '1.9.2');
 define('ITC_SEO_BASE_URL', 'https://inthecircle.co');
 define('ITC_SEO_OG_IMAGE', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/email-logo-optimized.jpg');
 define('ITC_SEO_LOGO_URL', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/inthecircle-logo-header-optimized-1.png');
@@ -86,6 +86,22 @@ function itc_seo_get_current_data() {
     ];
     
     return $fallback;
+}
+
+/**
+ * Only override AIOSEO / document title for the homepage and explicitly mapped static pages.
+ * Posts and other pages must use All in One SEO meta (TruSEO scores + correct SERP titles).
+ */
+function itc_seo_should_override_aioseo_meta() {
+    if (is_front_page()) {
+        return true;
+    }
+    if (!is_singular()) {
+        return false;
+    }
+    $slug = get_post_field('post_name', get_queried_object_id());
+    $pages = itc_seo_get_page_data();
+    return $slug && isset($pages[$slug]);
 }
 
 /**
@@ -353,6 +369,9 @@ add_filter('the_content', 'itc_seo_app_store_url', 5);
  * Override All in One SEO title and description with our recommended values
  */
 function itc_seo_aioseo_title($title) {
+    if (!itc_seo_should_override_aioseo_meta()) {
+        return $title;
+    }
     $data = itc_seo_get_current_data();
     if (isset($data['title']) && !empty($data['title'])) {
         return $data['title'];
@@ -362,6 +381,9 @@ function itc_seo_aioseo_title($title) {
 add_filter('aioseo_title', 'itc_seo_aioseo_title', 999);
 
 function itc_seo_aioseo_description($description) {
+    if (!itc_seo_should_override_aioseo_meta()) {
+        return $description;
+    }
     $data = itc_seo_get_current_data();
     if (isset($data['description']) && !empty($data['description'])) {
         return $data['description'];
@@ -371,9 +393,15 @@ function itc_seo_aioseo_description($description) {
 add_filter('aioseo_description', 'itc_seo_aioseo_description', 999);
 
 function itc_seo_aioseo_facebook_tags($tags) {
-    $data = itc_seo_get_current_data();
-    if (isset($data['title'])) $tags['og:title'] = $data['title'];
-    if (isset($data['description'])) $tags['og:description'] = $data['description'];
+    if (itc_seo_should_override_aioseo_meta()) {
+        $data = itc_seo_get_current_data();
+        if (isset($data['title'])) {
+            $tags['og:title'] = $data['title'];
+        }
+        if (isset($data['description'])) {
+            $tags['og:description'] = $data['description'];
+        }
+    }
     $tags['og:image'] = ITC_SEO_OG_IMAGE;
     $tags['og:site_name'] = 'InTheCircle';
     return $tags;
@@ -381,9 +409,15 @@ function itc_seo_aioseo_facebook_tags($tags) {
 add_filter('aioseo_facebook_tags', 'itc_seo_aioseo_facebook_tags', 999);
 
 function itc_seo_aioseo_twitter_tags($tags) {
-    $data = itc_seo_get_current_data();
-    if (isset($data['title'])) $tags['twitter:title'] = $data['title'];
-    if (isset($data['description'])) $tags['twitter:description'] = $data['description'];
+    if (itc_seo_should_override_aioseo_meta()) {
+        $data = itc_seo_get_current_data();
+        if (isset($data['title'])) {
+            $tags['twitter:title'] = $data['title'];
+        }
+        if (isset($data['description'])) {
+            $tags['twitter:description'] = $data['description'];
+        }
+    }
     $tags['twitter:image'] = ITC_SEO_OG_IMAGE;
     return $tags;
 }
@@ -825,6 +859,9 @@ add_action('wp_footer', 'itc_seo_404_page', 1);
 function itc_seo_404_title_parts($parts) {
     if (is_404()) {
         return ['title' => 'Page Not Found', 'page' => '', 'tagline' => 'InTheCircle'];
+    }
+    if (!itc_seo_should_override_aioseo_meta()) {
+        return $parts;
     }
     $data = itc_seo_get_current_data();
     if (isset($data['title']) && !empty($data['title'])) {
