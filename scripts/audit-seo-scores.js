@@ -6,19 +6,48 @@
 
 const fs = require('fs');
 const path = require('path');
-const ENV_PATH = path.join(__dirname, '../../Inthecircle/scripts/.env.wp');
+
+/** Prefer repo-local credentials; fall back to legacy Inthecircle sibling folder. */
+const ENV_CANDIDATES = [
+  path.join(__dirname, '.env.wp'),
+  path.join(__dirname, '..', '..', 'Inthecircle', 'scripts', '.env.wp'),
+];
 
 function loadEnv() {
-  const c = fs.readFileSync(ENV_PATH, 'utf8');
-  const env = {};
-  c.split('\n').forEach((line) => {
-    const m = line.match(/^\s*WP_(SITE_URL|USERNAME|APP_PASSWORD)\s*=\s*["']?([^"'\n]*)["']?/);
-    if (m) {
-      if (m[1] === 'SITE_URL') env.url = m[2].trim().replace(/\/$/, '');
-      else if (m[1] === 'USERNAME') env.user = m[2].trim();
-      else if (m[1] === 'APP_PASSWORD') m[2] ? (env.appPassword = m[2].trim().replace(/\s/g, '')) : null;
+  let content;
+  let usedPath;
+  for (const p of ENV_CANDIDATES) {
+    if (fs.existsSync(p)) {
+      content = fs.readFileSync(p, 'utf8');
+      usedPath = p;
+      break;
     }
+  }
+  if (!content) {
+    console.error('No WordPress env file found. Create one of:\n', ENV_CANDIDATES.join('\n'));
+    process.exit(1);
+  }
+  const env = {};
+  content.split('\n').forEach((line) => {
+    let m = line.match(/^\s*WP_(SITE_URL|USERNAME|APP_PASSWORD)\s*=\s*["']?([^"'\n]*)["']?/);
+    if (!m) {
+      m = line.match(/^\s*WORDPRESS_(URL|USER|APP_PASSWORD)\s*=\s*["']?([^"'\n]*)["']?/);
+      if (m) {
+        const val = m[2].trim();
+        if (m[1] === 'URL' && !env.url) env.url = val.replace(/\/$/, '');
+        else if (m[1] === 'USER') env.user = env.user || val;
+        else if (m[1] === 'APP_PASSWORD' && val) env.appPassword = env.appPassword || val.replace(/\s/g, '');
+      }
+      return;
+    }
+    if (m[1] === 'SITE_URL') env.url = m[2].trim().replace(/\/$/, '');
+    else if (m[1] === 'USERNAME') env.user = m[2].trim();
+    else if (m[1] === 'APP_PASSWORD' && m[2]) env.appPassword = m[2].trim().replace(/\s/g, '');
   });
+  if (!env.url || !env.user || !env.appPassword) {
+    console.error('Missing WP_SITE_URL/WP_USERNAME/WP_APP_PASSWORD (or WORDPRESS_*) in', usedPath);
+    process.exit(1);
+  }
   return env;
 }
 
