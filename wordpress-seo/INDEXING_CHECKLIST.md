@@ -9,8 +9,10 @@ Use this checklist so Google and Bing index **inthecircle.co** (WordPress). **Cu
 **Option A: Publish from this repo (automated)**
 
 1. In WordPress: **Users → Your user → Application Passwords** → create a new application password, copy it (shown once).
-2. In **wordpress-seo**, copy `.env.example` to `.env` and set `WORDPRESS_URL`, `WORDPRESS_USER`, `WORDPRESS_APP_PASSWORD`. Do not commit `.env`.
-3. From the **repository root**: `npm run wp:publish` (or `node wordpress-seo/scripts/publish-posts-to-wordpress.js`). This creates or updates all **12** posts (9 articles + 3 pillar hubs). Then confirm SEO meta per post in **All in One SEO** (or your SEO plugin).
+2. Either:
+   - **Local:** In **wordpress-seo**, copy `.env.example` to `.env` and set `WORDPRESS_URL`, `WORDPRESS_USER`, `WORDPRESS_APP_PASSWORD`. Do not commit `.env`. From the repo root: `npm run wp:publish`.
+   - **GitHub:** In the repo **Settings → Secrets and variables → Actions**, add `WORDPRESS_URL`, `WORDPRESS_USER`, `WORDPRESS_APP_PASSWORD`. Then **Actions → Publish WordPress posts → Run workflow** (workflow: `.github/workflows/publish-wordpress-posts.yml`).
+3. Confirm SEO meta per post in **All in One SEO** (or your SEO plugin) if anything looks off.
 
 **Option B: One-click import (no credentials in repo)**
 

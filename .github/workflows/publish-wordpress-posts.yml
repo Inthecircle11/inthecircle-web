@@ -1,0 +1,46 @@
+# Manual publish of all blog-posts/*.md to WordPress via REST API.
+# Add repository secrets once, then: Actions → Publish WordPress posts → Run workflow.
+#
+# Required secrets (Settings → Secrets and variables → Actions):
+#   WORDPRESS_URL           e.g. https://inthecircle.co
+#   WORDPRESS_USER          e.g. admin
+#   WORDPRESS_APP_PASSWORD  Application Password from WP Admin → Users → Application Passwords
+
+name: Publish WordPress posts
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: publish-wordpress-posts
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Verify secrets are configured
+        env:
+          WORDPRESS_URL: ${{ secrets.WORDPRESS_URL }}
+          WORDPRESS_USER: ${{ secrets.WORDPRESS_USER }}
+          WORDPRESS_APP_PASSWORD: ${{ secrets.WORDPRESS_APP_PASSWORD }}
+        run: |
+          if [ -z "$WORDPRESS_URL" ] || [ -z "$WORDPRESS_USER" ] || [ -z "$WORDPRESS_APP_PASSWORD" ]; then
+            echo "::error::Missing Actions secrets. Add WORDPRESS_URL, WORDPRESS_USER, WORDPRESS_APP_PASSWORD in Repo Settings → Secrets."
+            exit 1
+          fi
+
+      - name: Publish posts (REST)
+        env:
+          WORDPRESS_URL: ${{ secrets.WORDPRESS_URL }}
+          WORDPRESS_USER: ${{ secrets.WORDPRESS_USER }}
+          WORDPRESS_APP_PASSWORD: ${{ secrets.WORDPRESS_APP_PASSWORD }}
+        run: node wordpress-seo/scripts/publish-posts-to-wordpress.js
