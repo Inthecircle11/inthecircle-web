@@ -23,7 +23,7 @@ Implements all recommended SEO changes for [inthecircle.co](https://inthecircle.
 - **All in One SEO override:** `aioseo_title`, `aioseo_description`, `aioseo_facebook_tags`, `aioseo_twitter_tags` – our values override AIOSEO
 - **App Store URL (page builders):** JS fallback replaces placeholder in all links, including page builder blocks
 - **GA4 conversion events:** Fires `sign_up` and `download_app` on click (mark as conversion in GA4)
-- ~~Sticky header CTA~~ (removed): Bar that appeared on scroll is no longer used
+- **Top black promo strip (`#itc-sticky-cta`)** — not shipped; any legacy copy on the server is **hidden and removed** in plugin **2.0.6+** (CSS + footer script). Do not re-add that markup.
 
 ## Blog Posts for Keyword Ranking
 
