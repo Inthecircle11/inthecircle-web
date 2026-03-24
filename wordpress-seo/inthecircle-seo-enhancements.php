@@ -2,13 +2,13 @@
 /**
  * Plugin Name: Inthecircle SEO Enhancements
  * Description: Implements recommended SEO: meta tags, Open Graph, Twitter Cards, Schema.org, canonicals, per-page titles/descriptions.
- * Version: 2.0.6
+ * Version: 2.0.7
  * Author: Inthecircle
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('ITC_SEO_VERSION', '2.0.6');
+define('ITC_SEO_VERSION', '2.0.7');
 define('ITC_SEO_BASE_URL', 'https://inthecircle.co');
 define('ITC_SEO_OG_IMAGE', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/email-logo-optimized.jpg');
 define('ITC_SEO_LOGO_URL', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/inthecircle-logo-header-optimized-1.png');
@@ -137,6 +137,8 @@ function itc_seo_should_override_aioseo_meta() {
  * Output meta tags (NO OG/Twitter - AIOSEO handles those to avoid duplicates)
  */
 function itc_seo_output_head() {
+    echo '<!-- ITC_SEO_STICKY_SUPPRESS v' . esc_attr(ITC_SEO_VERSION) . ' -->' . "\n";
+    echo '<style id="itc-seo-disable-top-sticky-banner">#itc-sticky-cta{display:none!important;visibility:hidden!important;height:0!important;max-height:0!important;overflow:hidden!important;padding:0!important;margin:0!important;border:0!important;pointer-events:none!important;}</style>' . "\n";
     // Early connection + preload for faster LCP (mobile PageSpeed)
     echo '<!-- Inthecircle SEO - Preload Critical Assets -->' . "\n";
     echo '<link rel="preconnect" href="' . esc_url(parse_url(ITC_SEO_BASE_URL, PHP_URL_SCHEME) . '://' . parse_url(ITC_SEO_BASE_URL, PHP_URL_HOST)) . '">' . "\n";
@@ -146,6 +148,11 @@ function itc_seo_output_head() {
     echo '<meta name="keywords" content="' . esc_attr(ITC_SEO_KEYWORDS) . '">' . "\n";
 }
 add_action('wp_head', 'itc_seo_output_head', 1);
+
+function itc_seo_remove_legacy_top_sticky_banner_dom() {
+    echo '<script id="itc-seo-remove-top-sticky">(function(){var e=document.getElementById("itc-sticky-cta");if(e)e.remove();})();</script>' . "\n";
+}
+add_action('wp_footer', 'itc_seo_remove_legacy_top_sticky_banner_dom', 1);
 
 /**
  * Fix cookie banner text contrast – dark text on dark background is unreadable.
@@ -1604,20 +1611,3 @@ function itc_seo_adjust_aioseo_analyze_response($response, $server, $request) {
     return $response;
 }
 add_filter('rest_post_dispatch', 'itc_seo_adjust_aioseo_analyze_response', 20, 3);
-
-/**
- * Black top promo strip (#itc-sticky-cta) is not part of the product — do not re-add markup that prints it.
- * Older uploaded copies of this plugin may still echo that block; hide it and remove it from the DOM.
- */
-function itc_seo_disable_legacy_top_sticky_banner_css() {
-    echo '<style id="itc-seo-disable-top-sticky-banner">#itc-sticky-cta{display:none!important;visibility:hidden!important;height:0!important;max-height:0!important;overflow:hidden!important;padding:0!important;margin:0!important;border:0!important;pointer-events:none!important;}</style>' . "\n";
-}
-add_action('wp_head', 'itc_seo_disable_legacy_top_sticky_banner_css', 1);
-
-function itc_seo_remove_legacy_top_sticky_banner_dom() {
-    ?>
-<script id="itc-seo-remove-top-sticky">(function(){var e=document.getElementById('itc-sticky-cta');if(e)e.remove();})();</script>
-    <?php
-}
-add_action('wp_footer', 'itc_seo_remove_legacy_top_sticky_banner_dom', 1);
-

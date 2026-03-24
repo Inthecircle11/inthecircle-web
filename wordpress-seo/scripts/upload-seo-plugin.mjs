@@ -17,6 +17,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
 const PLUGIN_PHP = path.join(ROOT, 'inthecircle-seo-enhancements.php');
+const MU_PLUGIN_PHP = path.join(ROOT, 'mu-plugins', 'itc-hide-legacy-sticky-cta.php');
 
 function loadEnv() {
   const envPath = path.join(ROOT, '.env.sftp');
@@ -55,12 +56,14 @@ function main() {
   }
 
   let remoteFile;
+  let wpContentBase;
   if (pluginPathOverride) {
     remoteFile = pluginPathOverride.replace(/\/$/, '') + '/inthecircle-seo-enhancements.php';
+    wpContentBase = pluginPathOverride.replace(/\/plugins\/[^/]+$/, '').replace(/\/$/, '');
   } else {
     const themePath = remoteTheme.replace(/^\/+/, '');
-    const base = themePath.replace(/\/themes\/[^/]+$/, '') || `public_html/wp-content`;
-    remoteFile = `${base}/plugins/${pluginFolder}/inthecircle-seo-enhancements.php`.replace(/\/+/g, '/');
+    wpContentBase = themePath.replace(/\/themes\/[^/]+$/, '') || `public_html/wp-content`;
+    remoteFile = `${wpContentBase}/plugins/${pluginFolder}/inthecircle-seo-enhancements.php`.replace(/\/+/g, '/');
   }
 
   const ftpUrl = `ftp://${user}:${encodeURIComponent(password)}@${host}/${remoteFile}`;
@@ -70,8 +73,27 @@ function main() {
   console.log('  Remote:', remoteFile);
 
   try {
-    execSync(`curl -T "${PLUGIN_PHP}" "${ftpUrl}"`, { stdio: 'inherit', maxBuffer: 10 * 1024 * 1024 });
-    console.log('\nUpload succeeded. Hard refresh the site (and purge LiteSpeed cache); the black bar should be gone.');
+    // --ftp-pasv: required on many shared hosts; --ftp-create-dirs: ensure plugin folder exists
+    execSync(
+      `curl -sS --fail --ftp-pasv --ftp-create-dirs -T "${PLUGIN_PHP}" "${ftpUrl}"`,
+      { stdio: 'inherit', maxBuffer: 10 * 1024 * 1024 }
+    );
+    console.log('\nMain plugin upload succeeded.');
+
+    if (fs.existsSync(MU_PLUGIN_PHP)) {
+      const muRemote = `${wpContentBase}/mu-plugins/itc-hide-legacy-sticky-cta.php`.replace(/\/+/g, '/');
+      const muUrl = `ftp://${user}:${encodeURIComponent(password)}@${host}/${muRemote}`;
+      console.log('\nUploading must-use helper (hides #itc-sticky-cta even if PHP OPcache is stale)...');
+      console.log('  Local:', MU_PLUGIN_PHP);
+      console.log('  Remote:', muRemote);
+      execSync(
+        `curl -sS --fail --ftp-pasv --ftp-create-dirs -T "${MU_PLUGIN_PHP}" "${muUrl}"`,
+        { stdio: 'inherit', maxBuffer: 10 * 1024 * 1024 }
+      );
+      console.log('\nMU-plugin upload succeeded.');
+    }
+
+    console.log('\nDone. Purge LiteSpeed cache if needed; hard-refresh the homepage.');
   } catch (e) {
     if (e.status === 550) {
       console.error('\nServer returned 550: folder or file path may not exist.');
