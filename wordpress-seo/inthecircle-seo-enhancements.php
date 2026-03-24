@@ -1,21 +1,21 @@
 <?php
 /**
- * Plugin Name: InTheCircle SEO Enhancements
+ * Plugin Name: Inthecircle SEO Enhancements
  * Description: Implements recommended SEO: meta tags, Open Graph, Twitter Cards, Schema.org, canonicals, per-page titles/descriptions.
- * Version: 1.9.3
- * Author: InTheCircle
+ * Version: 1.9.4
+ * Author: Inthecircle
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('ITC_SEO_VERSION', '1.9.3');
+define('ITC_SEO_VERSION', '1.9.4');
 define('ITC_SEO_BASE_URL', 'https://inthecircle.co');
 define('ITC_SEO_OG_IMAGE', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/email-logo-optimized.jpg');
 define('ITC_SEO_LOGO_URL', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/inthecircle-logo-header-optimized-1.png');
 define('ITC_SEO_OPTION_APP_STORE_ID', 'itc_seo_app_store_id');
 
 /** SEO keywords for ranking in creator/app-related searches (aligned with app.inthecircle.co) */
-define('ITC_SEO_KEYWORDS', 'inthecircle, in the circle app, creator networking app, networking app for creators, connect with creators, creator community, founder networking, YouTuber network, streamer community, digital creator app, collaboration app, creator platform');
+define('ITC_SEO_KEYWORDS', 'inthecircle, in the circle app, creator networking app, networking app for creators, connect with creators, creator community, YouTuber network, streamer community, digital creator app, collaboration app, creator platform');
 
 function itc_seo_get_app_store_id() {
     $id = get_option(ITC_SEO_OPTION_APP_STORE_ID, '');
@@ -29,27 +29,27 @@ function itc_seo_get_page_data() {
     return [
         'home' => [
             'title' => 'inthecircle – #1 Networking App for Creators | Connect & Collaborate',
-            'description' => 'Join inthecircle – the #1 networking app for creators. Connect with founders, YouTubers, streamers & digital professionals. Download free on iOS. Build your circle.',
+            'description' => 'Join inthecircle – the #1 networking app for creators. Connect with creators, YouTubers, streamers & digital professionals. Download free on iOS. Build your circle.',
             'url' => ITC_SEO_BASE_URL . '/',
         ],
         'about' => [
-            'title' => 'About InTheCircle – Creator Networking Platform',
+            'title' => 'About Inthecircle – Creator Networking Platform',
             'description' => 'In The Circle is the future of professional networking for creators. Quality connections, privacy-first, no ads. Learn our mission.',
             'url' => ITC_SEO_BASE_URL . '/about/',
         ],
         'faq' => [
-            'title' => 'FAQ – InTheCircle Help Center',
-            'description' => 'Find answers about profiles, connections, messaging & more. Get help with the InTheCircle creator networking app.',
+            'title' => 'FAQ – Inthecircle Help Center',
+            'description' => 'Find answers about profiles, connections, messaging & more. Get help with the Inthecircle creator networking app.',
             'url' => ITC_SEO_BASE_URL . '/faq/',
         ],
         'privacy-policy' => [
-            'title' => 'Privacy Policy – InTheCircle',
-            'description' => 'How InTheCircle collects, uses & protects your data. We never sell your information. Read our privacy policy.',
+            'title' => 'Privacy Policy – Inthecircle',
+            'description' => 'How Inthecircle collects, uses & protects your data. We never sell your information. Read our privacy policy.',
             'url' => ITC_SEO_BASE_URL . '/privacy-policy/',
         ],
         'terms' => [
-            'title' => 'Terms of Service – InTheCircle',
-            'description' => 'InTheCircle terms of service. Rules for using our creator networking app.',
+            'title' => 'Terms of Service – Inthecircle',
+            'description' => 'Inthecircle terms of service. Rules for using our creator networking app.',
             'url' => ITC_SEO_BASE_URL . '/terms/',
         ],
     ];
@@ -63,8 +63,8 @@ function itc_seo_get_current_data() {
     
     if (is_404()) {
         return [
-            'title' => 'Page Not Found – InTheCircle',
-            'description' => 'The page you\'re looking for doesn\'t exist. Return to InTheCircle – the #1 networking app for creators.',
+            'title' => 'Page Not Found – Inthecircle',
+            'description' => 'The page you\'re looking for doesn\'t exist. Return to Inthecircle – the #1 networking app for creators.',
             'url' => ITC_SEO_BASE_URL . (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/'),
         ];
     }
@@ -81,7 +81,7 @@ function itc_seo_get_current_data() {
     // Fallback for any page
     $fallback = [
         'title' => get_bloginfo('name') . ' – ' . get_bloginfo('description'),
-        'description' => get_bloginfo('description') ?: 'InTheCircle – The #1 networking app for creators.',
+        'description' => get_bloginfo('description') ?: 'Inthecircle – The #1 networking app for creators.',
         'url' => get_permalink(),
     ];
     
@@ -121,7 +121,7 @@ function itc_seo_should_override_aioseo_meta() {
  */
 function itc_seo_output_head() {
     // Early connection + preload for faster LCP (mobile PageSpeed)
-    echo '<!-- InTheCircle SEO - Preload Critical Assets -->' . "\n";
+    echo '<!-- Inthecircle SEO - Preload Critical Assets -->' . "\n";
     echo '<link rel="preconnect" href="' . esc_url(parse_url(ITC_SEO_BASE_URL, PHP_URL_SCHEME) . '://' . parse_url(ITC_SEO_BASE_URL, PHP_URL_HOST)) . '">' . "\n";
     echo '<link rel="preload" href="' . esc_url(ITC_SEO_LOGO_URL) . '" as="image" fetchpriority="high">' . "\n";
     
@@ -266,7 +266,7 @@ function itc_seo_output_schema() {
                 'applicationCategory' => 'SocialNetworkingApplication',
                 'operatingSystem' => 'iOS',
                 'offers' => ['@type' => 'Offer', 'price' => '0', 'priceCurrency' => 'USD'],
-                'description' => 'Join inthecircle – the #1 networking app for creators. Connect with founders, YouTubers, streamers & digital professionals. Download free on iOS.',
+                'description' => 'Join inthecircle – the #1 networking app for creators. Connect with creators, YouTubers, streamers & digital professionals. Download free on iOS.',
                 'screenshot' => ITC_SEO_OG_IMAGE,
             ],
         ],
@@ -327,7 +327,7 @@ add_filter('the_content', 'itc_seo_home_internal_links', 15);
  */
 function itc_seo_logo_alt($html) {
     if (empty($html)) return $html;
-    $alt = 'InTheCircle – Creator networking app logo';
+    $alt = 'Inthecircle – Creator networking app logo';
     if (strpos($html, 'alt=""') !== false || strpos($html, "alt=''") !== false) {
         $html = preg_replace('/alt=["\']?["\']?/', 'alt="' . esc_attr($alt) . '" ', $html);
     } elseif (preg_match('/<img[^>]+>/', $html) && !preg_match('/\salt=/', $html)) {
@@ -346,7 +346,7 @@ add_filter('get_custom_logo', 'itc_seo_logo_alt', 20);
  */
 function itc_seo_content_image_alt($content) {
     $logo_pattern = 'email/logo';
-    $alt = 'InTheCircle – Creator networking app logo';
+    $alt = 'Inthecircle – Creator networking app logo';
     
     if (strpos($content, $logo_pattern) === false) return $content;
     
@@ -415,7 +415,7 @@ function itc_seo_aioseo_facebook_tags($tags) {
         }
     }
     $tags['og:image'] = ITC_SEO_OG_IMAGE;
-    $tags['og:site_name'] = 'InTheCircle';
+    $tags['og:site_name'] = 'Inthecircle';
     return $tags;
 }
 add_filter('aioseo_facebook_tags', 'itc_seo_aioseo_facebook_tags', 999);
@@ -459,7 +459,7 @@ add_action('wp_footer', 'itc_seo_app_store_url_js', 20);
  * Admin settings page – App Store ID
  */
 function itc_seo_add_menu() {
-    add_options_page('InTheCircle SEO', 'InTheCircle SEO', 'manage_options', 'itc-seo', 'itc_seo_settings_page');
+    add_options_page('Inthecircle SEO', 'Inthecircle SEO', 'manage_options', 'itc-seo', 'itc_seo_settings_page');
 }
 add_action('admin_menu', 'itc_seo_add_menu');
 
@@ -650,7 +650,7 @@ function itc_seo_settings_page() {
     $current = itc_seo_get_app_store_id();
     ?>
     <div class="wrap">
-        <h1>InTheCircle SEO Settings</h1>
+        <h1>Inthecircle SEO Settings</h1>
         <form method="post">
             <?php wp_nonce_field('itc_seo_settings'); ?>
             <table class="form-table">
@@ -870,7 +870,7 @@ add_action('wp_footer', 'itc_seo_404_page', 1);
  */
 function itc_seo_404_title_parts($parts) {
     if (is_404()) {
-        return ['title' => 'Page Not Found', 'page' => '', 'tagline' => 'InTheCircle'];
+        return ['title' => 'Page Not Found', 'page' => '', 'tagline' => 'Inthecircle'];
     }
     if (!itc_seo_should_override_aioseo_meta()) {
         return $parts;

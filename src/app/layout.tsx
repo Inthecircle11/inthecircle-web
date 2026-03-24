@@ -16,7 +16,7 @@ const plusJakarta = Plus_Jakarta_Sans({
 const siteName = "inthecircle";
 const defaultTitle = "inthecircle – #1 Networking App for Creators | Connect & Collaborate";
 const defaultDescription =
-  "Join inthecircle – the #1 networking app for creators. Connect with founders, YouTubers, streamers & digital professionals. Download on iOS and Android. Build your circle.";
+  "Join inthecircle – the #1 networking app for creators. Connect with creators, YouTubers, streamers & digital professionals. Download on iOS and Android. Build your circle.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -32,8 +32,7 @@ export const metadata: Metadata = {
     "networking app for creators",
     "connect with creators",
     "creator community",
-    "founder networking",
-    "YouTuber network",
+        "YouTuber network",
     "streamer community",
     "digital creator app",
     "collaboration app",

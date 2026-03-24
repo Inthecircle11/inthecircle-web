@@ -9,7 +9,7 @@ export function StructuredData() {
     name: "inthecircle",
     url: "https://inthecircle.co",
     logo: `${SITE_URL}/logo.png`,
-    description: "The #1 networking app for creators. Connect with founders, creators, and digital professionals.",
+    description: "The #1 networking app for creators. Connect with creators and digital professionals.",
     sameAs: [
       "https://inthecircle.co",
       "https://app.inthecircle.co",
@@ -25,7 +25,7 @@ export function StructuredData() {
     applicationCategory: "SocialNetworkingApplication",
     operatingSystem: "iOS, Android",
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-    description: "Join inthecircle – the #1 networking app for creators. Connect with founders, YouTubers, streamers and digital professionals. Download on iOS and Android.",
+    description: "Join inthecircle – the #1 networking app for creators. Connect with creators, YouTubers, streamers and digital professionals. Download on iOS and Android.",
     screenshot: `${SITE_URL}/logo.png`,
     softwareVersion: "1.0",
     installUrl: APP_STORE_URL,

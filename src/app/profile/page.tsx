@@ -291,7 +291,7 @@ export default function ProfilePage() {
                     navigator.share({
                       title: profile?.name || 'Profile',
                       url: typeof window !== 'undefined' ? window.location.href : '',
-                      text: `Check out my profile on InTheCircle`,
+                      text: `Check out my profile on Inthecircle`,
                     }).catch(() => {})
                   } else {
                     navigator.clipboard?.writeText(typeof window !== 'undefined' ? window.location.href : '')

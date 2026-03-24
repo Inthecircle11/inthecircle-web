@@ -101,7 +101,7 @@ export default function Home() {
             What is inthecircle?
           </h2>
           <p className="text-[var(--text-secondary)] text-[15px] sm:text-base max-w-lg mx-auto leading-relaxed">
-            inthecircle (In The Circle) is the #1 creator networking app where founders, YouTubers, streamers, and digital professionals connect and collaborate. Join the creator community, discover like-minded creators, and grow your circle—free on iOS.
+            inthecircle (In The Circle) is the #1 creator networking app where creators, YouTubers, streamers, and digital professionals connect and collaborate. Join the creator community, discover like-minded creators, and grow your circle—free on iOS.
           </p>
         </section>
 
@@ -130,7 +130,7 @@ export default function Home() {
           </h2>
           <div className="space-y-6 sm:space-y-8">
             {[
-              { step: '01', title: 'Download the App', body: 'Get InTheCircle free from the App Store. Create your profile in under 2 minutes.' },
+              { step: '01', title: 'Download the App', body: 'Get Inthecircle free from the App Store. Create your profile in under 2 minutes.' },
               { step: '02', title: 'Discover Creators', body: 'Browse profiles matched to your interests. Find creators who align with your vision.' },
               { step: '03', title: 'Connect & Collaborate', body: 'Message directly, build relationships, and turn connections into opportunities.' },
             ].map(({ step, title, body }) => (
