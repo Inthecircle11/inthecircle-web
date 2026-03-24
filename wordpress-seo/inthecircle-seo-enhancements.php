@@ -2,13 +2,13 @@
 /**
  * Plugin Name: Inthecircle SEO Enhancements
  * Description: Implements recommended SEO: meta tags, Open Graph, Twitter Cards, Schema.org, canonicals, per-page titles/descriptions.
- * Version: 1.9.7
+ * Version: 2.0.1
  * Author: Inthecircle
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('ITC_SEO_VERSION', '1.9.7');
+define('ITC_SEO_VERSION', '2.0.1');
 define('ITC_SEO_BASE_URL', 'https://inthecircle.co');
 define('ITC_SEO_OG_IMAGE', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/email-logo-optimized.jpg');
 define('ITC_SEO_LOGO_URL', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/inthecircle-logo-header-optimized-1.png');
@@ -40,8 +40,13 @@ function itc_seo_get_app_store_id() {
 function itc_seo_get_page_data() {
     return [
         'home' => [
-            'title' => 'inthecircle – #1 Networking App for Creators | Connect & Collaborate',
-            'description' => 'Join inthecircle – the #1 networking app for creators. Connect with creators, YouTubers, streamers & digital professionals. Download free on iOS. Build your circle.',
+            'title' => 'Inthecircle Networking App for Creators Community',
+            'description' => 'Inthecircle is a networking app for creators. Connect with creators, collaborate on projects, and grow your circle in a creators-only iOS community.',
+            'url' => ITC_SEO_BASE_URL . '/',
+        ],
+        'home-v2' => [
+            'title' => 'Inthecircle Networking App for Creators Community',
+            'description' => 'Inthecircle is a networking app for creators. Connect with creators, collaborate on projects, and grow your circle in a creators-only iOS community.',
             'url' => ITC_SEO_BASE_URL . '/',
         ],
         'about' => [
@@ -321,7 +326,16 @@ function itc_seo_home_internal_links($content) {
     
     $about_url = home_url('/about/');
     $faq_url = home_url('/faq/');
-    $links = '<p class="itc-seo-links" style="margin:1.25rem 0;font-size:0.95em;"><a href="' . esc_url($about_url) . '" style="color:#a5b4fc;">Learn more about our mission</a> &middot; <a href="' . esc_url($faq_url) . '" style="color:#a5b4fc;">See our FAQ</a></p>';
+    $blog_url = home_url('/blog/');
+    $terms_url = home_url('/terms-of-service/');
+    $privacy_url = home_url('/privacy-policy/');
+    $links = '<p class="itc-seo-links" style="margin:1.25rem 0;font-size:0.95em;">'
+        . '<a href="' . esc_url($about_url) . '" style="color:#a5b4fc;">About</a> &middot; '
+        . '<a href="' . esc_url($faq_url) . '" style="color:#a5b4fc;">FAQ</a> &middot; '
+        . '<a href="' . esc_url($blog_url) . '" style="color:#a5b4fc;">Blog</a> &middot; '
+        . '<a href="' . esc_url($terms_url) . '" style="color:#a5b4fc;">Terms</a> &middot; '
+        . '<a href="' . esc_url($privacy_url) . '" style="color:#a5b4fc;">Privacy</a>'
+        . '</p>';
     
     // Insert before "How It Works" or first H2
     if (preg_match('/(<h2[^>]*>)/i', $content, $m)) {
@@ -838,7 +852,11 @@ function itc_seo_footer_internal_links() {
         var p = document.createElement('p');
         p.className = 'itc-seo-links';
         p.style.cssText = 'margin:1.25rem 0;font-size:0.95em';
-        p.innerHTML = '<a href="<?php echo $about; ?>" style="color:#a5b4fc">Learn more about our mission</a> &middot; <a href="<?php echo $faq; ?>" style="color:#a5b4fc">See our FAQ</a>';
+        p.innerHTML = '<a href="<?php echo $about; ?>" style="color:#a5b4fc">About</a> &middot; '
+            + '<a href="<?php echo $faq; ?>" style="color:#a5b4fc">FAQ</a> &middot; '
+            + '<a href="<?php echo esc_url(home_url('/blog/')); ?>" style="color:#a5b4fc">Blog</a> &middot; '
+            + '<a href="<?php echo esc_url(home_url('/terms-of-service/')); ?>" style="color:#a5b4fc">Terms</a> &middot; '
+            + '<a href="<?php echo esc_url(home_url('/privacy-policy/')); ?>" style="color:#a5b4fc">Privacy</a>';
         firstH2.parentNode.insertBefore(p, firstH2);
     })();
     </script>
