@@ -239,7 +239,7 @@ function itc_seo_output_schema() {
                 ],
                 // Keep a minimal sameAs list to avoid excessive external-link ratio penalties in analyzers.
                 'sameAs' => [
-                    'https://www.instagram.com/inthecircle',
+                    'https://www.instagram.com/inthecirclee',
                 ],
                 'contactPoint' => [
                     '@type' => 'ContactPoint',
