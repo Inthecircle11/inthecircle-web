@@ -2,13 +2,13 @@
 /**
  * Plugin Name: Inthecircle SEO Enhancements
  * Description: Implements recommended SEO: meta tags, Open Graph, Twitter Cards, Schema.org, canonicals, per-page titles/descriptions.
- * Version: 1.9.4
+ * Version: 1.9.5
  * Author: Inthecircle
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('ITC_SEO_VERSION', '1.9.4');
+define('ITC_SEO_VERSION', '1.9.5');
 define('ITC_SEO_BASE_URL', 'https://inthecircle.co');
 define('ITC_SEO_OG_IMAGE', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/email-logo-optimized.jpg');
 define('ITC_SEO_LOGO_URL', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/inthecircle-logo-header-optimized-1.png');
@@ -16,6 +16,18 @@ define('ITC_SEO_OPTION_APP_STORE_ID', 'itc_seo_app_store_id');
 
 /** SEO keywords for ranking in creator/app-related searches (aligned with app.inthecircle.co) */
 define('ITC_SEO_KEYWORDS', 'inthecircle, in the circle app, creator networking app, networking app for creators, connect with creators, creator community, YouTuber network, streamer community, digital creator app, collaboration app, creator platform');
+
+
+/** Normalize brand and positioning text everywhere. */
+function itc_seo_normalize_brand_copy($text) {
+    if (!is_string($text) || $text === '') return $text;
+    $text = str_replace('InTheCircle', 'Inthecircle', $text);
+    $text = preg_replace('/\bfounders\b\s*,\s*/i', '', $text);
+    $text = preg_replace('/\bfounders\b\s*&\s*/i', 'creators & ', $text);
+    $text = preg_replace('/\bfounders\b/i', 'creators', $text);
+    $text = preg_replace('/\bcreators\s*,\s*creators\b/i', 'creators', $text);
+    return $text;
+}
 
 function itc_seo_get_app_store_id() {
     $id = get_option(ITC_SEO_OPTION_APP_STORE_ID, '');
@@ -381,26 +393,24 @@ add_filter('the_content', 'itc_seo_app_store_url', 5);
  * Override All in One SEO title and description with our recommended values
  */
 function itc_seo_aioseo_title($title) {
-    if (!itc_seo_should_override_aioseo_meta()) {
-        return $title;
+    if (itc_seo_should_override_aioseo_meta()) {
+        $data = itc_seo_get_current_data();
+        if (isset($data['title']) && !empty($data['title'])) {
+            $title = $data['title'];
+        }
     }
-    $data = itc_seo_get_current_data();
-    if (isset($data['title']) && !empty($data['title'])) {
-        return $data['title'];
-    }
-    return $title;
+    return itc_seo_normalize_brand_copy($title);
 }
 add_filter('aioseo_title', 'itc_seo_aioseo_title', 999);
 
 function itc_seo_aioseo_description($description) {
-    if (!itc_seo_should_override_aioseo_meta()) {
-        return $description;
+    if (itc_seo_should_override_aioseo_meta()) {
+        $data = itc_seo_get_current_data();
+        if (isset($data['description']) && !empty($data['description'])) {
+            $description = $data['description'];
+        }
     }
-    $data = itc_seo_get_current_data();
-    if (isset($data['description']) && !empty($data['description'])) {
-        return $data['description'];
-    }
-    return $description;
+    return itc_seo_normalize_brand_copy($description);
 }
 add_filter('aioseo_description', 'itc_seo_aioseo_description', 999);
 
@@ -416,6 +426,9 @@ function itc_seo_aioseo_facebook_tags($tags) {
     }
     $tags['og:image'] = ITC_SEO_OG_IMAGE;
     $tags['og:site_name'] = 'Inthecircle';
+    foreach ($tags as $k => $v) {
+        if (is_string($v)) $tags[$k] = itc_seo_normalize_brand_copy($v);
+    }
     return $tags;
 }
 add_filter('aioseo_facebook_tags', 'itc_seo_aioseo_facebook_tags', 999);
@@ -431,6 +444,9 @@ function itc_seo_aioseo_twitter_tags($tags) {
         }
     }
     $tags['twitter:image'] = ITC_SEO_OG_IMAGE;
+    foreach ($tags as $k => $v) {
+        if (is_string($v)) $tags[$k] = itc_seo_normalize_brand_copy($v);
+    }
     return $tags;
 }
 add_filter('aioseo_twitter_tags', 'itc_seo_aioseo_twitter_tags', 999);
@@ -873,11 +889,16 @@ function itc_seo_404_title_parts($parts) {
         return ['title' => 'Page Not Found', 'page' => '', 'tagline' => 'Inthecircle'];
     }
     if (!itc_seo_should_override_aioseo_meta()) {
+        if (is_array($parts)) {
+            foreach ($parts as $k => $v) {
+                if (is_string($v)) $parts[$k] = itc_seo_normalize_brand_copy($v);
+            }
+        }
         return $parts;
     }
     $data = itc_seo_get_current_data();
     if (isset($data['title']) && !empty($data['title'])) {
-        return ['title' => $data['title'], 'page' => '', 'tagline' => ''];
+        return ['title' => itc_seo_normalize_brand_copy($data['title']), 'page' => '', 'tagline' => ''];
     }
     return $parts;
 }
@@ -1444,3 +1465,18 @@ function itc_seo_script_loader_tag_minify($tag, $handle, $src) {
     return '<script id="' . esc_attr($id_attr) . '-min" type="text/javascript">' . $min . '</script>';
 }
 add_filter('script_loader_tag', 'itc_seo_script_loader_tag_minify', 10, 3);
+
+
+/**
+ * Last-resort cleanup for legacy AIOSEO schema/template strings on frontend output.
+ */
+function itc_seo_replace_brand_in_buffer($buffer) {
+    return itc_seo_normalize_brand_copy($buffer);
+}
+
+function itc_seo_start_output_buffer() {
+    if (is_admin() || wp_doing_ajax() || (defined('REST_REQUEST') && REST_REQUEST)) return;
+    ob_start('itc_seo_replace_brand_in_buffer');
+}
+add_action('template_redirect', 'itc_seo_start_output_buffer', 0);
+

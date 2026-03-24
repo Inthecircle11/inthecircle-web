@@ -48,23 +48,23 @@ function truncateAtWord(text, max) {
 }
 
 function normalizeTitle(rawTitle) {
-  const base = stripHtml(rawTitle).replace(/\s*\|\s*InTheCircle$/i, '').trim();
-  const withBrand = `${base} | InTheCircle`;
+  const base = stripHtml(rawTitle).replace(/\s*\|\s*Inthecircle$/i, '').trim();
+  const withBrand = `${base} | Inthecircle`;
   if (withBrand.length <= 60) return withBrand;
-  const trimmedBase = truncateAtWord(base, 60 - ' | InTheCircle'.length);
-  return `${trimmedBase} | InTheCircle`;
+  const trimmedBase = truncateAtWord(base, 60 - ' | Inthecircle'.length);
+  return `${trimmedBase} | Inthecircle`;
 }
 
 function normalizeDescription(rawTitle, rawExcerpt) {
-  const src = stripHtml(rawExcerpt) || `Read ${stripHtml(rawTitle)} and connect with creators on InTheCircle.`;
+  const src = stripHtml(rawExcerpt) || `Read ${stripHtml(rawTitle)} and connect with creators on Inthecircle.`;
   let out = src;
   if (out.length < MIN_DESC) {
-    out = `${out} InTheCircle helps creators network, collaborate, and grow through real opportunities.`;
+    out = `${out} Inthecircle helps creators network, collaborate, and grow through real opportunities.`;
   }
   out = truncateAtWord(out, MAX_DESC);
   if (out.length < MIN_DESC) {
     out = truncateAtWord(
-      `${out} Join InTheCircle today to build your creator network and discover new collaborations.`,
+      `${out} Join Inthecircle today to build your creator network and discover new collaborations.`,
       MAX_DESC
     );
   }
