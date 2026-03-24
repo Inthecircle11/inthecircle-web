@@ -2,13 +2,13 @@
 /**
  * Plugin Name: Inthecircle SEO Enhancements
  * Description: Implements recommended SEO: meta tags, Open Graph, Twitter Cards, Schema.org, canonicals, per-page titles/descriptions.
- * Version: 2.0.1
+ * Version: 2.0.2
  * Author: Inthecircle
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('ITC_SEO_VERSION', '2.0.1');
+define('ITC_SEO_VERSION', '2.0.2');
 define('ITC_SEO_BASE_URL', 'https://inthecircle.co');
 define('ITC_SEO_OG_IMAGE', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/email-logo-optimized.jpg');
 define('ITC_SEO_LOGO_URL', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/inthecircle-logo-header-optimized-1.png');
@@ -237,12 +237,9 @@ function itc_seo_output_schema() {
                     '@type' => 'ImageObject',
                     'url' => ITC_SEO_OG_IMAGE,
                 ],
+                // Keep a minimal sameAs list to avoid excessive external-link ratio penalties in analyzers.
                 'sameAs' => [
                     'https://www.instagram.com/inthecircle',
-                    'https://www.tiktok.com/@inthecircle',
-                    'https://www.linkedin.com/company/inthecircle',
-                    'https://app.inthecircle.co',
-                    $app_store_url,
                 ],
                 'contactPoint' => [
                     '@type' => 'ContactPoint',
@@ -255,7 +252,7 @@ function itc_seo_output_schema() {
                 '@id' => ITC_SEO_BASE_URL . '/#website',
                 'url' => ITC_SEO_BASE_URL,
                 'name' => 'inthecircle',
-                'description' => 'inthecircle – #1 networking app for creators. Sign up and connect with creators.',
+                'description' => 'Inthecircle networking app for creators. Learn more on our About, FAQ, and Blog pages.',
                 'publisher' => ['@id' => ITC_SEO_BASE_URL . '/#organization'],
                 'potentialAction' => [
                     '@type' => 'SearchAction',
