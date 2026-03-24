@@ -4,6 +4,8 @@ Implements all recommended SEO changes for [inthecircle.co](https://inthecircle.
 
 **If your WordPress is on a different URL** (e.g. another domain or staging), set **`WORDPRESS_URL`** in `wordpress-seo/.env` and **`WP_SFTP_HOST`** / **`WP_SFTP_REMOTE_PATH`** in `wordpress-seo/.env.sftp` to that site. Docs that mention inthecircle.co then apply to your actual site.
 
+**Repo-root WordPress REST scripts** (run from the project root, e.g. `node scripts/audit-seo-scores.js`) can use **`scripts/.env.wp`** (do not commit) with `WP_SITE_URL`, `WP_USERNAME`, and `WP_APP_PASSWORD`, or the same values as `WORDPRESS_URL` / `WORDPRESS_USER` / `WORDPRESS_APP_PASSWORD`. Many scripts under `wordpress-seo/scripts/` try this file after `wordpress-seo/.env`. See [docs/plans/seo-ranking-roadmap.md](../docs/plans/seo-ranking-roadmap.md) Appendix A for the audit command.
+
 ## What This Plugin Does
 
 - **Meta tags:** Per-page title (50–60 chars) and description (150–160 chars)
