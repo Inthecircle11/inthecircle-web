@@ -1,6 +1,8 @@
 # SEO audit (current state) and full ranking roadmap
 
-Living roadmap for organic growth on **inthecircle.co** (WordPress) and **app.inthecircle.co** (Next.js). **Part B1** explains why this is a high-confidence strategy—not a ranking guarantee.
+**Current focus:** **WordPress only** ([inthecircle.co](https://inthecircle.co))—content, plugins, GSC, and publishing. The **app** domain is out of scope for this phase (left in Part A as background only).
+
+Living roadmap for organic growth with **inthecircle.co** as the primary SEO surface. **Part B1** explains why this is a high-confidence strategy—not a ranking guarantee.
 
 ## Part A — Audit: what we have today
 
@@ -9,9 +11,9 @@ Living roadmap for organic growth on **inthecircle.co** (WordPress) and **app.in
 | Surface | Role | In-repo signal |
 | -------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **inthecircle.co** | Marketing + blog; primary organic content and backlinks | [wordpress-seo/inthecircle-seo-enhancements.php](../../wordpress-seo/inthecircle-seo-enhancements.php), [wordpress-seo/README.md](../../wordpress-seo/README.md) |
-| **app.inthecircle.co** | Product; only select public URLs indexed | [src/app/sitemap.ts](../../src/app/sitemap.ts), [src/app/robots.ts](../../src/app/robots.ts), [src/lib/constants.ts](../../src/lib/constants.ts) (`SITE_URL`) |
+| **app.inthecircle.co** | Product (not prioritized for SEO work this phase) | [src/app/sitemap.ts](../../src/app/sitemap.ts), [src/app/robots.ts](../../src/app/robots.ts) |
 
-**Fit:** Blog and thought leadership live on WordPress; the app domain stays lean—aligned with “not everything indexable.” [Robots](../../src/app/robots.ts) references `https://inthecircle.co/sitemap_index.xml` alongside the app sitemap—good cross-property discovery.
+**Fit:** All editorial and ranking effort targets **WordPress**. The app stays lean by design; no need to tune app GSC/sitemaps while this focus is in effect.
 
 ### A2. WordPress plugin and automation (strengths)
 
@@ -19,17 +21,16 @@ Living roadmap for organic growth on **inthecircle.co** (WordPress) and **app.in
 - **Schema:** Organization, WebSite, SoftwareApplication/WebApplication, FAQ on FAQ page; App Store in structured data.
 - **UX/SEO glue:** Internal links from homepage, branded 404, image alt helper, security headers.
 - **Analytics:** GA4 hooks for `sign_up` / `download_app` (mark conversions in GA4).
-- **Content pipeline:** [wordpress-seo/blog-posts/](../../wordpress-seo/blog-posts/) — **9** SEO-oriented articles; publish via REST (`publish-posts-to-wordpress.js`) or WXR import; [wordpress-seo/INDEXING_CHECKLIST.md](../../wordpress-seo/INDEXING_CHECKLIST.md) + ping script pattern in README.
+- **Content pipeline:** [wordpress-seo/blog-posts/](../../wordpress-seo/blog-posts/) — **9** articles **+ 3 pillar hubs** (12 Markdown sources); publish via REST (`publish-posts-to-wordpress.js`) or WXR import; [wordpress-seo/INDEXING_CHECKLIST.md](../../wordpress-seo/INDEXING_CHECKLIST.md) + ping script pattern in README.
 
 ### A3. Repo scripts (operational)
 
 - **WordPress:** `set-aioseo-meta.js`, `upload-seo-plugin.mjs` / `upload-seo-plugin-sftp.mjs`, generate WXR, publish posts (paths under [wordpress-seo/scripts/](../../wordpress-seo/scripts/) and README).
 - **Scores / bulk:** [scripts/audit-seo-scores.js](../../scripts/audit-seo-scores.js) (AIOSEO analyze API), [scripts/improve-all-posts-seo.js](../../scripts/improve-all-posts-seo.js), [scripts/apply-seo-all-posts.js](../../scripts/apply-seo-all-posts.js), [scripts/force-seo-100.js](../../scripts/force-seo-100.js).
 
-### A4. App domain technical SEO (current)
+### A4. App domain (reference only — not in scope now)
 
-- **Sitemap:** [src/app/sitemap.ts](../../src/app/sitemap.ts) — `""`, `/download`, `/login`, `/signup`, `/forgot-password`, `/delete-account`, `/safety-standards`; sensible `changeFrequency` / `priority`.
-- **Robots:** Disallows app-internals (`/admin`, `/api/`, `/auth/`, feeds, authenticated areas) — appropriate.
+- **Sitemap / robots:** [src/app/sitemap.ts](../../src/app/sitemap.ts), [src/app/robots.ts](../../src/app/robots.ts). No action required while WordPress is the SEO priority.
 
 ### A5. Gaps (why “rank for many keywords” needs more than plugin + 9 posts)
 
@@ -37,7 +38,7 @@ Living roadmap for organic growth on **inthecircle.co** (WordPress) and **app.in
 2. **Intent coverage:** Need **commercial** (best apps, comparisons), **informational** (how to collaborate, grow), **navigational** (brand), and **geo** (GCC/MENA creators) in a deliberate mix—not only blog posts (landing hub pages, tools directories, glossaries).
 3. **Authority:** On-page + schema alone rarely win competitive head terms; **digital PR, partnerships, guest posts, communities, and linkable assets** must be planned and resourced.
 4. **TruSEO `linksRatio`:** Known ceiling (~96); treat as **non-blocking** for go-live decisions—focus on **search demand + quality + internal linking**, not chasing 100 on every URL.
-5. **Measurement:** Single source of truth: **GSC** (both properties if split), **GA4** (conversions already partially wired), optional rank tracker; define **review cadence** and **success metrics** per cluster.
+5. **Measurement:** **GSC** on the **inthecircle.co** domain property as the main report; **GA4** on the marketing site as needed; optional rank tracker; define **review cadence** and **success metrics** per cluster.
 
 ---
 
@@ -154,7 +155,7 @@ Set **monthly link/contact targets** (e.g., 10 meaningful outreach touches) and 
 
 ## Part F — Measurement and tooling
 
-- **Google Search Console:** Properties for inthecircle.co and app.inthecircle.co; monitor coverage, queries, page performance.
+- **Google Search Console:** **Domain property for inthecircle.co** — coverage, queries, pages, sitemaps (`sitemap_index.xml`). Skip app-only reporting unless you revisit app scope later.
 - **GA4:** Conversions for `download_app` / `sign_up`; optional organic landing page exploration report.
 - **Rank tracker (optional):** 30–50 tracked keywords across clusters; refresh weekly.
 - **Monthly review:** top movers/losers, content refreshes, new cluster bets.
@@ -179,7 +180,7 @@ Set **monthly link/contact targets** (e.g., 10 meaningful outreach touches) and 
 
 ## Summary
 
-**Audit:** Strong on-site WordPress SEO (plugin + AIOSEO + schema + blog pipeline) and a correctly scoped app sitemap/robots; **weak** relative to goal on **topic breadth, authority building, and repeatable content ops**. **Parts B–G** are the actionable roadmap; **Part B1** states why the approach is **high-confidence and promising** without claiming guaranteed rankings.
+**Audit:** Strong on-site **WordPress** SEO (plugin + AIOSEO + schema + blog pipeline); **weak** relative to goal on **topic breadth, authority building, and repeatable content ops**. **Parts B–G** are the actionable roadmap; **Part B1** states why the approach is **high-confidence and promising** without claiming guaranteed rankings.
 
 ---
 
@@ -217,3 +218,4 @@ Living files for the team (copy templates each quarter; keep CSV in Git or expor
 | 2026-03-24 | Initial roadmap in `docs/plans/`; `audit-seo-scores.js` resolves `scripts/.env.wp` or legacy Inthecircle path. |
 | 2026-03-24 | Keyword seed CSV, 90-day calendar template, outreach log template; linked from this doc and `README.md`. |
 | 2026-03-24 | Three pillar drafts in `wordpress-seo/blog-posts/` (10–12); publish script + AIOSEO focus map updated. |
+| 2026-03-24 | Scope: **WordPress-only** focus for execution; app domain deprioritized in this doc. |

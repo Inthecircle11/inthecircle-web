@@ -13,7 +13,7 @@ Duplicate or archive each quarter. Align with [seo-ranking-roadmap.md](./seo-ran
 
 | Task | Owner | Done |
 | ---- | ----- | ---- |
-| Export GSC performance (inthecircle.co + app) | | ☐ |
+| Export GSC performance (**inthecircle.co** domain property only) | | ☐ |
 | Import/prioritize rows from [seo-keyword-seed.csv](./seo-keyword-seed.csv) | | ☐ |
 | Pick 2–3 pillar URLs to ship or upgrade | | ☐ |
 
