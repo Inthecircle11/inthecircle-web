@@ -22,6 +22,7 @@
     "wp:check-posts": "node wordpress-seo/scripts/check-blog-posts-files.mjs",
     "wp:publish": "node wordpress-seo/scripts/publish-posts-to-wordpress.js",
     "wp:upload-plugin": "node wordpress-seo/scripts/upload-seo-plugin.mjs",
+    "wp:upload-site-essentials": "node wordpress-seo/scripts/upload-site-essentials-plugin.mjs",
     "wp:audit-seo": "node scripts/audit-seo-scores.js",
     "test:production-routing": "PRODUCTION_URL=https://app.inthecircle.co jest tests/guards/production-routing.test.ts --runInBand",
     "preview": "npx vercel",

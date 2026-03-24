@@ -1,5 +1,9 @@
 # InTheCircle SEO Enhancements – WordPress Plugin
 
+**Recommended:** use the clean replacement plugin **[Inthecircle Site Essentials](inthecircle-site-essentials/inthecircle-site-essentials.php)** (same SEO behavior, **no** sticky promo bar, smaller codebase). Keep **All in One SEO** active. Deactivate the legacy “Inthecircle SEO Enhancements” plugin, then activate **Inthecircle Site Essentials**. Deploy with `npm run wp:upload-site-essentials` (same `.env.sftp` as the old uploader).
+
+---
+
 Implements all recommended SEO changes for [inthecircle.co](https://inthecircle.co), aligned with the Next.js app (app.inthecircle.co) for consistent ranking on creator- and app-related searches.
 
 **If your WordPress is on a different URL** (e.g. another domain or staging), set **`WORDPRESS_URL`** in `wordpress-seo/.env` and **`WP_SFTP_HOST`** / **`WP_SFTP_REMOTE_PATH`** in `wordpress-seo/.env.sftp` to that site. Docs that mention inthecircle.co then apply to your actual site.
