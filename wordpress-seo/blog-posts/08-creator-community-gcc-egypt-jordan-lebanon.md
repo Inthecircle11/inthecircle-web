@@ -33,6 +33,10 @@ Generic global apps don’t always feel local. A **creator community** that welc
 
 inthecircle is that **creator community**—for **Egypt**, **Jordan**, **Lebanon**, and the rest of the **GCC** and **MENA**.
 
+## See also
+
+- **[MENA & GCC creators hub](https://inthecircle.co/mena-gcc-creators-hub/)** — broader regional guide and pillar page (request indexing in GSC after publish).
+
 ## Join the Creator Community for GCC, Egypt, Jordan & Lebanon
 
 You don’t need a different app for each country. One **creator networking app**, one **creator community**: **GCC**, **Egypt**, **Jordan**, **Lebanon**, and 50+ countries worldwide. Join **Arab creators** and **MENA creators** who are already connecting on inthecircle.

@@ -22,6 +22,9 @@ const POST_ORDER = [
   '07-inthecircle-community-trending-waitlist.md',
   '08-creator-community-gcc-egypt-jordan-lebanon.md',
   '09-inthecircle-waitlist-creators-joining.md',
+  '10-creator-networking-collaboration-hub.md',
+  '11-how-creators-work-together-playbook.md',
+  '12-mena-gcc-creators-hub.md',
 ];
 
 function parseFrontmatter(content) {

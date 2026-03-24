@@ -219,3 +219,4 @@ Living files for the team (copy templates each quarter; keep CSV in Git or expor
 | 2026-03-24 | Keyword seed CSV, 90-day calendar template, outreach log template; linked from this doc and `README.md`. |
 | 2026-03-24 | Three pillar drafts in `wordpress-seo/blog-posts/` (10–12); publish script + AIOSEO focus map updated. |
 | 2026-03-24 | Scope: **WordPress-only** focus for execution; app domain deprioritized in this doc. |
+| 2026-03-24 | INDEXING_CHECKLIST + blog-posts README aligned to 12 posts; WXR generator includes pillars; post 08 links to MENA pillar. |
