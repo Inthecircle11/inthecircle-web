@@ -21,8 +21,9 @@ Duplicate or archive each quarter. Align with [seo-ranking-roadmap.md](./seo-ran
 
 | Asset | Target URL / slug | Status |
 | ----- | ----------------- | ------ |
-| Pillar: Creator networking hub | | draft / live |
-| Pillar: Collaboration playbook | | draft / live |
+| Pillar: Creator networking hub | `creator-networking-collaboration-hub` | draft / live |
+| Pillar: Collaboration playbook | `how-creators-work-together-playbook` | draft / live |
+| Pillar: MENA / GCC hub | `mena-gcc-creators-hub` | draft / live |
 | Refresh post 1 (slug) | | |
 | Refresh post 2 (slug) | | |
 

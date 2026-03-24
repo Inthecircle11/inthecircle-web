@@ -27,9 +27,9 @@ Implements all recommended SEO changes for [inthecircle.co](https://inthecircle.
 
 ## Blog Posts for Keyword Ranking
 
-The **blog-posts** folder contains **9 SEO-optimized articles** you can add to inthecircle.co as WordPress Posts. They target: creator networking app, connect with creators, YouTuber network, streamer community, find collaborators, creator community, GCC/Egypt/Jordan/Lebanon, waitlist, and related terms.
+The **blog-posts** folder contains **9 SEO articles plus 3 pillar hubs** (networking/collaboration hub, collaboration playbook, MENA/GCC hub) you can add to inthecircle.co as WordPress Posts. They target: creator networking app, connect with creators, YouTuber network, streamer community, find collaborators, creator community, GCC/Egypt/Jordan/Lebanon, waitlist, pillar clusters, and related terms.
 
-- **Publish from repo:** Set `WORDPRESS_URL`, `WORDPRESS_USER`, and `WORDPRESS_APP_PASSWORD` in `.env` (see `.env.example`), then run `node scripts/publish-posts-to-wordpress.js` to create/update all 9 posts via the WordPress REST API.
+- **Publish from repo:** Set `WORDPRESS_URL`, `WORDPRESS_USER`, and `WORDPRESS_APP_PASSWORD` in `.env` (see `.env.example`), then run `node scripts/publish-posts-to-wordpress.js` to create/update all **12** posts via the WordPress REST API.
 - **Or one-click import:** Run `node scripts/generate-wxr.js` to generate **inthecircle-blog-import.xml**, then in WordPress go to **Tools → Import → WordPress** and upload that file.
 - **Notify search engines:** After publishing, run `node scripts/ping-sitemaps.js` to ping sitemap URLs. Then submit sitemaps in Google Search Console and (optional) Bing — see **INDEXING_CHECKLIST.md**.
 

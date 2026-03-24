@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Publish all 9 blog posts to WordPress via REST API.
+ * Publish all blog posts in POST_ORDER (9 articles + 3 pillar hubs) to WordPress via REST API.
  *
  * Prerequisites:
  * 1. WordPress at WORDPRESS_URL (e.g. https://inthecircle.co) with REST API enabled.
@@ -33,6 +33,9 @@ const POST_ORDER = [
   '07-inthecircle-community-trending-waitlist.md',
   '08-creator-community-gcc-egypt-jordan-lebanon.md',
   '09-inthecircle-waitlist-creators-joining.md',
+  '10-creator-networking-collaboration-hub.md',
+  '11-how-creators-work-together-playbook.md',
+  '12-mena-gcc-creators-hub.md',
 ];
 
 function loadEnv() {

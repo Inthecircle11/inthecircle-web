@@ -2,13 +2,13 @@
 /**
  * Plugin Name: Inthecircle SEO Enhancements
  * Description: Implements recommended SEO: meta tags, Open Graph, Twitter Cards, Schema.org, canonicals, per-page titles/descriptions.
- * Version: 2.0.4
+ * Version: 2.0.5
  * Author: Inthecircle
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('ITC_SEO_VERSION', '2.0.4');
+define('ITC_SEO_VERSION', '2.0.5');
 define('ITC_SEO_BASE_URL', 'https://inthecircle.co');
 define('ITC_SEO_OG_IMAGE', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/email-logo-optimized.jpg');
 define('ITC_SEO_LOGO_URL', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/inthecircle-logo-header-optimized-1.png');
@@ -534,6 +534,9 @@ function itc_seo_get_focus_keyphrase_map() {
         'ar-youtubers-streamers-dubai' => 'يوتيوبرز ستريمرز دبي',
         'ar-build-successful-content-community-dubai' => 'مجتمع محتوى ناجح دبي',
         'ar-future-content-creators-dubai-2026' => 'مستقبل صناع المحتوى دبي',
+        'creator-networking-collaboration-hub' => 'creator networking collaboration',
+        'how-creators-work-together-playbook' => 'creator collaboration playbook',
+        'mena-gcc-creators-hub' => 'MENA GCC creators',
     ];
 }
 

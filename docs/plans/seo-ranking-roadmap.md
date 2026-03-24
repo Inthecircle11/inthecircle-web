@@ -216,3 +216,4 @@ Living files for the team (copy templates each quarter; keep CSV in Git or expor
 | ---- | ------ |
 | 2026-03-24 | Initial roadmap in `docs/plans/`; `audit-seo-scores.js` resolves `scripts/.env.wp` or legacy Inthecircle path. |
 | 2026-03-24 | Keyword seed CSV, 90-day calendar template, outreach log template; linked from this doc and `README.md`. |
+| 2026-03-24 | Three pillar drafts in `wordpress-seo/blog-posts/` (10–12); publish script + AIOSEO focus map updated. |
