@@ -2,13 +2,13 @@
 /**
  * Plugin Name: Inthecircle SEO Enhancements
  * Description: Implements recommended SEO: meta tags, Open Graph, Twitter Cards, Schema.org, canonicals, per-page titles/descriptions.
- * Version: 1.9.5
+ * Version: 1.9.7
  * Author: Inthecircle
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('ITC_SEO_VERSION', '1.9.5');
+define('ITC_SEO_VERSION', '1.9.7');
 define('ITC_SEO_BASE_URL', 'https://inthecircle.co');
 define('ITC_SEO_OG_IMAGE', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/email-logo-optimized.jpg');
 define('ITC_SEO_LOGO_URL', ITC_SEO_BASE_URL . '/wp-content/uploads/2026/02/inthecircle-logo-header-optimized-1.png');
@@ -1479,4 +1479,66 @@ function itc_seo_start_output_buffer() {
     ob_start('itc_seo_replace_brand_in_buffer');
 }
 add_action('template_redirect', 'itc_seo_start_output_buffer', 0);
+
+
+
+/** Deep-replace helper for arrays/objects/scalars. */
+function itc_seo_recursive_normalize($value) {
+    if (is_string($value)) return itc_seo_normalize_brand_copy($value);
+    if (is_array($value)) {
+        foreach ($value as $k => $v) $value[$k] = itc_seo_recursive_normalize($v);
+        return $value;
+    }
+    if (is_object($value)) {
+        foreach ($value as $k => $v) $value->$k = itc_seo_recursive_normalize($v);
+        return $value;
+    }
+    return $value;
+}
+
+/** One-time migration: clean AIOSEO stored options/meta from legacy brand/positioning copy. */
+function itc_seo_run_aioseo_storage_cleanup_once() {
+    if (get_option('itc_seo_aioseo_cleanup_done')) return;
+
+    global $wpdb;
+
+    // 1) Clean all AIOSEO options safely via maybe_unserialize/update_option.
+    $rows = $wpdb->get_results("SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE 'aioseo_%'", ARRAY_A);
+    if (is_array($rows)) {
+        foreach ($rows as $row) {
+            $name = $row['option_name'];
+            $raw = $row['option_value'];
+            $old = maybe_unserialize($raw);
+            $new = itc_seo_recursive_normalize($old);
+            if ($new !== $old) {
+                update_option($name, $new);
+            }
+        }
+    }
+
+    // 2) Clean AIOSEO custom table text/json columns when available.
+    $aioseo_posts = $wpdb->prefix . 'aioseo_posts';
+    $exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $aioseo_posts));
+    if ($exists === $aioseo_posts) {
+        $cols = $wpdb->get_results("DESCRIBE `{$aioseo_posts}`", ARRAY_A);
+        $textCols = [];
+        foreach ((array) $cols as $c) {
+            $type = strtolower((string) ($c['Type'] ?? ''));
+            $field = (string) ($c['Field'] ?? '');
+            if ($field && (strpos($type, 'char') !== false || strpos($type, 'text') !== false || strpos($type, 'json') !== false)) {
+                $textCols[] = $field;
+            }
+        }
+        foreach ($textCols as $col) {
+            $wpdb->query("UPDATE `{$aioseo_posts}` SET `{$col}` = REPLACE(`{$col}`, 'InTheCircle', 'Inthecircle') WHERE `{$col}` LIKE '%InTheCircle%'");
+            $wpdb->query("UPDATE `{$aioseo_posts}` SET `{$col}` = REPLACE(`{$col}`, 'founders, ', '') WHERE `{$col}` LIKE '%founders, %'");
+            $wpdb->query("UPDATE `{$aioseo_posts}` SET `{$col}` = REPLACE(`{$col}`, 'founders & ', 'creators & ') WHERE `{$col}` LIKE '%founders & %'");
+            $wpdb->query("UPDATE `{$aioseo_posts}` SET `{$col}` = REPLACE(`{$col}`, 'founders', 'creators') WHERE `{$col}` LIKE '%founders%'");
+        }
+    }
+
+    update_option('itc_seo_aioseo_cleanup_done', time());
+}
+add_action('init', 'itc_seo_run_aioseo_storage_cleanup_once', 2);
+add_action('rest_api_init', 'itc_seo_run_aioseo_storage_cleanup_once', 2);
 
