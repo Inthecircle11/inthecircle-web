@@ -1,0 +1,62 @@
+cluster,keyword,intent,locale,priority,page_type,target_url,month
+brand,inthecircle,navigational,en,P1,app_or_home,TBD,TBD
+brand,inthe circle app,navigational,en,P1,app_or_home,TBD,TBD
+brand,inthecircle creators,navigational,en,P1,page,TBD,TBD
+brand,networking app for creators,commercial,en,P1,pillar,TBD,TBD
+brand,creator networking app,commercial,en,P1,pillar,TBD,TBD
+brand,find collaborators app,commercial,en,P1,pillar,TBD,TBD
+collaboration,find collaborators,informational,en,P1,pillar,TBD,TBD
+collaboration,find creators to collab,informational,en,P1,post,TBD,TBD
+collaboration,youtube collaboration,informational,en,P1,post,TBD,TBD
+collaboration,twitch collaboration,informational,en,P2,post,TBD,TBD
+collaboration,creator collab,informational,en,P1,post,TBD,TBD
+collaboration,co-create content,informational,en,P2,post,TBD,TBD
+collaboration,cross-promotion creators,informational,en,P2,post,TBD,TBD
+collaboration,creator introductions,informational,en,P2,post,TBD,TBD
+collaboration,local creators network,informational,en,P2,hub,TBD,TBD
+collaboration,creator community app,commercial,en,P1,post,TBD,TBD
+collaboration,meet other creators,informational,en,P1,post,TBD,TBD
+collaboration,networking for youtubers,informational,en,P2,post,TBD,TBD
+collaboration,networking for streamers,informational,en,P2,post,TBD,TBD
+collaboration,networking for tiktokers,informational,en,P2,post,TBD,TBD
+geo,creators in UAE,informational,en,P2,hub,TBD,TBD
+geo,Saudi creators,informational,en,P2,post,TBD,TBD
+geo,Egypt creators community,informational,en,P2,post,TBD,TBD
+geo,Jordan creators,informational,en,P2,post,TBD,TBD
+geo,Lebanon creators,informational,en,P3,post,TBD,TBD
+geo,Dubai creators network,informational,en,P2,post,TBD,TBD
+geo,MENA creator community,informational,en,P1,hub,TBD,TBD
+geo,GCC content creators,informational,en,P2,hub,TBD,TBD
+geo,مجتمع صناع المحتوى,informational,ar,P2,post,TBD,TBD
+career,become full-time creator,informational,en,P2,post,TBD,TBD
+career,creator income streams,informational,en,P2,post,TBD,TBD
+career,brand deals creators,informational,en,P2,post,TBD,TBD
+career,sponsorship rates creators,informational,en,P3,post,TBD,TBD
+career,creator portfolio,informational,en,P2,post,TBD,TBD
+career,media kit creator,informational,en,P2,post,TBD,TBD
+career,how to pitch brands as a creator,informational,en,P2,post,TBD,TBD
+tools_editing,capcut for creators,informational,en,P2,post,TBD,TBD
+tools_editing,premiere pro workflow creators,informational,en,P3,post,TBD,TBD
+tools_editing,davinci resolve creators,informational,en,P3,post,TBD,TBD
+tools_editing,canva for creators,informational,en,P2,post,TBD,TBD
+tools_shortform,tiktok algorithm tips,informational,en,P2,post,TBD,TBD
+tools_shortform,youtube shorts vs tiktok,informational,en,P2,post,TBD,TBD
+tools_shortform,repurpose content creators,informational,en,P2,post,TBD,TBD
+tools_audio,audacity podcast,informational,en,P3,post,TBD,TBD
+tools_audio,descript for creators,informational,en,P3,post,TBD,TBD
+tools_audio,podcast guests how to find,informational,en,P2,post,TBD,TBD
+tools_scheduling,best scheduling tools for creators,commercial,en,P2,post,TBD,TBD
+tools_scheduling,buffer for creators,informational,en,P3,post,TBD,TBD
+tools_scheduling,later app creators,informational,en,P3,post,TBD,TBD
+tools_analytics,youtube analytics guide,informational,en,P2,post,TBD,TBD
+tools_analytics,instagram insights creators,informational,en,P2,post,TBD,TBD
+tools_analytics,channel audit checklist,informational,en,P2,post,TBD,TBD
+tools_community,discord for creators,informational,en,P2,post,TBD,TBD
+tools_community,patreon alternatives creators,commercial,en,P3,post,TBD,TBD
+tools_community,creator community platforms,commercial,en,P2,post,TBD,TBD
+tools_monetization,creator funds explained,informational,en,P3,post,TBD,TBD
+tools_monetization,affiliate marketing for creators,informational,en,P2,post,TBD,TBD
+tools_monetization,merch for creators,informational,en,P3,post,TBD,TBD
+comparison,inthecircle vs linkedin for creators,commercial,en,P3,post,TBD,TBD
+comparison,creator networking platforms comparison,commercial,en,P3,pillar,TBD,TBD
+comparison,networking apps for influencers,commercial,en,P3,post,TBD,TBD

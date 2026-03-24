@@ -200,8 +200,19 @@ Lines using `WORDPRESS_URL`, `WORDPRESS_USER`, `WORDPRESS_APP_PASSWORD` are also
 
 ---
 
+## Operational artifacts
+
+Living files for the team (copy templates each quarter; keep CSV in Git or export to Sheets).
+
+- [seo-keyword-seed.csv](./seo-keyword-seed.csv) — seed keywords from Part B2 with `cluster`, `intent`, `priority`, placeholders for URL/month.
+- [content-calendar-90d-template.md](./content-calendar-90d-template.md) — 90-day spine from Part D with checklists and weekly slots.
+- [outreach-log-template.md](./outreach-log-template.md) — backlinks / PR touch log from Part E.
+
+---
+
 ## Changelog
 
 | Date | Change |
 | ---- | ------ |
 | 2026-03-24 | Initial roadmap in `docs/plans/`; `audit-seo-scores.js` resolves `scripts/.env.wp` or legacy Inthecircle path. |
+| 2026-03-24 | Keyword seed CSV, 90-day calendar template, outreach log template; linked from this doc and `README.md`. |
